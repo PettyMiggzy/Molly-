@@ -221,10 +221,22 @@
     text-align: center;
     animation: bounce 6s ease-in-out infinite;
   }
-  .hero-img img {
+  .hero-img img,
+  .hero-video {
     width: 100%;
     max-width: 520px;
     filter: drop-shadow(8px 12px 0 var(--molly-purple-dark)) drop-shadow(0 30px 50px rgba(0,0,0,0.6));
+  }
+  .hero-video {
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    background: transparent;
+  }
+  .hero-video img {
+    width: 100%;
+    height: auto;
+    display: block;
   }
   @keyframes bounce {
     0%,100% { transform: translateY(0); }
@@ -899,7 +911,14 @@
   </div>
 
   <div class="hero-img">
-    <img src="assets/molly-hero.png" alt="Molly the hedgehog">
+    <video class="hero-video"
+           autoplay muted loop playsinline preload="auto"
+           poster="assets/molly-hero.png"
+           aria-label="Molly waves hello">
+      <source src="assets/molly-hero.webm" type="video/webm">
+      <!-- Fallback to static image if video can't play -->
+      <img src="assets/molly-hero.png" alt="Molly the hedgehog">
+    </video>
   </div>
 </section>
 
