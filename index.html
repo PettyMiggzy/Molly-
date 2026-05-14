@@ -248,23 +248,20 @@
     50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
   }
   .hero-img img,
-  .hero-video {
+  .hero-molly {
     position: relative;
     z-index: 1;
     width: 100%;
     max-width: 520px;
-    filter: drop-shadow(8px 12px 0 var(--molly-purple-dark)) drop-shadow(0 30px 50px rgba(0,0,0,0.6));
-  }
-  .hero-video {
     height: auto;
     display: block;
     margin: 0 auto;
-    background: transparent;
+    filter: drop-shadow(8px 12px 0 var(--molly-purple-dark)) drop-shadow(0 30px 50px rgba(0,0,0,0.6));
+    animation: molly-idle 4s ease-in-out infinite;
   }
-  .hero-video img {
-    width: 100%;
-    height: auto;
-    display: block;
+  @keyframes molly-idle {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-10px) rotate(-1deg); }
   }
 
   /* === SPEECH BUBBLE === */
@@ -317,35 +314,6 @@
     border-top: 18px solid var(--cream);
   }
 
-  /* === UNMUTE BUTTON === */
-  .hero-unmute {
-    position: absolute;
-    bottom: 8%;
-    right: 4%;
-    z-index: 5;
-    background: var(--accent);
-    color: var(--ink);
-    border: 3px solid var(--ink);
-    border-radius: 999px;
-    padding: 0.5rem 0.95rem;
-    font-family: var(--display);
-    font-size: 0.9rem;
-    cursor: pointer;
-    box-shadow: 3px 3px 0 var(--ink);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .hero-unmute:hover {
-    transform: translate(-2px,-2px);
-    box-shadow: 5px 5px 0 var(--ink);
-  }
-  .hero-unmute.playing {
-    background: var(--pink);
-  }
-  .unmute-icon { font-size: 1.05rem; line-height: 1; }
-  .unmute-label { letter-spacing: 0.04em; }
   @keyframes bounce {
     0%,100% { transform: translateY(0); }
     50% { transform: translateY(-15px); }
@@ -1129,7 +1097,6 @@
       padding: 0.7rem 1rem;
     }
     .hero-bubble-text { font-size: 1.1rem; }
-    .hero-unmute { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
     .hero {
       grid-template-columns: 1fr;
       min-height: auto;
@@ -1197,23 +1164,12 @@
   </div>
 
   <div class="hero-img">
-    <!-- speech bubble welcomes the nads in case audio is off -->
+    <!-- speech bubble -->
     <div class="hero-bubble">
       <span class="hero-bubble-text">WELCOME<br>NADS!</span>
       <span class="hero-bubble-tail"></span>
     </div>
-    <video class="hero-video"
-           id="heroVideo"
-           autoplay muted loop playsinline preload="auto"
-           poster="assets/molly-hero.png"
-           aria-label="Molly waves hello">
-      <source src="assets/molly-hero.webm" type="video/webm">
-      <img src="assets/molly-hero.png" alt="Molly the hedgehog">
-    </video>
-    <button class="hero-unmute" id="unmuteBtn" aria-label="Toggle sound">
-      <span class="unmute-icon">🔇</span>
-      <span class="unmute-label">unmute</span>
-    </button>
+    <img class="hero-molly" src="assets/molly-hero.png" alt="Molly the hedgehog waving">
   </div>
 </section>
 
@@ -1662,25 +1618,6 @@
 
     tick();
     setInterval(tick, 20_000);
-  })();
-
-  // Hero unmute toggle
-  (function () {
-    const v = document.getElementById('heroVideo');
-    const b = document.getElementById('unmuteBtn');
-    if (!v || !b) return;
-    function syncBtn() {
-      const muted = v.muted;
-      b.querySelector('.unmute-icon').textContent = muted ? '🔇' : '🔊';
-      b.querySelector('.unmute-label').textContent = muted ? 'unmute' : 'mute';
-      b.classList.toggle('playing', !muted);
-    }
-    b.addEventListener('click', () => {
-      v.muted = !v.muted;
-      if (!v.muted) v.play().catch(() => {});
-      syncBtn();
-    });
-    syncBtn();
   })();
 
   // Copy CA / pool
