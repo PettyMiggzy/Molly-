@@ -221,8 +221,36 @@
     text-align: center;
     animation: bounce 6s ease-in-out infinite;
   }
+  /* Soft pink halo behind molly to lift her off the dark bg */
+  .hero-img::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 110%;
+    height: 110%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      ellipse at center,
+      rgba(244, 168, 214, 0.85) 0%,
+      rgba(232, 127, 196, 0.55) 22%,
+      rgba(255, 216, 77, 0.25) 45%,
+      rgba(232, 127, 196, 0.10) 65%,
+      transparent 80%
+    );
+    filter: blur(50px);
+    z-index: 0;
+    pointer-events: none;
+    animation: hero-glow 5s ease-in-out infinite;
+  }
+  @keyframes hero-glow {
+    0%, 100% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  }
   .hero-img img,
   .hero-video {
+    position: relative;
+    z-index: 1;
     width: 100%;
     max-width: 520px;
     filter: drop-shadow(8px 12px 0 var(--molly-purple-dark)) drop-shadow(0 30px 50px rgba(0,0,0,0.6));
