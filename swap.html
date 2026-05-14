@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SWAP · MOLLY — Any Monad token</title>
+<meta name="description" content="Swap any token on Monad. Native MOLLY deep-link. Powered by the Monad DEX aggregator.">
+<meta property="og:title" content="🔁 SWAP · MOLLY">
+<meta property="og:description" content="Universal Monad swap on the Monad's home turf. Any token to any token.">
+<meta property="og:image" content="assets/molly-hero.png">
+<meta name="theme-color" content="#e87fc4">
+
+<link rel="icon" type="image/jpeg" href="assets/molly-hero.png">
+<link rel="apple-touch-icon" href="assets/molly-hero.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Space+Grotesk:wght@400;500;700&family=Bungee&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+<style>
+/* Swap-specific styles — keep moyaki's palette + typography */
+.swap-wrap{max-width:560px;margin:0 auto;padding:18px 18px 60px;}
+
+.swap-topbar{display:flex;justify-content:space-between;align-items:center;padding-bottom:18px;margin-bottom:24px;border-bottom:1px solid rgba(255,255,255,.08);}
+.swap-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);}
+.swap-brand img{width:42px;height:42px;border-radius:50%;border:2px solid var(--gold);box-shadow:0 0 18px rgba(232,127,196,.45);object-fit:cover;}
+.swap-brand-text{font-family:'Cinzel',serif;font-weight:800;font-size:18px;letter-spacing:2.5px;color:#fff;}
+.swap-brand-sub{font-family:'Space Grotesk',sans-serif;font-size:9px;letter-spacing:2px;color:var(--gold);margin-top:1px;text-transform:uppercase;}
+.swap-back{font-family:'Bungee',sans-serif;font-size:11px;letter-spacing:2px;text-decoration:none;color:#fff;padding:9px 14px;border:1.5px solid rgba(255,255,255,.18);border-radius:8px;}
+.swap-back:hover{border-color:var(--gold);box-shadow:0 0 12px rgba(232,127,196,.35);}
+
+.swap-hero{text-align:center;margin:14px 0 22px;}
+.swap-hero h1{font-family:'Bungee',sans-serif;font-size:clamp(34px,8vw,58px);letter-spacing:3px;line-height:.95;background:linear-gradient(135deg,var(--pink) 0%,var(--pink-deep) 50%,var(--purple-soft) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 22px rgba(232,127,196,.5));margin-bottom:10px;}
+.swap-hero p{font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:2.5px;color:var(--ink-dim);text-transform:uppercase;}
+
+.swap-card{
+  padding:22px 20px 20px;
+  background:rgba(22,16,46,.55);
+  border:1.5px solid rgba(232,127,196,.32);border-radius:18px;
+  box-shadow:0 0 36px rgba(232,127,196,.1),inset 0 0 60px rgba(131,110,249,.05);
+}
+
+.swap-conn{display:flex;align-items:center;gap:10px;justify-content:center;padding:11px 14px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:11px;letter-spacing:1.5px;margin-bottom:16px;cursor:pointer;border:1px solid transparent;text-transform:uppercase;}
+.swap-conn.off{background:rgba(255,79,160,.08);border-color:rgba(255,79,160,.3);color:#ffb0d0;}
+.swap-conn.on{background:rgba(124,228,198,.08);border-color:rgba(124,228,198,.35);color:var(--green);}
+.swap-conn .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+
+.swap-row{background:rgba(8,4,24,.6);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;margin-bottom:6px;}
+.swap-row .lbl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:10px;color:var(--ink-dim);letter-spacing:1.5px;text-transform:uppercase;}
+.swap-row .bal{color:var(--gold);cursor:pointer;}
+.swap-row .bal:hover{color:#fff;}
+.swap-row .input-row{display:flex;align-items:center;gap:10px;}
+.swap-row input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;min-width:0;width:100%;}
+.swap-row input::placeholder{color:#4a3a78;}
+
+.tk-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(232,127,196,.1);border:1.5px solid rgba(232,127,196,.35);border-radius:10px;cursor:pointer;flex-shrink:0;transition:.15s;}
+.tk-btn:hover{background:rgba(232,127,196,.18);border-color:var(--gold);box-shadow:0 0 12px rgba(232,127,196,.35);}
+.tk-btn .tk-emoji{width:26px;height:26px;border-radius:50%;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tk-btn .tk-emoji img{width:100%;height:100%;object-fit:cover;}
+.tk-btn .tk-sym{font-family:'Bungee',sans-serif;font-size:13px;letter-spacing:1.5px;color:#fff;}
+.tk-btn .tk-caret{font-size:10px;color:var(--gold);opacity:.7;}
+
+.flip-btn{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(131,110,249,.18);border:1.5px solid rgba(131,110,249,.4);color:#fff;font-size:20px;margin:-3px auto;cursor:pointer;position:relative;z-index:1;transition:.25s;}
+.flip-btn:hover{transform:rotate(180deg);background:rgba(131,110,249,.3);}
+
+.slip-row{display:flex;align-items:center;gap:6px;margin:14px 0 8px;flex-wrap:wrap;}
+.slip-row span:first-child{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:10px;letter-spacing:1.5px;color:var(--ink-dim);margin-right:4px;text-transform:uppercase;}
+.slip-pill{padding:6px 12px;border-radius:8px;background:rgba(232,127,196,.08);border:1px solid rgba(232,127,196,.25);color:var(--ink);font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:.15s;}
+.slip-pill:hover{border-color:var(--gold);}
+.slip-pill.active{background:var(--gold);color:#1a1138;box-shadow:0 0 12px rgba(232,127,196,.4);border-color:var(--gold);}
+
+.details{margin-top:14px;padding:14px;background:rgba(8,4,24,.55);border:1px solid rgba(131,110,249,.25);border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:11px;}
+.details .drow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:var(--ink-dim);}
+.details .drow b{color:#fff;font-weight:700;}
+.details .drow.gold b{color:var(--gold);}
+.details .drow.ember b{color:var(--ember);}
+
+#impactWarn{margin-top:10px;padding:12px 14px;border-radius:10px;border:1px solid;font-family:'Space Grotesk',sans-serif;font-size:11px;line-height:1.5;}
+
+.action-btn{display:block;width:100%;margin-top:14px;padding:16px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--gold) 0%,var(--ember) 100%);color:#1a1138;font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:2.5px;cursor:pointer;box-shadow:0 0 24px rgba(232,127,196,.4);transition:.15s;}
+.action-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 0 32px rgba(232,127,196,.5),0 0 32px rgba(255,122,42,.35);}
+.action-btn:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.4);color:#fff;background:rgba(131,110,249,.3);}
+
+.status{margin-top:12px;padding:11px 14px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:.3px;display:none;line-height:1.5;}
+.status.show{display:block;}
+.status.info{background:rgba(131,110,249,.12);border:1px solid rgba(131,110,249,.3);color:#cfc4ff;}
+.status.success{background:rgba(124,228,198,.08);border:1px solid rgba(124,228,198,.3);color:var(--green);}
+.status.error{background:rgba(255,79,160,.08);border:1px solid rgba(255,79,160,.3);color:#ffb0d0;}
+.status a{color:inherit;text-decoration:underline;}
+
+.note{margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:10px;letter-spacing:.3px;line-height:1.6;color:var(--ink-dim);text-align:center;}
+
+/* Token picker modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:9999;display:none;align-items:flex-start;justify-content:center;padding:60px 18px 18px;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{width:100%;max-width:480px;background:#1a1138;border:1.5px solid rgba(232,127,196,.35);border-radius:18px;box-shadow:0 0 60px rgba(232,127,196,.2);padding:18px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-head h3{font-family:'Cinzel',serif;font-weight:800;font-size:16px;letter-spacing:2px;color:#fff;}
+.modal-close{background:none;border:none;color:var(--ink);font-size:24px;cursor:pointer;padding:0 4px;line-height:1;}
+.modal-close:hover{color:var(--gold);}
+.search-input{width:100%;padding:12px 14px;background:rgba(8,4,24,.6);border:1.5px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;margin-bottom:14px;}
+.search-input:focus{border-color:var(--gold);}
+.section-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:9.5px;letter-spacing:2px;color:var(--ink-dim);margin:14px 0 8px;text-transform:uppercase;}
+.shortcuts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.shortcut{display:flex;align-items:center;gap:6px;padding:7px 10px;background:rgba(232,127,196,.08);border:1px solid rgba(232,127,196,.25);border-radius:8px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:11px;color:#fff;cursor:pointer;transition:.15s;}
+.shortcut:hover{background:rgba(232,127,196,.18);border-color:var(--gold);}
+.shortcut .ic{width:18px;height:18px;border-radius:50%;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.shortcut .ic img{width:100%;height:100%;object-fit:cover;}
+.token-list{max-height:340px;overflow-y:auto;}
+.token-row{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;transition:.12s;}
+.token-row:hover{background:rgba(232,127,196,.08);}
+.token-row .ic{width:34px;height:34px;border-radius:50%;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.token-row .ic img{width:100%;height:100%;object-fit:cover;}
+.token-row .meta{flex:1;min-width:0;}
+.token-row .sym{font-family:'Bungee',sans-serif;font-size:13px;letter-spacing:1.2px;color:#fff;}
+.token-row .nm{font-family:'Space Grotesk',sans-serif;font-size:10px;color:var(--ink-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.token-row .addr{font-family:'Space Grotesk',sans-serif;font-size:9px;color:rgba(232,127,196,.6);margin-top:1px;}
+.token-empty{padding:20px;text-align:center;color:var(--ink-dim);font-family:'Space Grotesk',sans-serif;font-size:11px;}
+</style>
+</head>
+<body>
+
+<div class="swap-wrap">
+
+<div class="swap-topbar">
+  <a href="/" class="swap-brand">
+    <img src="assets/molly-hero.png" alt="Molly">
+    <div>
+      <div class="swap-brand-text">MOLLY</div>
+      <div class="swap-brand-sub">First Lady of Monad</div>
+    </div>
+  </a>
+  <a href="/" class="swap-back">← HOME</a>
+</div>
+
+<section class="swap-hero">
+  <h1>🔁 SWAP</h1>
+  <p>ANY MONAD TOKEN ↔ ANY MONAD TOKEN</p>
+</section>
+
+<div class="swap-card">
+
+  <div id="connectPill" class="swap-conn off">
+    <span class="dot"></span>
+    <span id="connectText">WALLET NOT CONNECTED · TAP TO CONNECT</span>
+  </div>
+
+  <div class="swap-row">
+    <div class="lbl-row">
+      <span>YOU PAY</span>
+      <span class="bal" id="balIn">balance: —</span>
+    </div>
+    <div class="input-row">
+      <input type="text" id="amountIn" placeholder="0.0" inputmode="decimal" autocomplete="off">
+      <button class="tk-btn" id="pickIn" type="button">
+        <span class="tk-emoji" id="emojiIn"></span>
+        <span class="tk-sym" id="tokenIn">MON</span>
+        <span class="tk-caret">▼</span>
+      </button>
+    </div>
+  </div>
+
+  <button class="flip-btn" id="flipBtn" type="button" title="Flip direction">⇅</button>
+
+  <div class="swap-row">
+    <div class="lbl-row">
+      <span>YOU RECEIVE (est.)</span>
+      <span class="bal" id="balOut">balance: —</span>
+    </div>
+    <div class="input-row">
+      <input type="text" id="amountOut" placeholder="0.0" readonly>
+      <button class="tk-btn" id="pickOut" type="button">
+        <span class="tk-emoji" id="emojiOut"></span>
+        <span class="tk-sym" id="tokenOut">MOLLY</span>
+        <span class="tk-caret">▼</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="slip-row">
+    <span>SLIPPAGE</span>
+    <div class="slip-pill" data-slip="50">0.5%</div>
+    <div class="slip-pill" data-slip="100">1%</div>
+    <div class="slip-pill active" data-slip="300">3%</div>
+    <div class="slip-pill" data-slip="500">5%</div>
+    <div class="slip-pill" data-slip="1000">10%</div>
+  </div>
+
+  <div id="impactWarn" style="display:none;"></div>
+
+  <div class="details" id="detailsBox" style="display:none;">
+    <div class="drow"><span>route</span><b id="dRoute">—</b></div>
+    <div class="drow"><span>min received</span><b id="dMin">—</b></div>
+    <div class="drow gold"><span>price impact</span><b id="dImpact">—</b></div>
+  </div>
+
+  <button class="action-btn" id="actionBtn" disabled>CONNECT WALLET</button>
+
+  <div class="status" id="status"></div>
+
+  <p class="note">Powered by the Monad DEX aggregator. Best routes across every major venue — the chain remembered.</p>
+</div>
+
+<footer style="margin-top:30px;text-align:center;font-family:'Space Grotesk',sans-serif;font-size:10px;color:var(--ink-dim);letter-spacing:.5px;line-height:1.7;">
+  <div>monad mainnet · first lady of monad</div>
+  <div style="margin-top:6px;">
+    <a href="/" style="color:var(--ink-dim);text-decoration:none;">/home</a> ·
+    <a href="/#chogi" style="color:var(--ink-dim);text-decoration:none;">/lore</a> ·
+    <a href="#" target="_blank" rel="noopener" style="color:var(--ink-dim);text-decoration:none;">X</a>
+  </div>
+</footer>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">SELECT TOKEN</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <input type="text" id="searchInput" class="search-input" placeholder="Search symbol / name / paste contract address" autocomplete="off">
+    <div class="section-label">COMMON TOKENS</div>
+    <div class="shortcuts" id="shortcuts"></div>
+    <div class="section-label" id="resultsLabel">ECOSYSTEM</div>
+    <div class="token-list" id="tokenList"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script src="/js/wallet-helper.js"></script>
+<script src="/js/swap-engine.js"></script>
+<script>
+(function(){
+  'use strict';
+  if (!window.MoyakiSwap){ console.error('MoyakiSwap engine missing'); return; }
+  const T = window.MoyakiSwap;
+  const NATIVE = T.NATIVE_ZERO;
+  const $ = id => document.getElementById(id);
+
+  const KNOWN = [
+    { address: NATIVE, symbol: 'MON',    name: 'Monad', logo:'https://monorail-static.fra1.digitaloceanspaces.com/tokens/mon-token.svg', decimals: 18 },
+    { address: '0xb72e6262dae53caf167f0966421a0b9782977777', symbol:'MOLLY',  name:'Molly — First Lady of Monad', logo:'assets/molly-hero.png', decimals: 18 },
+    { address: '0xde22b2d5b92364fec7065c638ad82509949f7777', symbol:'MOYAKI', name:'Moyaki — the Monad',     logo:'https://storage.nadapp.net/coin/a12e769e-bd61-491e-8e28-6b4acf3ba2da', decimals: 18 },
+    { address: '0xb744f5cdb792d8187640214c4a1c9ace29af7777', symbol:'MONSHI', name:'Monshi',                    logo:'https://storage.nadapp.net/coin/bdf23c46-ccd6-447d-b3ed-d84a911aae7a', decimals: 18 },
+    { address: '0xaca86430cccedbedb35910fc8a5afef07da37777', symbol:'RENE',   name:'Rene',                      logo:'https://storage.nadapp.net/coin/515a9ad5-e127-4e97-92af-5f8206fa9478', decimals: 18 },
+    { address: '0x5e1b1a14c8758104b8560514e94ab8320e587777', symbol:'CHOGI',  name:'Chogi',                     logo:'assets/chogi-logo.png', decimals: 18 },
+    { address: '0x3bd359c1119da7da1d913d1c4d2b7c461115433a', symbol:'WMON',   name:'Wrapped MON',               logo:'https://monorail-static.fra1.digitaloceanspaces.com/tokens/wmon.svg', decimals: 18 },
+  ];
+  const SHORTCUT_SYMBOLS = ['MON','MOLLY','MOYAKI','MONSHI','RENE','CHOGI'];
+
+  const STATE = {
+    from: KNOWN[0],   // MON
+    to:   KNOWN[1],   // MOLLY
+    account: null,
+    slipBps: 300,
+    quote: null,
+    quoteSeq: 0,
+    pickingFor: null,
+  };
+
+  // ?from= / ?to= URL params (symbol or CA)
+  function resolveParamToken(raw){
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (/^0x[a-f0-9]{40}$/i.test(s)){
+      const lc = s.toLowerCase();
+      const k = KNOWN.find(x => x.address.toLowerCase() === lc);
+      if (k) return k;
+      return { address: lc, symbol: 'TOKEN', name: 'Custom token', logo: null, decimals: 18 };
+    }
+    const up = s.toUpperCase();
+    return KNOWN.find(x => (x.symbol||'').toUpperCase() === up) || null;
+  }
+  (function applyUrlParams(){
+    try{
+      const p = new URLSearchParams(window.location.search);
+      const fromParam = resolveParamToken(p.get('from'));
+      const toParam   = resolveParamToken(p.get('to'));
+      if (fromParam) STATE.from = fromParam;
+      if (toParam)   STATE.to   = toParam;
+      if (STATE.from.address.toLowerCase() === STATE.to.address.toLowerCase()){
+        STATE.from = KNOWN[0]; STATE.to = KNOWN[1];
+      }
+    }catch(e){}
+  })();
+
+  function fmt(n){
+    if (n == null || isNaN(n)) return '—';
+    const v = Number(n);
+    if (v === 0) return '0';
+    if (v < 0.0001) return v.toExponential(2);
+    if (v < 1) return v.toFixed(6);
+    if (v < 1000) return v.toFixed(4);
+    return v.toLocaleString('en-US', {maximumFractionDigits: 2});
+  }
+  function shortAddr(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
+  function tokenLogo(tok){
+    if (tok.logo){
+      return '<img src="' + tok.logo + '" alt="' + (tok.symbol||'?') + '" '
+           + 'onerror="this.outerHTML=\'<span style=&quot;color:#fff;font-family:Bungee,sans-serif;font-size:13px;&quot;>' + (tok.symbol||'?').slice(0,1) + '</span>\'">';
+    }
+    return '<span style="color:#fff;font-family:Bungee,sans-serif;font-size:13px;">' + (tok.symbol||'?').slice(0,1) + '</span>';
+  }
+
+  function paintPickers(){
+    $('emojiIn').innerHTML  = tokenLogo(STATE.from);
+    $('tokenIn').textContent = STATE.from.symbol;
+    $('emojiOut').innerHTML = tokenLogo(STATE.to);
+    $('tokenOut').textContent = STATE.to.symbol;
+  }
+
+  async function refreshBalances(){
+    if (!STATE.account){
+      $('balIn').textContent  = 'balance: —';
+      $('balOut').textContent = 'balance: —';
+      return;
+    }
+    try{
+      const [bIn, bOut] = await Promise.all([
+        STATE.from.address === NATIVE
+          ? T.nativeBalance(STATE.account)
+          : T.tokenBalance(STATE.from.address, STATE.account),
+        STATE.to.address === NATIVE
+          ? T.nativeBalance(STATE.account)
+          : T.tokenBalance(STATE.to.address, STATE.account),
+      ]);
+      const dIn  = STATE.from.decimals || 18;
+      const dOut = STATE.to.decimals   || 18;
+      $('balIn').textContent  = 'balance: ' + fmt(Number(ethers.formatUnits(bIn, dIn)))  + ' ' + STATE.from.symbol;
+      $('balOut').textContent = 'balance: ' + fmt(Number(ethers.formatUnits(bOut, dOut))) + ' ' + STATE.to.symbol;
+    }catch(e){}
+  }
+
+  async function tryConnect(){
+    // Guard against rapid re-taps. MetaMask throws 'wallet_requestPermissions
+    // already pending' if eth_requestAccounts is called twice. Bail out if a
+    // connect is already in flight.
+    if (STATE.connecting) return;
+    if (window.MoyakiWallet && !window.MoyakiWallet.requireWallet()){
+      return;  // sheet shown — user picks a wallet, gets sent there
+    }
+    STATE.connecting = true;
+    try{
+      const acct = await T.connect();
+      STATE.account = acct;
+      $('connectPill').classList.remove('off');
+      $('connectPill').classList.add('on');
+      $('connectText').textContent = acct.slice(0,6) + '…' + acct.slice(-4);
+      $('actionBtn').disabled = false;
+      $('actionBtn').textContent = 'ENTER AMOUNT';
+      await refreshBalances();
+      requestQuote();
+    }catch(e){
+      // Silently ignore the 'already pending' case — it's a duplicate fire,
+      // not a real error. Other failures surface as before.
+      const msg = String(e && e.message || e);
+      if (!/already pending/i.test(msg)){
+        setStatus('error', e.message || 'Wallet connect failed');
+      }
+    }finally{
+      STATE.connecting = false;
+    }
+  }
+
+  let quoteTimer = null;
+  function requestQuote(){ clearTimeout(quoteTimer); quoteTimer = setTimeout(doQuote, 400); }
+  async function doQuote(){
+    const amtStr = $('amountIn').value.trim();
+    const amt = parseFloat(amtStr);
+    $('detailsBox').style.display = 'none';
+    $('impactWarn').style.display = 'none';
+    if (!amt || amt <= 0){
+      $('amountOut').value = '';
+      $('actionBtn').textContent = STATE.account ? 'ENTER AMOUNT' : 'CONNECT WALLET';
+      $('actionBtn').disabled = !STATE.account;
+      return;
+    }
+    if (STATE.from.address.toLowerCase() === STATE.to.address.toLowerCase()){
+      setStatus('error', 'From and To are the same token.');
+      return;
+    }
+    setStatus('info', 'Routing best path across Monad DEXs…');
+    const seq = ++STATE.quoteSeq;
+    try{
+      const q = await T.quoteRoute({
+        from: STATE.from.address,
+        to:   STATE.to.address,
+        amount: amtStr,
+        sender: STATE.account || '0x000000000000000000000000000000000000dEaD',
+        slippageBps: STATE.slipBps,
+      });
+      if (seq !== STATE.quoteSeq) return;
+      STATE.quote = q;
+      $('amountOut').value = q.output_formatted || '';
+      $('detailsBox').style.display = '';
+      const proto = (q.routes && q.routes[0] && q.routes[0][0] && q.routes[0][0].splits && q.routes[0][0].splits[0] && q.routes[0][0].splits[0].protocol) || q._source || '?';
+      $('dRoute').textContent = STATE.from.symbol + ' → ' + STATE.to.symbol + ' via ' + proto;
+      $('dMin').textContent = (q.min_output_formatted || '—') + ' ' + STATE.to.symbol;
+      const imp = parseFloat(q.compound_impact || (q.routes && q.routes[0] && q.routes[0][0] && q.routes[0][0].splits && q.routes[0][0].splits[0] && q.routes[0][0].splits[0].price_impact) || 0);
+      $('dImpact').textContent = imp ? imp.toFixed(2) + '%' : '—';
+      if (imp >= 5){
+        const w = $('impactWarn');
+        w.style.display = '';
+        w.style.background = 'rgba(255,79,160,.08)';
+        w.style.borderColor = 'rgba(255,79,160,.4)';
+        w.style.color = '#ffcad4';
+        w.textContent = '⚠ HIGH PRICE IMPACT (' + imp.toFixed(1) + '%). Try a smaller amount, or accept higher slippage.';
+      }
+      if (STATE.account){
+        $('actionBtn').disabled = false;
+        const fromNative = STATE.from.address === NATIVE;
+        const verb = fromNative ? 'SWAP' : 'APPROVE + SWAP';
+        $('actionBtn').textContent = '🔁 ' + verb + ' ' + STATE.from.symbol + ' → ' + STATE.to.symbol;
+      }
+      setStatus('', '');
+    }catch(e){
+      if (seq !== STATE.quoteSeq) return;
+      STATE.quote = null;
+      $('amountOut').value = '';
+      $('actionBtn').disabled = true;
+      $('actionBtn').textContent = 'NO ROUTE FOUND';
+      setStatus('error', T.explainRevert(e) || e.message);
+    }
+  }
+
+  async function doSwap(){
+    if (!STATE.account){ return tryConnect(); }
+    if (!STATE.quote){ return; }
+    const amtStr = $('amountIn').value.trim();
+    if (!amtStr || parseFloat(amtStr) <= 0){
+      setStatus('error', 'Enter an amount.');
+      return;
+    }
+    $('actionBtn').disabled = true;
+    try{
+      setStatus('info', 'Building transaction…');
+      const result = await T.executeSwap({
+        from: STATE.from.address,
+        to:   STATE.to.address,
+        amountHuman: amtStr,
+        slippageBps: STATE.slipBps,
+        account: STATE.account,
+        onApproveStarted: () => setStatus('info', 'Approving ' + STATE.from.symbol + '… sign in wallet.'),
+        onApproveConfirmed: () => setStatus('info', 'Approval confirmed. Sign the swap…'),
+      });
+      const url = T.EXPLORER + '/tx/' + result.txHash;
+      setStatus('success', '✅ Swap submitted. <a href="' + url + '" target="_blank" rel="noopener">View tx ↗</a>');
+      const rec = await T.waitReceipt(result.txHash, 90000);
+      if (rec){
+        const got = result.quote.output_formatted;
+        setStatus('success', '🎉 Swap confirmed. Received ~' + got + ' ' + STATE.to.symbol + '. <a href="' + url + '" target="_blank" rel="noopener">View tx ↗</a>');
+      }
+      $('amountIn').value = '';
+      $('amountOut').value = '';
+      $('detailsBox').style.display = 'none';
+      await refreshBalances();
+    }catch(e){
+      setStatus('error', T.explainRevert(e) || e.message);
+    }finally{
+      $('actionBtn').disabled = false;
+      $('actionBtn').textContent = STATE.account ? '🔁 SWAP ' + STATE.from.symbol + ' → ' + STATE.to.symbol : 'CONNECT WALLET';
+    }
+  }
+
+  function setStatus(kind, msg){
+    const el = $('status');
+    if (!msg){ el.classList.remove('show'); el.innerHTML = ''; return; }
+    el.classList.remove('info','success','error');
+    el.classList.add('show');
+    if (kind) el.classList.add(kind);
+    el.innerHTML = msg;
+  }
+
+  function openPicker(which){
+    STATE.pickingFor = which;
+    $('modalTitle').textContent = which === 'in' ? 'SWAP FROM' : 'SWAP TO';
+    $('searchInput').value = '';
+    renderShortcuts();
+    renderTokenList(KNOWN, 'ECOSYSTEM');
+    $('modalOverlay').classList.add('show');
+    setTimeout(() => $('searchInput').focus(), 50);
+  }
+  function closePicker(){ $('modalOverlay').classList.remove('show'); }
+  function pickToken(tok){
+    if (STATE.pickingFor === 'in'){
+      if (tok.address.toLowerCase() === STATE.to.address.toLowerCase()){
+        STATE.to = STATE.from;
+      }
+      STATE.from = tok;
+    } else {
+      if (tok.address.toLowerCase() === STATE.from.address.toLowerCase()){
+        STATE.from = STATE.to;
+      }
+      STATE.to = tok;
+    }
+    paintPickers();
+    closePicker();
+    requestQuote();
+    refreshBalances();
+  }
+  function renderShortcuts(){
+    const root = $('shortcuts');
+    root.innerHTML = '';
+    for (const sym of SHORTCUT_SYMBOLS){
+      const tok = KNOWN.find(k => k.symbol === sym);
+      if (!tok) continue;
+      const el = document.createElement('button');
+      el.className = 'shortcut';
+      el.innerHTML = '<span class="ic">' + tokenLogo(tok) + '</span><span>' + tok.symbol + '</span>';
+      el.onclick = () => pickToken(tok);
+      root.appendChild(el);
+    }
+  }
+  function renderTokenList(list, label){
+    if (label) $('resultsLabel').textContent = label;
+    const root = $('tokenList');
+    root.innerHTML = '';
+    if (!list.length){
+      root.innerHTML = '<div class="token-empty">No tokens match. Try pasting a contract address.</div>';
+      return;
+    }
+    for (const tok of list){
+      const el = document.createElement('div');
+      el.className = 'token-row';
+      el.innerHTML =
+        '<span class="ic">' + tokenLogo(tok) + '</span>' +
+        '<div class="meta">' +
+          '<div class="sym">' + (tok.symbol||'?') + '</div>' +
+          '<div class="nm">' + (tok.name||'') + '</div>' +
+          (tok.address && tok.address !== NATIVE ? '<div class="addr">' + shortAddr(tok.address) + '</div>' : '') +
+        '</div>';
+      el.onclick = () => pickToken(tok);
+      root.appendChild(el);
+    }
+  }
+
+  let searchTimer = null;
+  async function onSearch(q){
+    clearTimeout(searchTimer);
+    if (!q){ renderTokenList(KNOWN, 'ECOSYSTEM'); return; }
+    if (/^0x[a-f0-9]{40}$/i.test(q.trim())){
+      const addr = q.trim().toLowerCase();
+      const known = KNOWN.find(k => k.address.toLowerCase() === addr);
+      if (known) return renderTokenList([known], 'MATCH');
+      $('resultsLabel').textContent = 'RESOLVING…';
+      try{
+        const [info, mono] = await Promise.all([
+          T.tokenInfo(addr),
+          fetch('https://api.monorail.xyz/v2/token/' + addr).then(r => r.ok ? r.json() : null).catch(()=>null),
+        ]);
+        const tok = { address: addr, symbol: info.symbol, name: info.name, decimals: info.decimals, logo: (mono && mono.image_uri) || null };
+        renderTokenList([tok], 'RESOLVED FROM CHAIN');
+      }catch(e){ renderTokenList([], 'NOT FOUND'); }
+      return;
+    }
+    searchTimer = setTimeout(async () => {
+      $('resultsLabel').textContent = 'SEARCHING…';
+      try{
+        const results = await T.searchTokens(q);
+        const normalized = (results || []).slice(0, 30).map(t => ({
+          address: (t.address || '').toLowerCase(),
+          symbol: t.symbol || '?',
+          name: t.name || '',
+          decimals: t.decimals || 18,
+          logo: t.image_uri || null,
+        })).filter(t => /^0x[a-f0-9]{40}$/i.test(t.address));
+        renderTokenList(normalized, normalized.length ? 'MONORAIL RESULTS' : 'NO MATCHES');
+
+        // Some Monorail search results don't include image_uri even when
+        // the token has one. Backfill in parallel by hitting /v2/token/{addr}
+        // for each, then re-render. Keeps the list snappy (initial render is
+        // immediate) while progressively upgrading letter-chips to real PFPs.
+        const needLogo = normalized.filter(t => !t.logo);
+        if (needLogo.length){
+          await Promise.allSettled(needLogo.map(async (t) => {
+            try{
+              const r = await fetch('https://api.monorail.xyz/v2/token/' + t.address);
+              if (!r.ok) return;
+              const j = await r.json();
+              if (j && j.image_uri) t.logo = j.image_uri;
+            }catch(e){}
+          }));
+          // Re-render with whatever logos we picked up
+          renderTokenList(normalized, 'MONORAIL RESULTS');
+        }
+      }catch(e){ renderTokenList([], 'SEARCH FAILED'); }
+    }, 250);
+  }
+
+  function flip(){
+    const tmp = STATE.from; STATE.from = STATE.to; STATE.to = tmp;
+    paintPickers();
+    $('amountIn').value = '';
+    $('amountOut').value = '';
+    $('detailsBox').style.display = 'none';
+    refreshBalances();
+  }
+
+  function init(){
+    paintPickers();
+    $('amountIn').addEventListener('input', requestQuote);
+    $('pickIn').addEventListener('click', () => openPicker('in'));
+    $('pickOut').addEventListener('click', () => openPicker('out'));
+    $('modalClose').addEventListener('click', closePicker);
+    $('modalOverlay').addEventListener('click', (e) => { if (e.target.id === 'modalOverlay') closePicker(); });
+    $('searchInput').addEventListener('input', e => onSearch(e.target.value));
+    $('flipBtn').addEventListener('click', flip);
+    document.querySelectorAll('.slip-pill').forEach(p => {
+      p.addEventListener('click', () => {
+        document.querySelectorAll('.slip-pill').forEach(x => x.classList.remove('active'));
+        p.classList.add('active');
+        STATE.slipBps = parseInt(p.dataset.slip);
+        if ($('amountIn').value) requestQuote();
+      });
+    });
+    $('balIn').addEventListener('click', async () => {
+      if (!STATE.account) return;
+      try{
+        const bal = STATE.from.address === NATIVE
+          ? await T.nativeBalance(STATE.account)
+          : await T.tokenBalance(STATE.from.address, STATE.account);
+        let raw = Number(ethers.formatUnits(bal, STATE.from.decimals || 18));
+        if (STATE.from.address === NATIVE) raw = Math.max(0, raw - 0.02);
+        $('amountIn').value = raw > 0 ? raw.toString() : '';
+        requestQuote();
+      }catch(e){}
+    });
+    $('connectPill').addEventListener('click', tryConnect);
+    $('actionBtn').addEventListener('click', doSwap);
+    if (window.ethereum && window.ethereum.selectedAddress){
+      tryConnect();
+    }
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

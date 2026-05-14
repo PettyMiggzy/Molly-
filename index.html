@@ -776,6 +776,14 @@
     gap: 0.75rem;
     margin-top: 1.5rem;
   }
+  .swap-foot {
+    text-align: center;
+    font-family: var(--hand);
+    font-size: 0.85rem;
+    color: var(--molly-purple-dark);
+    opacity: 0.7;
+    margin-top: 1rem;
+  }
 
   /* === NATIVE SWAP UI === */
   .swap-ui {
@@ -1666,55 +1674,18 @@
 
     <div class="swap-card reveal">
       <div class="swap-title">BUY $MOLLY</div>
-      <div class="swap-subtitle">MON → MOLLY · 0/0 tax · live on DEX 🎓</div>
+      <div class="swap-subtitle">any token on Monad → MOLLY · best routes auto-picked</div>
 
-      <div class="swap-ui">
-        <!-- INPUT -->
-        <div class="swap-row" data-row="in">
-          <div class="swap-row-label">You pay</div>
-          <div class="swap-row-input">
-            <input type="text" inputmode="decimal" id="swapInAmount"
-                   placeholder="0.0" autocomplete="off" spellcheck="false">
-            <button class="swap-token swap-token-mon" type="button" disabled>
-              <span class="swap-token-icon">🟣</span>
-              <span class="swap-token-sym">MON</span>
-            </button>
-          </div>
-          <div class="swap-row-balance">
-            <span id="swapBalance" class="swap-balance-amount">—</span>
-            <button class="swap-max" type="button" id="swapMax">MAX</button>
-          </div>
-        </div>
-
-        <!-- arrow -->
-        <div class="swap-arrow" aria-hidden="true">↓</div>
-
-        <!-- OUTPUT -->
-        <div class="swap-row" data-row="out">
-          <div class="swap-row-label">You get (est.)</div>
-          <div class="swap-row-input">
-            <input type="text" id="swapOutAmount" placeholder="0.0" readonly>
-            <button class="swap-token swap-token-molly" type="button" disabled>
-              <span class="swap-token-icon">🎀</span>
-              <span class="swap-token-sym">MOLLY</span>
-            </button>
-          </div>
-          <div class="swap-row-meta" id="swapQuoteMeta">slippage 5% · 1% pool fee</div>
-        </div>
-
-        <!-- ACTION -->
-        <button class="swap-action" id="swapAction" type="button">
-          CONNECT WALLET
-        </button>
-
-        <!-- STATUS -->
-        <div class="swap-status" id="swapStatus"></div>
-
-        <!-- Alt route -->
-        <div class="swap-alt">
-          <a href="https://monorail.xyz/?from=0x0000000000000000000000000000000000000000&to=0xB72e6262DAE53cAF167F0966421a0B9782977777"
-             target="_blank" rel="noopener">trouble swapping? try the aggregator ↗</a>
-        </div>
+      <div class="swap-cta-row">
+        <a href="/swap" class="btn btn-primary" style="justify-content: center;">
+          🛒 OPEN SWAP
+        </a>
+        <a href="#chart" class="btn btn-secondary" style="justify-content: center;">
+          📈 SEE CHART
+        </a>
+      </div>
+      <div class="swap-foot">
+        powered by the Monad DEX aggregator · routes across every major venue · 1% fee
       </div>
     </div>
   </div>
@@ -1735,7 +1706,6 @@
   <div class="footer-credit">A <strong>KING PETTY</strong> Build</div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script>
   // ============ LIVE BONDING STATUS ============
   // Pre-grad: reads nad.fun Lens contract on Monad RPC for progress
@@ -1911,252 +1881,6 @@
   document.querySelectorAll('[data-copy]').forEach(btn => {
     btn.addEventListener('click', () => copyCA(btn, btn.dataset.copy));
   });
-
-  // ============ NATIVE MON → MOLLY SWAP ============
-  // Uses the user's injected wallet (MetaMask, etc) to swap directly via
-  // the Crust Finance V3 SwapRouter on Monad. No off-site redirect.
-  (function nativeSwap() {
-    if (typeof ethers === 'undefined') return;
-
-    const MONAD_CHAIN_ID  = '0x279f';      // 10143
-    const MONAD_CHAIN_DEC = 10143;
-    const MOLLY = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
-    const WMON  = '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A';
-    const POOL_FEE = 10000;                // 1% — verified from pool.fee()
-    const DEX_ROUTER = '0x0B79d71AE99528D1dB24A4148b5f4F865cc2b137'; // nad.fun DexRouter
-    const LENS = '0x7e78A8DE94f21804F7a17F4E8BF9EC2c872187ea';
-    const DEFAULT_SLIPPAGE_BP = 500; // 5% — memes need headroom
-    const RPC = 'https://rpc.monad.xyz';
-
-    // SwapRouter02 (no deadline in params) — matches most V3 forks
-    const ROUTER_ABI = [
-      'function exactInputSingle((address tokenIn,address tokenOut,uint24 fee,address recipient,uint256 amountIn,uint256 amountOutMinimum,uint160 sqrtPriceLimitX96)) payable returns (uint256)',
-      'function refundETH() payable'
-    ];
-
-    const $ = (id) => document.getElementById(id);
-    const inAmt   = $('swapInAmount');
-    const outAmt  = $('swapOutAmount');
-    const action  = $('swapAction');
-    const status  = $('swapStatus');
-    const balEl   = $('swapBalance');
-    const maxBtn  = $('swapMax');
-    if (!inAmt || !action) return;
-
-    const fmt = (n, d=4) => {
-      const x = Number(n);
-      if (!isFinite(x)) return '—';
-      if (x >= 1e6) return (x/1e6).toFixed(2)+'M';
-      if (x >= 1e3) return (x/1e3).toFixed(2)+'K';
-      return x.toFixed(d).replace(/\.?0+$/,'');
-    };
-    const setStatus = (html, cls='') => {
-      status.innerHTML = html || '';
-      action.classList.remove('busy','success','fail','ready');
-      if (cls) action.classList.add(cls);
-    };
-
-    // Direct fetch to RPC (avoids ethers JsonRpcProvider CORS preflight issues)
-    async function rpcCall(method, params) {
-      const r = await fetch(RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc:'2.0', id:1, method, params }),
-      });
-      const j = await r.json();
-      if (j.error) throw new Error(j.error.message);
-      return j.result;
-    }
-    const padAddr = (a) => a.replace(/^0x/,'').padStart(64,'0').toLowerCase();
-    const padU = (n) => BigInt(n).toString(16).padStart(64,'0');
-
-    let signer = null;
-    let userAddr = null;
-
-    async function quote() {
-      const raw = (inAmt.value || '').trim();
-      if (!raw || isNaN(parseFloat(raw)) || parseFloat(raw) <= 0) {
-        outAmt.value = '';
-        return null;
-      }
-      try {
-        const amountIn = ethers.parseEther(raw);
-        // getAmountOut(address,uint256,bool) = 0xf2d65617
-        const data = '0xf2d65617'
-          + padAddr(MOLLY)
-          + padU(amountIn)
-          + padU(1n);
-        const result = await rpcCall('eth_call', [{ to: LENS, data }, 'latest']);
-        // [router(32B), amountOut(32B)]
-        const amountOut = BigInt('0x' + result.slice(2 + 64));
-        outAmt.value = fmt(Number(ethers.formatUnits(amountOut, 18)), 2);
-        return { amountIn, amountOut };
-      } catch (e) {
-        outAmt.value = '';
-        return null;
-      }
-    }
-
-    let quoteTimer;
-    inAmt.addEventListener('input', () => {
-      clearTimeout(quoteTimer);
-      quoteTimer = setTimeout(quote, 250);
-      updateButton();
-    });
-
-    async function refreshBalance() {
-      if (!userAddr) { balEl.textContent = '—'; return; }
-      try {
-        const hex = await rpcCall('eth_getBalance', [userAddr, 'latest']);
-        balEl.textContent = 'balance: ' + fmt(ethers.formatEther(BigInt(hex)), 4) + ' MON';
-      } catch { balEl.textContent = '—'; }
-    }
-
-    maxBtn.addEventListener('click', async () => {
-      if (!userAddr) return;
-      try {
-        const hex = await rpcCall('eth_getBalance', [userAddr, 'latest']);
-        const bal = BigInt(hex);
-        const reserve = ethers.parseEther('0.05');
-        const usable = bal > reserve ? bal - reserve : 0n;
-        inAmt.value = ethers.formatEther(usable);
-        quote();
-        updateButton();
-      } catch {}
-    });
-
-    function updateButton() {
-      if (!userAddr) { action.textContent = 'CONNECT WALLET'; action.disabled = false; return; }
-      const v = parseFloat(inAmt.value);
-      if (!v || v <= 0) { action.textContent = 'ENTER AMOUNT'; action.disabled = true; return; }
-      action.textContent = 'BUY $MOLLY';
-      action.disabled = false;
-      action.classList.add('ready');
-    }
-
-    async function ensureMonadNetwork() {
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      if (chainId.toLowerCase() === MONAD_CHAIN_ID) return;
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: MONAD_CHAIN_ID }],
-        });
-      } catch (e) {
-        if (e.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: MONAD_CHAIN_ID,
-              chainName: 'Monad',
-              nativeCurrency: { name:'MON', symbol:'MON', decimals:18 },
-              rpcUrls: [RPC],
-              blockExplorerUrls: ['https://monadscan.com'],
-            }],
-          });
-        } else throw e;
-      }
-    }
-
-    async function connect() {
-      if (!window.ethereum) {
-        setStatus('no wallet detected — install metamask or open in a wallet browser');
-        return false;
-      }
-      try {
-        await ensureMonadNetwork();
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (!accounts || !accounts[0]) return false;
-        userAddr = accounts[0];
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        signer = await provider.getSigner();
-        refreshBalance();
-        setStatus('connected: ' + userAddr.slice(0,6) + '…' + userAddr.slice(-4));
-        // wallet account changes
-        window.ethereum.on?.('accountsChanged', (accs) => {
-          userAddr = accs?.[0] || null;
-          refreshBalance();
-          updateButton();
-        });
-        window.ethereum.on?.('chainChanged', () => location.reload());
-        updateButton();
-        return true;
-      } catch (e) {
-        setStatus('connection rejected');
-        return false;
-      }
-    }
-
-    async function doSwap() {
-      try {
-        action.disabled = true;
-        setStatus('getting fresh quote…', 'busy');
-        const q = await quote();
-        if (!q) { setStatus('couldn\u2019t get a quote — try a different amount', 'fail'); action.disabled=false; return; }
-
-        // slippage
-        const minOut = q.amountOut * BigInt(10000 - DEFAULT_SLIPPAGE_BP) / 10000n;
-
-        const router = new ethers.Contract(DEX_ROUTER, ROUTER_ABI, signer);
-        setStatus('confirm in your wallet…', 'busy');
-
-        const tx = await router.exactInputSingle(
-          {
-            tokenIn: WMON,
-            tokenOut: MOLLY,
-            fee: POOL_FEE,
-            recipient: userAddr,
-            amountIn: q.amountIn,
-            amountOutMinimum: minOut,
-            sqrtPriceLimitX96: 0n,
-          },
-          { value: q.amountIn }
-        );
-
-        setStatus(
-          'tx submitted — <a href="https://monadscan.com/tx/' + tx.hash + '" target="_blank" rel="noopener">'
-          + tx.hash.slice(0,10) + '…' + tx.hash.slice(-6) + '</a>',
-          'busy'
-        );
-
-        const receipt = await tx.wait();
-        if (receipt.status === 1) {
-          setStatus(
-            '✅ swapped! ~' + fmt(ethers.formatUnits(q.amountOut, 18), 2) + ' MOLLY — '
-            + '<a href="https://monadscan.com/tx/' + tx.hash + '" target="_blank" rel="noopener">view tx</a>',
-            'success'
-          );
-          inAmt.value = ''; outAmt.value = '';
-          refreshBalance();
-        } else {
-          setStatus('tx failed on-chain', 'fail');
-        }
-      } catch (e) {
-        const msg = (e?.shortMessage || e?.reason || e?.message || 'swap failed').slice(0, 220);
-        setStatus('⚠️ ' + msg + ' — <span style="opacity:.7">try a smaller amount or the aggregator below</span>', 'fail');
-      } finally {
-        setTimeout(() => { action.disabled = false; updateButton(); }, 1500);
-      }
-    }
-
-    action.addEventListener('click', async () => {
-      if (!userAddr) {
-        const ok = await connect();
-        if (ok) updateButton();
-        return;
-      }
-      const v = parseFloat(inAmt.value);
-      if (!v || v <= 0) return;
-      doSwap();
-    });
-
-    // auto-connect if wallet already authorised
-    if (window.ethereum?.request) {
-      window.ethereum.request({ method: 'eth_accounts' }).then((accs) => {
-        if (accs?.[0]) connect();
-      }).catch(()=>{});
-    }
-  })();
 
   // Copy CA / pool
   function copyCA(btn, targetId) {
