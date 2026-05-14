@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOLLY · Wife of Molandak · Monad</title>
+<meta name="description" content="Molly. Wife of Molandak. First Lady of Monad. Born from the same time paradox that birthed the hedgehog himself.">
+
+<!-- OG / Twitter -->
+<meta property="og:title" content="MOLLY · Wife of Molandak">
+<meta property="og:description" content="First Lady of Monad. The paradox completed itself.">
+<meta property="og:image" content="https://mollyonmonad.xyz/assets/molly-hero.png">
+<meta property="og:url" content="https://mollyonmonad.xyz">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://mollyonmonad.xyz/assets/molly-hero.png">
+
+<link rel="icon" href="assets/molly-hero.png">
+
+<!-- Fonts: chunky meme display + handwritten storybook body -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Patrick+Hand&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+  /* === reset / base === */
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  :root {
+    --bg: #1a0033;
+    --bg-mid: #2a0b4e;
+    --bg-light: #3d1968;
+    --pink: #f9c5e6;
+    --pink-deep: #e87fc4;
+    --bow: #f4a8d6;
+    --cream: #fdf6ec;
+    --molly-purple: #6b3aa0;
+    --molly-purple-dark: #4a2378;
+    --accent: #ffd84d;
+    --orange: #ff8a3d;
+    --ink: #1a0033;
+
+    --shadow-hard: 6px 6px 0 var(--ink);
+    --shadow-soft: 0 20px 60px rgba(0,0,0,0.5);
+
+    --display: 'Bagel Fat One', system-ui, sans-serif;
+    --hand: 'Patrick Hand', cursive;
+    --script: 'Caveat', cursive;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--hand);
+    background: var(--bg);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-size: 18px;
+
+    /* Notebook paper background — subtle grid + grain */
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(232,127,196,0.08) 0, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(255,216,77,0.06) 0, transparent 50%),
+      radial-gradient(circle at 50% 90%, rgba(107,58,160,0.15) 0, transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-mid) 100%);
+    background-attachment: fixed;
+  }
+
+  /* Paper grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.4 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  /* === nav === */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 1rem 1.5rem;
+    background: rgba(26,0,51,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 3px solid var(--pink-deep);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .nav-brand {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    color: var(--pink);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .nav-brand img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--pink);
+    border: 2px solid var(--ink);
+  }
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--cream);
+    text-decoration: none;
+    font-family: var(--hand);
+    font-size: 1.1rem;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--pink); }
+  .nav-buy {
+    background: var(--pink-deep);
+    color: var(--ink);
+    padding: 0.5rem 1.25rem;
+    border-radius: 999px;
+    font-family: var(--display);
+    font-size: 1rem;
+    text-decoration: none;
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .nav-buy:hover {
+    transform: translate(-2px,-2px);
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  /* === sections === */
+  section {
+    position: relative;
+    padding: 6rem 1.5rem;
+    z-index: 2;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* === HERO === */
+  .hero {
+    min-height: 90vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 3rem;
+    padding: 4rem 1.5rem;
+  }
+  .hero-text { position: relative; }
+  .hero-tag {
+    font-family: var(--script);
+    font-size: 1.8rem;
+    color: var(--accent);
+    transform: rotate(-3deg);
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .hero-title {
+    font-family: var(--display);
+    font-size: clamp(4rem, 12vw, 9rem);
+    line-height: 0.9;
+    color: var(--pink);
+    text-shadow:
+      4px 4px 0 var(--molly-purple-dark),
+      8px 8px 0 var(--ink);
+    letter-spacing: -0.04em;
+    margin-bottom: 1.5rem;
+  }
+  .hero-subtitle {
+    font-family: var(--hand);
+    font-size: 1.4rem;
+    color: var(--cream);
+    margin-bottom: 2rem;
+    max-width: 520px;
+  }
+  .hero-subtitle strong { color: var(--pink-deep); font-weight: normal; }
+  .hero-ctas {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font-family: var(--display);
+    font-size: 1.15rem;
+    padding: 0.85rem 1.75rem;
+    border-radius: 999px;
+    text-decoration: none;
+    border: 3px solid var(--ink);
+    box-shadow: 5px 5px 0 var(--ink);
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+  .btn:hover {
+    transform: translate(-2px,-2px);
+    box-shadow: 7px 7px 0 var(--ink);
+  }
+  .btn:active {
+    transform: translate(2px,2px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  .btn-primary { background: var(--accent); color: var(--ink); }
+  .btn-secondary { background: var(--pink); color: var(--ink); }
+  .btn-outline { background: transparent; color: var(--pink); border-color: var(--pink); box-shadow: 5px 5px 0 var(--pink-deep); }
+
+  .hero-img {
+    position: relative;
+    text-align: center;
+    animation: bounce 6s ease-in-out infinite;
+  }
+  .hero-img img {
+    width: 100%;
+    max-width: 520px;
+    filter: drop-shadow(8px 12px 0 var(--molly-purple-dark)) drop-shadow(0 30px 50px rgba(0,0,0,0.6));
+  }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
+
+  /* Decorative sparkles around hero */
+  .sparkle {
+    position: absolute;
+    font-family: var(--display);
+    color: var(--accent);
+    font-size: 2rem;
+    pointer-events: none;
+    animation: twinkle 3s ease-in-out infinite;
+  }
+  .sparkle.s1 { top: 15%; left: 8%; }
+  .sparkle.s2 { top: 60%; right: 5%; animation-delay: 1s; }
+  .sparkle.s3 { bottom: 10%; left: 45%; animation-delay: 2s; color: var(--pink); }
+  @keyframes twinkle {
+    0%,100% { transform: scale(1) rotate(0); opacity: 0.4; }
+    50% { transform: scale(1.3) rotate(180deg); opacity: 1; }
+  }
+
+  /* === CA BAR === */
+  .ca-section {
+    padding: 2rem 1.5rem 5rem;
+    text-align: center;
+  }
+  .ca-card {
+    background: var(--cream);
+    color: var(--ink);
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    box-shadow: 8px 8px 0 var(--pink-deep), 14px 14px 0 var(--ink);
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    transform: rotate(-1deg);
+  }
+  .ca-label {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    color: var(--molly-purple-dark);
+    margin-bottom: 1rem;
+  }
+  .ca-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg);
+    color: var(--cream);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    overflow: hidden;
+  }
+  .ca-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    color: var(--pink);
+    font-weight: 700;
+  }
+  .ca-copy {
+    background: var(--accent);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-family: var(--display);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .ca-copy:hover { background: var(--pink-deep); }
+  .ca-copy.copied { background: #4ade80; }
+
+  .ca-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .ca-stat {
+    background: var(--pink);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    padding: 0.75rem;
+  }
+  .ca-stat-label {
+    font-family: var(--script);
+    font-size: 1.1rem;
+    color: var(--molly-purple-dark);
+  }
+  .ca-stat-value {
+    font-family: var(--display);
+    font-size: 1.2rem;
+    color: var(--ink);
+  }
+
+  /* === LORE === */
+  .lore {
+    background: var(--molly-purple-dark);
+    border-top: 4px solid var(--ink);
+    border-bottom: 4px solid var(--ink);
+    position: relative;
+    z-index: 2;
+  }
+  .lore::before, .lore::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30' preserveAspectRatio='none'><path d='M0,30 L10,10 L20,30 L30,5 L40,30 L50,15 L60,30 Z' fill='%23f4a8d6' stroke='%231a0033' stroke-width='2'/></svg>");
+    background-size: 60px 30px;
+    background-repeat: repeat-x;
+  }
+  .lore::before { top: -30px; transform: scaleY(-1); }
+  .lore::after { bottom: -30px; }
+
+  .section-heading {
+    font-family: var(--display);
+    font-size: clamp(3rem, 7vw, 5rem);
+    color: var(--pink);
+    text-align: center;
+    margin-bottom: 3rem;
+    text-shadow: 4px 4px 0 var(--ink);
+    line-height: 1;
+  }
+  .section-heading small {
+    display: block;
+    font-family: var(--script);
+    font-size: 1.5rem;
+    color: var(--accent);
+    text-shadow: 2px 2px 0 var(--ink);
+    margin-top: 0.5rem;
+  }
+
+  .lore-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .lore-card {
+    background: var(--bg);
+    border: 3px solid var(--ink);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 5px 5px 0 var(--pink-deep);
+    transition: transform 0.2s;
+  }
+  .lore-card:nth-child(odd) { transform: rotate(-1.5deg); }
+  .lore-card:nth-child(even) { transform: rotate(1deg); }
+  .lore-card:hover {
+    transform: rotate(0) translateY(-5px);
+    box-shadow: 8px 8px 0 var(--pink-deep);
+  }
+  .lore-card h3 {
+    font-family: var(--display);
+    color: var(--pink);
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+  }
+  .lore-card p { font-size: 1.05rem; color: var(--cream); }
+
+  /* === FAMILY === */
+  .family {
+    background: var(--bg-mid);
+  }
+  .family-tree {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  .family-card {
+    background: var(--cream);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform 0.2s;
+  }
+  .family-card:hover { transform: translateY(-4px) rotate(-2deg); }
+  .family-card.molly { background: var(--pink); }
+  .family-card.molly .family-relation { color: var(--molly-purple-dark); }
+  .family-emoji {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .family-name {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    color: var(--ink);
+  }
+  .family-relation {
+    font-family: var(--script);
+    font-size: 1.1rem;
+    color: var(--pink-deep);
+  }
+  .family-note {
+    font-family: var(--hand);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    color: var(--molly-purple-dark);
+  }
+
+  .family-photo {
+    margin-top: 4rem;
+    text-align: center;
+  }
+  .family-photo img {
+    max-width: 100%;
+    width: 600px;
+    border: 5px solid var(--cream);
+    border-radius: 16px;
+    box-shadow: 8px 8px 0 var(--ink);
+    transform: rotate(-2deg);
+  }
+  .family-photo-cap {
+    font-family: var(--script);
+    font-size: 1.4rem;
+    color: var(--accent);
+    margin-top: 1rem;
+    transform: rotate(-2deg);
+    display: inline-block;
+  }
+
+  /* === SWAP === */
+  .swap-section { background: var(--bg); padding-bottom: 8rem; }
+  .swap-card {
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--cream);
+    color: var(--ink);
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow: 8px 8px 0 var(--accent), 14px 14px 0 var(--ink);
+  }
+  .swap-title {
+    font-family: var(--display);
+    font-size: 2rem;
+    color: var(--molly-purple-dark);
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  .swap-subtitle {
+    font-family: var(--hand);
+    text-align: center;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+    font-size: 1.05rem;
+  }
+  .swap-placeholder {
+    background: var(--bg);
+    border: 3px dashed var(--pink-deep);
+    border-radius: 16px;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--cream);
+    font-family: var(--hand);
+  }
+  .swap-placeholder p { margin-bottom: 1rem; font-size: 1.1rem; }
+  .swap-cta-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  /* === CHART === */
+  .chart-section { background: var(--bg-mid); padding-bottom: 6rem; }
+  .chart-frame {
+    max-width: 1000px;
+    margin: 2rem auto 0;
+    border: 4px solid var(--ink);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 8px 8px 0 var(--pink-deep);
+    background: var(--bg);
+  }
+  .chart-frame iframe {
+    width: 100%;
+    height: 600px;
+    border: 0;
+    display: block;
+  }
+
+  /* === FOOTER === */
+  footer {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 3rem 1.5rem 2rem;
+    text-align: center;
+    border-top: 4px solid var(--pink-deep);
+    position: relative;
+    z-index: 2;
+  }
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    list-style: none;
+  }
+  .footer-links a {
+    color: var(--pink);
+    font-family: var(--display);
+    font-size: 1.1rem;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--accent); }
+  .footer-note {
+    font-family: var(--script);
+    font-size: 1.2rem;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  .footer-sub {
+    font-family: var(--hand);
+    color: var(--cream);
+    opacity: 0.7;
+    font-size: 0.95rem;
+  }
+
+  /* === MOBILE === */
+  @media (max-width: 800px) {
+    .hero {
+      grid-template-columns: 1fr;
+      min-height: auto;
+      padding-top: 2rem;
+    }
+    .hero-text { text-align: center; }
+    .hero-ctas { justify-content: center; }
+    .hero-img { order: -1; max-width: 320px; margin: 0 auto; }
+    .nav-links { display: none; }
+    nav { padding: 0.75rem 1rem; }
+    .nav-brand { font-size: 1.2rem; }
+    section { padding: 4rem 1rem; }
+    .ca-card { padding: 1.25rem; transform: rotate(0); }
+    .ca-row { font-size: 0.75rem; padding: 0.5rem 0.75rem; }
+    .ca-copy { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+    .lore-card { transform: rotate(0) !important; }
+    .chart-frame iframe { height: 450px; }
+  }
+
+  /* === scroll reveal === */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.in { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-brand">
+    <img src="assets/molly-hero.png" alt="Molly">
+    MOLLY
+  </a>
+  <ul class="nav-links">
+    <li><a href="#lore">Lore</a></li>
+    <li><a href="#family">Family</a></li>
+    <li><a href="#swap">Buy</a></li>
+    <li><a href="#chart">Chart</a></li>
+  </ul>
+  <a href="#swap" class="nav-buy">BUY $MOLLY</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="sparkle s1">✦</span>
+  <span class="sparkle s2">✧</span>
+  <span class="sparkle s3">★</span>
+
+  <div class="hero-text">
+    <span class="hero-tag">first lady of monad</span>
+    <h1 class="hero-title">MOLLY</h1>
+    <p class="hero-subtitle">
+      Wife of <strong>Molandak</strong>. Born from the same time paradox.
+      The bow was tied by the hedgehog himself. <br>
+      <em>The infinite loop finally has a witness.</em>
+    </p>
+    <div class="hero-ctas">
+      <a href="#swap" class="btn btn-primary">🛒 BUY $MOLLY</a>
+      <a href="#lore" class="btn btn-secondary">📖 READ LORE</a>
+    </div>
+  </div>
+
+  <div class="hero-img">
+    <img src="assets/molly-hero.png" alt="Molly the hedgehog">
+  </div>
+</section>
+
+<!-- CA -->
+<section class="ca-section" id="contract">
+  <div class="ca-card reveal">
+    <div class="ca-label">📋 CONTRACT ADDRESS</div>
+    <div class="ca-row">
+      <span class="ca-text" id="ca-text">0xB72e6262DAE53cAF167F0966421a0B9782977777</span>
+      <button class="ca-copy" onclick="copyCA(this)">COPY</button>
+    </div>
+    <div class="ca-stats">
+      <div class="ca-stat">
+        <div class="ca-stat-label">Chain</div>
+        <div class="ca-stat-value">MONAD</div>
+      </div>
+      <div class="ca-stat">
+        <div class="ca-stat-label">Tax</div>
+        <div class="ca-stat-value">0 / 0</div>
+      </div>
+      <div class="ca-stat">
+        <div class="ca-stat-label">Pair</div>
+        <div class="ca-stat-value">MOLLY/WMON</div>
+      </div>
+      <div class="ca-stat">
+        <div class="ca-stat-label">DEX</div>
+        <div class="ca-stat-value">NAD.FUN</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LORE -->
+<section class="lore" id="lore">
+  <div class="container">
+    <h2 class="section-heading">
+      The Loop Closes
+      <small>~ how molly came to be ~</small>
+    </h2>
+
+    <div class="lore-grid">
+      <div class="lore-card reveal">
+        <h3>The Paradox</h3>
+        <p>
+          Molandak exists because of a time loop. A future Monad held posted his meme
+          before he was ever drawn. That's the canon. He was never <em>created</em> —
+          he was always already there.
+        </p>
+      </div>
+      <div class="lore-card reveal">
+        <h3>The Witness</h3>
+        <p>
+          Every paradox needs an observer to collapse. For two years Molandak waited inside
+          the Discord, lonely in his own infinite recursion. Then one Thanksgiving —
+          mid-festival, mid-cult, mid-prayer — the spiral closed.
+        </p>
+      </div>
+      <div class="lore-card reveal">
+        <h3>The Bow</h3>
+        <p>
+          Pink ribbon. Tied by Molandak's own quills. Not a costume — a vow. The first
+          recorded marriage in Monad lore. The Frenchnads cried. Mouch blessed it. Salmonad
+          showed up uninvited and yelled <em>SCANDALEUX</em>.
+        </p>
+      </div>
+      <div class="lore-card reveal">
+        <h3>The Inheritance</h3>
+        <p>
+          She has his quills. She has Chog's face. She has the lab's eyes. Molly is the
+          Monanimal family stitched into one body — proof that every mascot on this chain
+          shares blood. She doesn't shill. She doesn't post. She just exists, and the chart goes up.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAMILY -->
+<section class="family" id="family">
+  <div class="container">
+    <h2 class="section-heading">
+      Meet the Family
+      <small>~ the monanimal tree ~</small>
+    </h2>
+
+    <div class="family-tree">
+      <div class="family-card molly reveal">
+        <div class="family-emoji">🎀</div>
+        <div class="family-name">MOLLY</div>
+        <div class="family-relation">that's her</div>
+        <div class="family-note">first lady</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🦔</div>
+        <div class="family-name">MOLANDAK</div>
+        <div class="family-relation">husband</div>
+        <div class="family-note">time-loop hedgehog</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🐸</div>
+        <div class="family-name">CHOG</div>
+        <div class="family-relation">cousin</div>
+        <div class="family-note">cat-frog hybrid</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🐟</div>
+        <div class="family-name">SALMONAD</div>
+        <div class="family-relation">in-law</div>
+        <div class="family-note">SCANDALEUX!</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🦗</div>
+        <div class="family-name">MOUCH</div>
+        <div class="family-relation">spiritual mentor</div>
+        <div class="family-note">blessed the wedding</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🦎</div>
+        <div class="family-name">MOKADEL</div>
+        <div class="family-relation">distant relative</div>
+        <div class="family-note">kadal ksksksks</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🐱</div>
+        <div class="family-name">MOYAKI</div>
+        <div class="family-relation">mystery aunt</div>
+        <div class="family-note">half cat, half salmon</div>
+      </div>
+      <div class="family-card reveal">
+        <div class="family-emoji">🐺</div>
+        <div class="family-name">MONWOLF</div>
+        <div class="family-relation">brother-in-law</div>
+        <div class="family-note">stoner of the pack</div>
+      </div>
+    </div>
+
+    <div class="family-photo reveal">
+      <img src="assets/family-car.jpg" alt="The Monanimals on a ride">
+      <div class="family-photo-cap">~ family roadtrip, undated ~</div>
+    </div>
+  </div>
+</section>
+
+<!-- SWAP -->
+<section class="swap-section" id="swap">
+  <div class="container">
+    <h2 class="section-heading">
+      Get Some
+      <small>~ swap into $molly ~</small>
+    </h2>
+
+    <div class="swap-card reveal">
+      <div class="swap-title">BUY $MOLLY</div>
+      <div class="swap-subtitle">MON → MOLLY · 0% tax · LP locked</div>
+
+      <div class="swap-placeholder" id="swap-mount">
+        <p>🔮 Custom swap loading here</p>
+        <p style="font-size: 0.9rem; opacity: 0.7;">
+          (drop ole boy's swap widget into <code style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">#swap-mount</code> and we're live)
+        </p>
+      </div>
+
+      <div class="swap-cta-row">
+        <a href="https://nad.fun/token/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+           target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center;">
+          🚀 BUY ON NAD.FUN
+        </a>
+        <a href="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+           target="_blank" rel="noopener" class="btn btn-secondary" style="justify-content: center;">
+          📊 VIEW ON DEXSCREENER
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHART -->
+<section class="chart-section" id="chart">
+  <div class="container">
+    <h2 class="section-heading">
+      Live Chart
+      <small>~ watch her cook ~</small>
+    </h2>
+    <div class="chart-frame reveal">
+      <iframe
+        src="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777?embed=1&theme=dark&info=0"
+        title="MOLLY chart">
+      </iframe>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <ul class="footer-links">
+    <li><a href="https://t.me/CTOMolly" target="_blank" rel="noopener">TELEGRAM</a></li>
+    <li><a href="#" target="_blank" rel="noopener" id="x-link">X / TWITTER</a></li>
+    <li><a href="https://nad.fun/token/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">NAD.FUN</a></li>
+    <li><a href="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">DEXSCREENER</a></li>
+    <li><a href="mailto:admin@mollyonmonad.xyz">CONTACT</a></li>
+  </ul>
+  <div class="footer-note">~ first lady of monad ~</div>
+  <div class="footer-sub">$MOLLY · the paradox completed itself · 2026</div>
+</footer>
+
+<script>
+  // Copy CA
+  function copyCA(btn) {
+    const ca = document.getElementById('ca-text').textContent.trim();
+    navigator.clipboard.writeText(ca).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ COPIED';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 1600);
+    });
+  }
+
+  // Scroll reveal
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
