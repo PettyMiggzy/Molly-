@@ -1540,11 +1540,10 @@
       <div class="swap-cta-row">
         <a href="https://monorail.xyz/?from=0x0000000000000000000000000000000000000000&to=0xB72e6262DAE53cAF167F0966421a0B9782977777"
            target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center;">
-          🚀 SWAP ON MONORAIL
+          🛒 BUY $MOLLY
         </a>
-        <a href="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d"
-           target="_blank" rel="noopener" class="btn btn-secondary" style="justify-content: center;">
-          📈 VIEW ON DEXSCREENER
+        <a href="#chart" class="btn btn-secondary" style="justify-content: center;">
+          📈 SEE CHART
         </a>
       </div>
     </div>
@@ -1568,20 +1567,20 @@
 
 <script>
   // ============ LIVE BONDING STATUS ============
-  // Reads nad.fun Lens contract on Monad mainnet, no deps
+  // Pre-grad: reads nad.fun Lens contract on Monad RPC for progress
+  // Post-grad: pulls accurate USD price/MC/volume from DexScreener API
   (function liveStatus() {
     const RPC = 'https://rpc.monad.xyz';
     const TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+    const PAIR  = '0x86Dfd5548a86d6CE487E9F5a0e16dDDc9b906a7d';
     const LENS  = '0x7e78A8DE94f21804F7a17F4E8BF9EC2c872187ea';
-    const BONDING_CURVE_ROUTER = '0x6F6B8F1a20703309951a5127c45B49b1CD981A22';
     const TOTAL_SUPPLY = 1_000_000_000;
 
-    // function selectors
     const SEL = {
       isGraduated: '0x68a4c8b7',
       isLocked:    '0x4a4fbeec',
       getProgress: '0xaef76501',
-      getAmountOut:'0xf2d65617', // (address,uint256,bool)
+      getAmountOut:'0xf2d65617',
     };
 
     const pad = (h) => h.replace(/^0x/,'').padStart(64,'0').toLowerCase();
@@ -1598,10 +1597,9 @@
       });
       const j = await r.json();
       if (j.error) throw new Error(j.error.message || 'rpc error');
-      return j.result; // hex string with 0x
+      return j.result;
     }
 
-    // decode helpers
     const hexBig = (hex) => BigInt(hex || '0x0');
     const fromWei = (hex) => Number(hexBig(hex)) / 1e18;
     const splitWords = (hex) => {
@@ -1611,21 +1609,19 @@
       return out;
     };
 
-    // MON/USD via CoinGecko (free, no key)
-    let monUsdCache = { v: null, t: 0 };
-    async function getMonUsd() {
-      if (monUsdCache.v && Date.now() - monUsdCache.t < 60_000) return monUsdCache.v;
+    async function fetchDexScreener() {
       try {
-        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd');
+        const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN}`);
         const j = await r.json();
-        const v = j?.monad?.usd;
-        if (v) { monUsdCache = { v, t: Date.now() }; return v; }
-      } catch (e) { /* offline ok */ }
-      return null;
+        const pairs = j?.pairs || [];
+        // Prefer exact match on our known pair address
+        return pairs.find(p => (p.pairAddress || '').toLowerCase() === PAIR.toLowerCase())
+            || pairs[0] || null;
+      } catch (e) { return null; }
     }
 
     const fmtNum = (n, decimals = 2) => {
-      if (!isFinite(n)) return '—';
+      if (!isFinite(n) || n === null) return '—';
       if (n >= 1_000_000) return (n/1_000_000).toFixed(2) + 'M';
       if (n >= 1_000)     return (n/1_000).toFixed(2) + 'K';
       return n.toFixed(decimals);
@@ -1637,71 +1633,84 @@
 
     async function tick() {
       try {
-        // Parallel reads
-        const [progHex, gradHex, lockHex, quoteHex, monUsd] = await Promise.all([
+        // Always read state from Lens
+        const [progHex, gradHex, lockHex] = await Promise.all([
           ethCall(SEL.getProgress + padAddr(TOKEN)),
           ethCall(SEL.isGraduated + padAddr(TOKEN)),
           ethCall(SEL.isLocked + padAddr(TOKEN)),
-          // getAmountOut(token, 1e18, true) → MOLLY per 1 MON
-          ethCall(SEL.getAmountOut + padAddr(TOKEN) + padUint(10n**18n) + padBool(true)),
-          getMonUsd(),
         ]);
 
         const isGrad = hexBig(gradHex) === 1n;
         const isLock = hexBig(lockHex) === 1n;
-        const progressBp = Number(hexBig(progHex)); // basis points 0..10000
-        const progressPct = progressBp / 100; // 0..100
+        const progressBp = Number(hexBig(progHex));
+        const progressPct = progressBp / 100;
 
-        // quote: [router (32B), amountOut (32B)]
-        const [, amountOutHex] = splitWords(quoteHex);
-        const mollyPer1Mon = fromWei(amountOutHex);
-        const monPerMolly = mollyPer1Mon > 0 ? 1 / mollyPer1Mon : 0;
-        const mcMon = monPerMolly * TOTAL_SUPPLY;
-        const mcUsd = monUsd ? mcMon * monUsd : null;
-        const priceUsd = monUsd ? monPerMolly * monUsd : null;
-
-        // Estimate MON raised: from the standard nad.fun curve config
-        // Virtual MON reserve = 180k; raise at graduation ~30k MON.
-        // Without reading reserves directly, approximate from progress:
-        // (rough but visible — refines once real reserves wired)
-        const monRaisedApprox = (progressBp / 10000) * 30000;
-
-        // === update UI ===
+        // === Badge ===
         const badge = $('statusBadge');
-        if (isGrad) {
-          badge.dataset.state = 'graduated';
-          badge.textContent = 'GRADUATED ✓';
-        } else if (isLock) {
-          badge.dataset.state = 'locked';
-          badge.textContent = 'LOCKED — listing';
-        } else {
-          badge.dataset.state = 'bonding';
-          badge.textContent = 'BONDING ⚡';
-        }
+        if (isGrad)      { badge.dataset.state = 'graduated'; badge.textContent = 'GRADUATED ✓'; }
+        else if (isLock) { badge.dataset.state = 'locked';    badge.textContent = 'LOCKED — listing'; }
+        else             { badge.dataset.state = 'bonding';   badge.textContent = 'BONDING ⚡'; }
 
-        $('stat-mc').textContent = mcUsd ? fmtUsd(mcUsd) : fmtMon(mcMon);
-        $('stat-mc-usd').textContent = mcUsd ? `~ ${fmtMon(mcMon)}` : 'MON-USD offline';
-
-        if (priceUsd) {
-          $('stat-price').textContent = '$' + priceUsd.toFixed(6);
-          $('stat-price-mon').textContent = `${monPerMolly.toExponential(3)} MON`;
-        } else {
-          $('stat-price').textContent = monPerMolly.toExponential(3) + ' MON';
-          $('stat-price-mon').textContent = '';
-        }
-
-        $('stat-raised').textContent = isGrad ? '🎓 BONDED' : fmtMon(monRaisedApprox);
-        const raisedSub = document.querySelector('#stat-raised + .stat-sub');
-        if (raisedSub) raisedSub.textContent = isGrad ? 'trading on DEX' : 'in the curve';
-        const raisedLabel = document.querySelector('.status-stat:nth-child(3) .stat-label');
-        if (raisedLabel) raisedLabel.textContent = isGrad ? 'Status' : 'MON Raised';
-
+        // === Progress bar ===
         $('progress-pct').textContent = progressPct.toFixed(2) + '%';
         $('progress-fill').style.width = Math.min(100, progressPct) + '%';
 
-        // Flip CTA + helper text once graduated
+        // === Stats ===
+        // Post-grad: pull live USD data from DexScreener
+        if (isGrad) {
+          const ds = await fetchDexScreener();
+          if (ds) {
+            const priceUsd = parseFloat(ds.priceUsd) || 0;
+            const priceMon = parseFloat(ds.priceNative) || 0;
+            const mcUsd    = ds.marketCap || ds.fdv || (priceUsd * TOTAL_SUPPLY);
+            const vol24    = ds.volume?.h24 || 0;
+            const liq      = ds.liquidity?.usd || 0;
+
+            $('stat-mc').textContent = fmtUsd(mcUsd);
+            $('stat-mc-usd').textContent = `Liquidity ${fmtUsd(liq)}`;
+
+            $('stat-price').textContent = '$' + priceUsd.toFixed(8).replace(/0+$/,'') ;
+            $('stat-price-mon').textContent = priceMon.toExponential(3) + ' MON';
+
+            // Reuse "MON Raised" slot for 24h volume post-grad
+            $('stat-raised').textContent = fmtUsd(vol24);
+            const sub = document.querySelector('#stat-raised + .stat-sub');
+            if (sub) sub.textContent = '24h volume';
+            const lbl = document.querySelector('.status-stat:nth-child(3) .stat-label');
+            if (lbl) lbl.textContent = '24h Volume';
+          } else {
+            // DexScreener failed → fallback labels but no live values
+            $('stat-mc').textContent = '—';
+            $('stat-mc-usd').textContent = 'dexscreener offline';
+            $('stat-price').textContent = '—';
+            $('stat-raised').textContent = '🎓 BONDED';
+            const sub = document.querySelector('#stat-raised + .stat-sub');
+            if (sub) sub.textContent = 'trading on DEX';
+            const lbl = document.querySelector('.status-stat:nth-child(3) .stat-label');
+            if (lbl) lbl.textContent = 'Status';
+          }
+        } else {
+          // Pre-grad: use Lens-derived estimate
+          const quoteHex = await ethCall(SEL.getAmountOut + padAddr(TOKEN) + padUint(10n**18n) + padBool(true));
+          const [, amountOutHex] = splitWords(quoteHex);
+          const mollyPer1Mon = fromWei(amountOutHex);
+          const monPerMolly = mollyPer1Mon > 0 ? 1 / mollyPer1Mon : 0;
+          const mcMon = monPerMolly * TOTAL_SUPPLY;
+          const monRaisedApprox = (progressBp / 10000) * 30000;
+
+          $('stat-mc').textContent = fmtMon(mcMon);
+          $('stat-mc-usd').textContent = '~ pre-bond estimate';
+          $('stat-price').textContent = monPerMolly.toExponential(3) + ' MON';
+          $('stat-price-mon').textContent = '';
+          $('stat-raised').textContent = fmtMon(monRaisedApprox);
+          const sub = document.querySelector('#stat-raised + .stat-sub');
+          if (sub) sub.textContent = 'in the curve';
+          const lbl = document.querySelector('.status-stat:nth-child(3) .stat-label');
+          if (lbl) lbl.textContent = 'MON Raised';
+        }
+
+        // === CTA + foot ===
         const cta = $('status-cta');
-        const DEX_PAIR_URL = 'https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d';
         if (isGrad) {
           cta.textContent = 'TRADE ON DEX →';
           cta.href = '#chart';
@@ -1718,10 +1727,7 @@
         }
       } catch (err) {
         const badge = $('statusBadge');
-        if (badge) {
-          badge.dataset.state = 'error';
-          badge.textContent = 'rpc offline';
-        }
+        if (badge) { badge.dataset.state = 'error'; badge.textContent = 'rpc offline'; }
         console.warn('liveStatus:', err);
       }
     }
