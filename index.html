@@ -266,6 +266,86 @@
     height: auto;
     display: block;
   }
+
+  /* === SPEECH BUBBLE === */
+  .hero-bubble {
+    position: absolute;
+    top: 4%;
+    right: 0;
+    z-index: 5;
+    background: var(--cream);
+    color: var(--ink);
+    border: 4px solid var(--ink);
+    border-radius: 28px;
+    padding: 1rem 1.4rem;
+    box-shadow: 5px 5px 0 var(--ink);
+    transform: rotate(6deg);
+    animation: bubble-bob 3.5s ease-in-out infinite;
+  }
+  @keyframes bubble-bob {
+    0%, 100% { transform: rotate(6deg) translateY(0); }
+    50% { transform: rotate(4deg) translateY(-6px); }
+  }
+  .hero-bubble-text {
+    display: block;
+    font-family: var(--display);
+    font-size: 1.6rem;
+    line-height: 1;
+    text-align: center;
+    color: var(--molly-purple-dark);
+    letter-spacing: -0.01em;
+  }
+  .hero-bubble-tail {
+    position: absolute;
+    bottom: -22px;
+    left: 28px;
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid var(--ink);
+  }
+  .hero-bubble-tail::after {
+    content: '';
+    position: absolute;
+    top: -25px;
+    left: -10px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 18px solid var(--cream);
+  }
+
+  /* === UNMUTE BUTTON === */
+  .hero-unmute {
+    position: absolute;
+    bottom: 8%;
+    right: 4%;
+    z-index: 5;
+    background: var(--accent);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    padding: 0.5rem 0.95rem;
+    font-family: var(--display);
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .hero-unmute:hover {
+    transform: translate(-2px,-2px);
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  .hero-unmute.playing {
+    background: var(--pink);
+  }
+  .unmute-icon { font-size: 1.05rem; line-height: 1; }
+  .unmute-label { letter-spacing: 0.04em; }
   @keyframes bounce {
     0%,100% { transform: translateY(0); }
     50% { transform: translateY(-15px); }
@@ -872,6 +952,13 @@
 
   /* === MOBILE === */
   @media (max-width: 800px) {
+    .hero-bubble {
+      top: -10px;
+      right: -5px;
+      padding: 0.7rem 1rem;
+    }
+    .hero-bubble-text { font-size: 1.1rem; }
+    .hero-unmute { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
     .hero {
       grid-template-columns: 1fr;
       min-height: auto;
@@ -939,14 +1026,23 @@
   </div>
 
   <div class="hero-img">
+    <!-- speech bubble welcomes the nads in case audio is off -->
+    <div class="hero-bubble">
+      <span class="hero-bubble-text">WELCOME<br>NADS!</span>
+      <span class="hero-bubble-tail"></span>
+    </div>
     <video class="hero-video"
+           id="heroVideo"
            autoplay muted loop playsinline preload="auto"
            poster="assets/molly-hero.png"
            aria-label="Molly waves hello">
       <source src="assets/molly-hero.webm" type="video/webm">
-      <!-- Fallback to static image if video can't play -->
       <img src="assets/molly-hero.png" alt="Molly the hedgehog">
     </video>
+    <button class="hero-unmute" id="unmuteBtn" aria-label="Toggle sound">
+      <span class="unmute-icon">🔇</span>
+      <span class="unmute-label">unmute</span>
+    </button>
   </div>
 </section>
 
@@ -1240,6 +1336,25 @@
 </footer>
 
 <script>
+  // Hero unmute toggle
+  (function () {
+    const v = document.getElementById('heroVideo');
+    const b = document.getElementById('unmuteBtn');
+    if (!v || !b) return;
+    function syncBtn() {
+      const muted = v.muted;
+      b.querySelector('.unmute-icon').textContent = muted ? '🔇' : '🔊';
+      b.querySelector('.unmute-label').textContent = muted ? 'unmute' : 'mute';
+      b.classList.toggle('playing', !muted);
+    }
+    b.addEventListener('click', () => {
+      v.muted = !v.muted;
+      if (!v.muted) v.play().catch(() => {});
+      syncBtn();
+    });
+    syncBtn();
+  })();
+
   // Copy CA / pool
   function copyCA(btn, targetId) {
     const ca = document.getElementById(targetId || 'ca-text').textContent.trim();
