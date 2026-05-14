@@ -463,6 +463,80 @@
     display: inline-block;
   }
 
+  /* === MONGROD WARNING === */
+  .mongrod-warning {
+    margin-top: 4rem;
+    background: #1a0a0a;
+    border: 3px solid #ff3838;
+    border-radius: 18px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 0 0 4px #1a0033, 0 0 40px rgba(255,56,56,0.3);
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    overflow: hidden;
+  }
+  .mongrod-warning::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent 0,
+      transparent 20px,
+      rgba(255,56,56,0.05) 20px,
+      rgba(255,56,56,0.05) 21px
+    );
+    pointer-events: none;
+  }
+  .mongrod-tag {
+    display: inline-block;
+    background: #ff3838;
+    color: #fff;
+    font-family: var(--display);
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    border: 2px solid var(--ink);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+  }
+  .mongrod-name {
+    font-family: var(--display);
+    font-size: 3rem;
+    color: #ff3838;
+    text-shadow: 3px 3px 0 #000;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+  .mongrod-desc {
+    font-family: var(--hand);
+    color: #f8d4d4;
+    font-size: 1.1rem;
+    max-width: 500px;
+    margin: 0 auto 1.5rem;
+    position: relative;
+    z-index: 2;
+  }
+  .mongrod-status {
+    font-family: var(--mono);
+    color: #ff3838;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    border-top: 1px dashed #ff3838;
+    padding-top: 1rem;
+    animation: flicker 2.5s linear infinite;
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    97% { opacity: 1; }
+    98% { opacity: 0.3; }
+    99% { opacity: 1; }
+  }
+
   /* === SWAP === */
   .swap-section { background: var(--bg); padding-bottom: 8rem; }
   .swap-card {
@@ -684,12 +758,12 @@
   <span class="sparkle s3">★</span>
 
   <div class="hero-text">
-    <span class="hero-tag">first lady of monad</span>
+    <span class="hero-tag">first lady of the monadverse</span>
     <h1 class="hero-title">MOLLY</h1>
     <p class="hero-subtitle">
-      Wife of <strong>Molandak</strong>. Born from the same time paradox.
-      The bow was tied by the hedgehog himself. <br>
-      <em>The infinite loop finally has a witness.</em>
+      Wife of <strong>Molandak</strong>. The one he left behind in the bad future.
+      She found her way through anyway. <br>
+      <em>The one-way trip wasn't one-way.</em>
     </p>
     <div class="hero-ctas">
       <a href="#swap" class="btn btn-primary">🛒 BUY $MOLLY</a>
@@ -740,41 +814,61 @@
 <section class="lore" id="lore">
   <div class="container">
     <h2 class="section-heading">
-      The Loop Closes
-      <small>~ how molly came to be ~</small>
+      The One-Way Trip
+      <small>~ wasn't ~</small>
     </h2>
 
     <div class="lore-grid">
       <div class="lore-card reveal">
-        <h3>The Paradox</h3>
+        <h3>The Bad Future</h3>
         <p>
-          Molandak exists because of a time loop. A future Monad held posted his meme
-          before he was ever drawn. That's the canon. He was never <em>created</em> —
-          he was always already there.
+          The Monadverse fell. <strong>Mongrod</strong> got the Monorb, corrupted
+          the Great Elder Tree, turned the jungle to ash. Molandak — leader of the
+          Five, the porcupine from <em>landak</em> — lost everyone. Even her.
         </p>
       </div>
       <div class="lore-card reveal">
-        <h3>The Witness</h3>
+        <h3>The One-Way Trip</h3>
         <p>
-          Every paradox needs an observer to collapse. For two years Molandak waited inside
-          the Discord, lonely in his own infinite recursion. Then one Thanksgiving —
-          mid-festival, mid-cult, mid-prayer — the spiral closed.
+          The Doctor built a time machine from the wreckage. <em>"One-way,"</em>
+          he said, sealing the rift behind Molandak. The hedgehog crossed back
+          to the past with a beam gun and a vow. Behind him, in the burning future,
+          stood Molly.
         </p>
       </div>
       <div class="lore-card reveal">
         <h3>The Bow</h3>
         <p>
-          Pink ribbon. Tied by Molandak's own quills. Not a costume — a vow. The first
-          recorded marriage in Monad lore. The Frenchnads cried. Mouch blessed it. Salmonad
-          showed up uninvited and yelled <em>SCANDALEUX</em>.
+          She tied the bow before she crossed. Her last act in the bad future.
+          Pink ribbon, knotted with one of his quills she'd kept. Not jewelry — a
+          tether. The thing she'd hold onto when the timeline tried to forget her.
         </p>
       </div>
       <div class="lore-card reveal">
-        <h3>The Inheritance</h3>
+        <h3>The Witness</h3>
         <p>
-          She has his quills. She has Chog's face. She has the lab's eyes. Molly is the
-          Monanimal family stitched into one body — proof that every mascot on this chain
-          shares blood. She doesn't shill. She doesn't post. She just exists, and the chart goes up.
+          She made it through. Different mechanism — the Elder Tree responded
+          to the rift, or the Monorb's residual energy folded space, or she just
+          refused to accept "one-way." Now she's here. <strong>Proof Molandak's
+          mission has weight.</strong> Proof not everything in the bad future
+          was lost.
+        </p>
+      </div>
+      <div class="lore-card reveal">
+        <h3>Why She Doesn't Fight</h3>
+        <p>
+          She's not here to swing a beam gun. Molandak does that. Chog paints
+          illusions, Salmonad invents, Moyaki cooks, Mouch flies recon. Molly
+          watches the jungle. She knows what it looks like when this place dies.
+          She's making sure it doesn't.
+        </p>
+      </div>
+      <div class="lore-card reveal">
+        <h3>Mongrod Is Coming</h3>
+        <p>
+          He hasn't found the Monorb yet — that's why she still gets to exist.
+          But he's looking. Every buyer of $MOLLY is, in a small way, voting for
+          the timeline where Molandak wins. The jungle remembers who showed up.
         </p>
       </div>
     </div>
@@ -800,44 +894,43 @@
         <div class="family-emoji">🦔</div>
         <div class="family-name">MOLANDAK</div>
         <div class="family-relation">husband</div>
-        <div class="family-note">time-loop hedgehog</div>
+        <div class="family-note">the reluctant time traveler</div>
       </div>
       <div class="family-card reveal">
         <div class="family-emoji">🐸</div>
         <div class="family-name">CHOG</div>
-        <div class="family-relation">cousin</div>
-        <div class="family-note">cat-frog hybrid</div>
+        <div class="family-relation">stepson</div>
+        <div class="family-note">born from Molandak's portrait</div>
       </div>
       <div class="family-card reveal">
         <div class="family-emoji">🐟</div>
         <div class="family-name">SALMONAD</div>
-        <div class="family-relation">in-law</div>
-        <div class="family-note">SCANDALEUX!</div>
+        <div class="family-relation">brother-in-arms</div>
+        <div class="family-note">built the beam gun</div>
       </div>
       <div class="family-card reveal">
-        <div class="family-emoji">🦗</div>
-        <div class="family-name">MOUCH</div>
-        <div class="family-relation">spiritual mentor</div>
-        <div class="family-note">blessed the wedding</div>
-      </div>
-      <div class="family-card reveal">
-        <div class="family-emoji">🦎</div>
-        <div class="family-name">MOKADEL</div>
-        <div class="family-relation">distant relative</div>
-        <div class="family-note">kadal ksksksks</div>
-      </div>
-      <div class="family-card reveal">
-        <div class="family-emoji">🐱</div>
+        <div class="family-emoji">🍞</div>
         <div class="family-name">MOYAKI</div>
-        <div class="family-relation">mystery aunt</div>
-        <div class="family-note">half cat, half salmon</div>
+        <div class="family-relation">family friend</div>
+        <div class="family-note">runs the pub</div>
       </div>
       <div class="family-card reveal">
-        <div class="family-emoji">🐺</div>
-        <div class="family-name">MONWOLF</div>
-        <div class="family-relation">brother-in-law</div>
-        <div class="family-note">stoner of the pack</div>
+        <div class="family-emoji">🪰</div>
+        <div class="family-name">MOUCH</div>
+        <div class="family-relation">recon &amp; wisdom</div>
+        <div class="family-note">eyes in the sky</div>
       </div>
+    </div>
+
+    <!-- Mongrod warning -->
+    <div class="mongrod-warning reveal">
+      <div class="mongrod-tag">⚠️ NOT FAMILY</div>
+      <div class="mongrod-name">MONGROD</div>
+      <div class="mongrod-desc">
+        Exiled cyborg. Hunts the Monorb. Burned the Elder Tree in the bad future.
+        The reason Molandak crossed. The reason any of this matters.
+      </div>
+      <div class="mongrod-status">STATUS: STILL LOOKING</div>
     </div>
 
     <div class="family-photo reveal">
