@@ -506,22 +506,89 @@
     margin-top: 1.5rem;
   }
 
-  /* === CHART === */
+  /* === BONDING STATUS === */
   .chart-section { background: var(--bg-mid); padding-bottom: 6rem; }
-  .chart-frame {
-    max-width: 1000px;
-    margin: 2rem auto 0;
-    border: 4px solid var(--ink);
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 8px 8px 0 var(--pink-deep);
+  .bond-panel {
+    max-width: 1100px;
+    margin: 0 auto;
     background: var(--bg);
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    padding: 2.5rem 2rem;
+    box-shadow: 8px 8px 0 var(--pink-deep), 14px 14px 0 var(--ink);
   }
-  .chart-frame iframe {
-    width: 100%;
-    height: 600px;
-    border: 0;
-    display: block;
+  .bond-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .bond-cell {
+    background: var(--bg-mid);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+    transition: transform 0.2s;
+  }
+  .bond-cell:hover { transform: translateY(-4px); }
+  .bond-cell.active {
+    background: var(--molly-purple);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent), 0 0 30px rgba(255,216,77,0.4);
+    transform: scale(1.03);
+  }
+  .bond-icon { font-size: 3.5rem; line-height: 1; margin-bottom: 0.5rem; }
+  .bond-step {
+    font-family: var(--script);
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+  }
+  .bond-title {
+    font-family: var(--display);
+    color: var(--pink);
+    font-size: 1.6rem;
+    margin-bottom: 0.75rem;
+  }
+  .bond-desc {
+    font-family: var(--hand);
+    color: var(--cream);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    min-height: 4.5rem;
+  }
+  .bond-status {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-family: var(--display);
+    font-size: 0.85rem;
+    border: 2px solid var(--ink);
+  }
+  .bond-status.done { background: #4ade80; color: var(--ink); }
+  .bond-status.active-status {
+    background: var(--accent);
+    color: var(--ink);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .bond-status.pending { background: var(--bg); color: var(--cream); border-color: var(--pink-deep); }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  .bond-cta {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--pink-deep);
+  }
+  .bond-help {
+    font-family: var(--hand);
+    color: var(--cream);
+    font-size: 1.05rem;
+    max-width: 600px;
+    margin: 0 auto;
   }
 
   /* === FOOTER === */
@@ -605,7 +672,7 @@
     <li><a href="#lore">Lore</a></li>
     <li><a href="#family">Family</a></li>
     <li><a href="#swap">Buy</a></li>
-    <li><a href="#chart">Chart</a></li>
+    <li><a href="#chart">Bonding</a></li>
   </ul>
   <a href="#swap" class="nav-buy">BUY $MOLLY</a>
 </nav>
@@ -641,7 +708,12 @@
     <div class="ca-label">📋 CONTRACT ADDRESS</div>
     <div class="ca-row">
       <span class="ca-text" id="ca-text">0xB72e6262DAE53cAF167F0966421a0B9782977777</span>
-      <button class="ca-copy" onclick="copyCA(this)">COPY</button>
+      <button class="ca-copy" onclick="copyCA(this, 'ca-text')">COPY</button>
+    </div>
+    <div class="ca-label" style="margin-top:1.5rem; font-size:1.1rem;">🏊 POOL ADDRESS</div>
+    <div class="ca-row">
+      <span class="ca-text" id="pool-text">0xA7283d07812a02AFB7C09B60f8896bCEA3F90aCE</span>
+      <button class="ca-copy" onclick="copyCA(this, 'pool-text')">COPY</button>
     </div>
     <div class="ca-stats">
       <div class="ca-stat">
@@ -657,8 +729,8 @@
         <div class="ca-stat-value">MOLLY/WMON</div>
       </div>
       <div class="ca-stat">
-        <div class="ca-stat-label">DEX</div>
-        <div class="ca-stat-value">NAD.FUN</div>
+        <div class="ca-stat-label">Status</div>
+        <div class="ca-stat-value">BONDING</div>
       </div>
     </div>
   </div>
@@ -795,31 +867,60 @@
       </div>
 
       <div class="swap-cta-row">
-        <a href="https://nad.fun/token/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+        <a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777"
            target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center;">
           🚀 BUY ON NAD.FUN
         </a>
-        <a href="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+        <a href="https://monadscan.com/address/0xA7283d07812a02AFB7C09B60f8896bCEA3F90aCE"
            target="_blank" rel="noopener" class="btn btn-secondary" style="justify-content: center;">
-          📊 VIEW ON DEXSCREENER
+          🔍 VIEW POOL ON EXPLORER
         </a>
       </div>
     </div>
   </div>
 </section>
 
-<!-- CHART -->
+<!-- BONDING STATUS -->
 <section class="chart-section" id="chart">
   <div class="container">
     <h2 class="section-heading">
-      Live Chart
-      <small>~ watch her cook ~</small>
+      Bonding to the Chain
+      <small>~ she's not on dex yet ~</small>
     </h2>
-    <div class="chart-frame reveal">
-      <iframe
-        src="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777?embed=1&theme=dark&info=0"
-        title="MOLLY chart">
-      </iframe>
+    <div class="bond-panel reveal">
+      <div class="bond-grid">
+        <div class="bond-cell">
+          <div class="bond-icon">🥚</div>
+          <div class="bond-step">STAGE 1</div>
+          <div class="bond-title">Hatched</div>
+          <div class="bond-desc">Token deployed on Monad. Lore established. Bow tied.</div>
+          <div class="bond-status done">✓ COMPLETE</div>
+        </div>
+        <div class="bond-cell active">
+          <div class="bond-icon">📈</div>
+          <div class="bond-step">STAGE 2</div>
+          <div class="bond-title">Bonding Curve</div>
+          <div class="bond-desc">Live on nad.fun's bonding curve right now. Every buy raises the floor. Reach the cap and she graduates to her own DEX pool.</div>
+          <div class="bond-status active-status">⚡ IN PROGRESS</div>
+        </div>
+        <div class="bond-cell">
+          <div class="bond-icon">🎓</div>
+          <div class="bond-step">STAGE 3</div>
+          <div class="bond-title">Graduation</div>
+          <div class="bond-desc">Curve fills → LP auto-deploys → MOLLY/WMON pair goes live on DEX. Chart unlocks. First Lady mode engaged.</div>
+          <div class="bond-status pending">⏳ PENDING</div>
+        </div>
+      </div>
+      <div class="bond-cta">
+        <p class="bond-help">
+          The chart embed lights up here automatically once she bonds.
+          Until then — every buy on nad.fun pushes her closer to graduation.
+        </p>
+        <a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+           target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center; margin-top: 1rem;">
+          📈 PUSH THE CURVE
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -829,8 +930,8 @@
   <ul class="footer-links">
     <li><a href="https://t.me/CTOMolly" target="_blank" rel="noopener">TELEGRAM</a></li>
     <li><a href="#" target="_blank" rel="noopener" id="x-link">X / TWITTER</a></li>
-    <li><a href="https://nad.fun/token/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">NAD.FUN</a></li>
-    <li><a href="https://dexscreener.com/monad/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">DEXSCREENER</a></li>
+    <li><a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">NAD.FUN</a></li>
+    <li><a href="https://monadscan.com/address/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">EXPLORER</a></li>
     <li><a href="mailto:admin@mollyonmonad.xyz">CONTACT</a></li>
   </ul>
   <div class="footer-note">~ first lady of monad ~</div>
@@ -838,9 +939,9 @@
 </footer>
 
 <script>
-  // Copy CA
-  function copyCA(btn) {
-    const ca = document.getElementById('ca-text').textContent.trim();
+  // Copy CA / pool
+  function copyCA(btn, targetId) {
+    const ca = document.getElementById(targetId || 'ca-text').textContent.trim();
     navigator.clipboard.writeText(ca).then(() => {
       const orig = btn.textContent;
       btn.textContent = '✓ COPIED';
