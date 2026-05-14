@@ -862,6 +862,74 @@
     margin: 0 auto;
   }
 
+  /* === CHART === */
+  .chart-section {
+    background: var(--bg);
+    padding: 4rem 1.25rem 5rem;
+    border-bottom: 4px solid var(--ink);
+  }
+  .chart-frame {
+    max-width: 1080px;
+    margin: 1.5rem auto 0;
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 6px 6px 0 var(--pink-deep);
+    background: #0b0716;
+    aspect-ratio: 16 / 10;
+  }
+  .chart-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+  .chart-pair {
+    max-width: 1080px;
+    margin: 1rem auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    font-family: var(--hand);
+    color: var(--cream);
+    font-size: 0.95rem;
+  }
+  .chart-pair-label { opacity: 0.7; }
+  .chart-pair-addr {
+    font-family: var(--mono);
+    background: rgba(0,0,0,0.4);
+    border: 2px solid rgba(244,168,214,0.25);
+    border-radius: 8px;
+    padding: 0.3rem 0.65rem;
+    color: var(--pink);
+    font-size: 0.85rem;
+    word-break: break-all;
+  }
+  .chart-pair-copy,
+  .chart-pair-link {
+    font-family: var(--display);
+    font-size: 0.78rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    border: 2px solid var(--ink);
+    background: var(--accent);
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  .chart-pair-copy:hover,
+  .chart-pair-link:hover {
+    transform: translate(-1px,-1px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  @media (max-width: 720px) {
+    .chart-frame { aspect-ratio: 4 / 5; }
+    .chart-pair-addr { font-size: 0.7rem; }
+  }
+
   /* === LIVE STATUS === */
   .status-section {
     background:
@@ -1139,8 +1207,8 @@
     <li><a href="#lore">Lore</a></li>
     <li><a href="#together">Together</a></li>
     <li><a href="#family">Family</a></li>
+    <li><a href="#chart">Chart</a></li>
     <li><a href="#swap">Buy</a></li>
-    <li><a href="#status">Bonding</a></li>
   </ul>
   <a href="#swap" class="nav-buy">BUY $MOLLY</a>
 </nav>
@@ -1219,6 +1287,31 @@
     </div>
 
     <a href="#swap" class="status-cta" id="status-cta">PUSH THE CURVE →</a>
+  </div>
+</section>
+
+<!-- CHART -->
+<section class="chart-section" id="chart" aria-label="Live chart">
+  <div class="container">
+    <h2 class="section-heading">
+      Chart
+      <small>~ live on dex ~</small>
+    </h2>
+    <div class="chart-frame reveal">
+      <iframe
+        src="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d?embed=1&theme=dark&info=0&trades=0"
+        loading="lazy"
+        title="MOLLY/WMON chart"
+        allow="clipboard-write"
+        allowfullscreen></iframe>
+    </div>
+    <div class="chart-pair">
+      <span class="chart-pair-label">Pair</span>
+      <code class="chart-pair-addr" id="pairAddr">0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d</code>
+      <button class="chart-pair-copy" data-copy="pairAddr">copy</button>
+      <a href="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d"
+         target="_blank" rel="noopener" class="chart-pair-link">open ↗</a>
+    </div>
   </div>
 </section>
 
@@ -1353,7 +1446,7 @@
 
     <div class="family-tree">
       <div class="family-card molly reveal">
-        <div class="family-img-wrap"><img src="assets/molly-hero.png" alt="Molly" loading="lazy"></div>
+        <div class="family-img-wrap"><img src="assets/family/molly-thumb.png" alt="Molly" loading="lazy"></div>
         <div class="family-name">MOLLY</div>
         <div class="family-relation">that's her</div>
         <div class="family-note">first lady</div>
@@ -1383,16 +1476,22 @@
         <div class="family-note">eyes in the sky</div>
       </div>
       <div class="family-card reveal">
+        <div class="family-img-wrap"><img src="assets/family/moyaki.png" alt="Moyaki" loading="lazy"></div>
+        <div class="family-name">MOYAKI</div>
+        <div class="family-relation">family friend</div>
+        <div class="family-note">runs the pub</div>
+      </div>
+      <div class="family-card reveal">
         <div class="family-img-wrap"><img src="assets/family/mokadel.png" alt="Mokadel" loading="lazy"></div>
         <div class="family-name">MOKADEL</div>
         <div class="family-relation">cousin</div>
         <div class="family-note">kadal ksksksks</div>
       </div>
       <div class="family-card reveal">
-        <div class="family-img-wrap"><img src="assets/family/monazard.png" alt="Monazard" loading="lazy"></div>
-        <div class="family-name">MONAZARD</div>
-        <div class="family-relation">cousin</div>
-        <div class="family-note">winged purple chaos</div>
+        <div class="family-img-wrap"><img src="assets/family/salandak.png" alt="Salandak" loading="lazy"></div>
+        <div class="family-name">SALANDAK</div>
+        <div class="family-relation">little sibling</div>
+        <div class="family-note">molandak's smaller, scrappier shadow</div>
       </div>
       <div class="family-card reveal">
         <div class="family-img-wrap"><img src="assets/family/mosferatu.png" alt="Mosferatu" loading="lazy"></div>
@@ -1436,16 +1535,16 @@
 
     <div class="swap-card reveal">
       <div class="swap-title">BUY $MOLLY</div>
-      <div class="swap-subtitle">MON → MOLLY · 0/0 tax · bonded on nad.fun</div>
+      <div class="swap-subtitle">MON → MOLLY · 0/0 tax · 🎓 graduated to DEX</div>
 
       <div class="swap-cta-row">
-        <a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777"
+        <a href="https://monorail.xyz/?from=0x0000000000000000000000000000000000000000&to=0xB72e6262DAE53cAF167F0966421a0B9782977777"
            target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center;">
-          🚀 BUY ON NAD.FUN
+          🚀 SWAP ON MONORAIL
         </a>
-        <a href="https://monadscan.com/address/0xA7283d07812a02AFB7C09B60f8896bCEA3F90aCE"
+        <a href="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d"
            target="_blank" rel="noopener" class="btn btn-secondary" style="justify-content: center;">
-          🔍 VIEW POOL ON EXPLORER
+          📈 VIEW ON DEXSCREENER
         </a>
       </div>
     </div>
@@ -1457,7 +1556,8 @@
   <ul class="footer-links">
     <li><a href="https://t.me/CTOMolly" target="_blank" rel="noopener">TELEGRAM</a></li>
     <li><a href="#" target="_blank" rel="noopener" id="x-link">X / TWITTER</a></li>
-    <li><a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">NAD.FUN</a></li>
+    <li><a href="https://monorail.xyz/?from=0x0000000000000000000000000000000000000000&to=0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">MONORAIL</a></li>
+    <li><a href="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d" target="_blank" rel="noopener">DEXSCREENER</a></li>
     <li><a href="https://monadscan.com/address/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">EXPLORER</a></li>
     <li><a href="mailto:admin@mollyonmonad.xyz">CONTACT</a></li>
   </ul>
@@ -1590,22 +1690,30 @@
           $('stat-price-mon').textContent = '';
         }
 
-        $('stat-raised').textContent = fmtMon(monRaisedApprox);
+        $('stat-raised').textContent = isGrad ? '🎓 BONDED' : fmtMon(monRaisedApprox);
+        const raisedSub = document.querySelector('#stat-raised + .stat-sub');
+        if (raisedSub) raisedSub.textContent = isGrad ? 'trading on DEX' : 'in the curve';
+        const raisedLabel = document.querySelector('.status-stat:nth-child(3) .stat-label');
+        if (raisedLabel) raisedLabel.textContent = isGrad ? 'Status' : 'MON Raised';
 
         $('progress-pct').textContent = progressPct.toFixed(2) + '%';
         $('progress-fill').style.width = Math.min(100, progressPct) + '%';
 
         // Flip CTA + helper text once graduated
         const cta = $('status-cta');
+        const DEX_PAIR_URL = 'https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d';
         if (isGrad) {
           cta.textContent = 'TRADE ON DEX →';
+          cta.href = '#chart';
           cta.classList.add('graduated');
-          $('progress-foot-left').textContent = '🎓 graduated to DEX';
+          $('progress-foot-left').textContent = '🎓 graduated — live on DEX';
         } else if (isLock) {
           cta.textContent = 'LISTING SOON →';
+          cta.href = '#swap';
           $('progress-foot-left').textContent = 'curve locked — DEX listing in progress';
         } else {
           cta.textContent = 'PUSH THE CURVE →';
+          cta.href = '#swap';
           $('progress-foot-left').textContent = 'graduates at ~80% sold';
         }
       } catch (err) {
@@ -1621,6 +1729,11 @@
     tick();
     setInterval(tick, 20_000);
   })();
+
+  // Pair-address copy button (uses existing copyCA)
+  document.querySelectorAll('[data-copy]').forEach(btn => {
+    btn.addEventListener('click', () => copyCA(btn, btn.dataset.copy));
+  });
 
   // Copy CA / pool
   function copyCA(btn, targetId) {
