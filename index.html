@@ -892,6 +892,177 @@
     margin: 0 auto;
   }
 
+  /* === LIVE STATUS === */
+  .status-section {
+    background:
+      linear-gradient(180deg, rgba(244,168,214,0.05) 0%, transparent 100%),
+      var(--bg);
+    border-top: 4px solid var(--ink);
+    border-bottom: 4px solid var(--ink);
+    padding: 3rem 1.25rem;
+    position: relative;
+  }
+  .status-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    background: rgba(0,0,0,0.30);
+    border: 3px solid var(--ink);
+    border-radius: 22px;
+    padding: 2rem 2rem 1.75rem;
+    box-shadow: 6px 6px 0 var(--pink-deep);
+    position: relative;
+  }
+  .status-header {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 1.5rem;
+  }
+  .status-pulse {
+    width: 0.7rem;
+    height: 0.7rem;
+    background: #ff5577;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(255,85,119,0.6);
+    animation: live-pulse 1.6s ease-out infinite;
+  }
+  @keyframes live-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,85,119,0.6); }
+    70% { box-shadow: 0 0 0 14px rgba(255,85,119,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,85,119,0); }
+  }
+  .status-eyebrow {
+    font-family: var(--display);
+    color: var(--cream);
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+  }
+  .status-divider { color: var(--pink); opacity: 0.5; }
+  .status-badge {
+    font-family: var(--display);
+    font-size: 0.85rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 2px solid var(--ink);
+    letter-spacing: 0.06em;
+  }
+  .status-badge[data-state="loading"]   { background: var(--bg); color: var(--cream); }
+  .status-badge[data-state="bonding"]   { background: var(--accent); color: var(--ink); animation: pulse 1.8s ease-in-out infinite; }
+  .status-badge[data-state="locked"]    { background: var(--pink); color: var(--ink); }
+  .status-badge[data-state="graduated"] { background: #4ade80; color: var(--ink); }
+  .status-badge[data-state="error"]     { background: var(--bg); color: var(--cream); opacity: 0.6; }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.9rem;
+    margin-bottom: 1.6rem;
+  }
+  .status-stat {
+    background: rgba(244,168,214,0.06);
+    border: 2px solid rgba(244,168,214,0.18);
+    border-radius: 14px;
+    padding: 0.95rem 1.1rem;
+  }
+  .stat-label {
+    font-family: var(--hand);
+    color: var(--pink);
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    color: var(--cream);
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .stat-sub {
+    font-family: var(--hand);
+    color: var(--cream);
+    opacity: 0.55;
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+    min-height: 1em;
+  }
+
+  .progress-wrap { margin-bottom: 1.4rem; }
+  .progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.55rem;
+  }
+  .progress-label {
+    font-family: var(--hand);
+    color: var(--cream);
+    font-size: 1rem;
+  }
+  .progress-pct {
+    font-family: var(--display);
+    color: var(--accent);
+    font-size: 1.45rem;
+    text-shadow: 1px 1px 0 var(--ink);
+  }
+  .progress-bar {
+    position: relative;
+    height: 22px;
+    background: rgba(0,0,0,0.55);
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pink) 0%, var(--pink-deep) 60%, var(--accent) 100%);
+    transition: width 1s ease-out;
+    box-shadow: inset 0 0 8px rgba(255,255,255,0.25);
+  }
+  .progress-target {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    left: 80%;
+    width: 3px;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .progress-foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.4rem;
+    font-family: var(--hand);
+    font-size: 0.85rem;
+    color: var(--cream);
+  }
+  .progress-foot .muted { opacity: 0.55; }
+
+  .status-cta {
+    display: block;
+    text-align: center;
+    background: var(--accent);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 999px;
+    padding: 0.85rem 1.4rem;
+    font-family: var(--display);
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .status-cta:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .status-cta.graduated { background: #4ade80; }
+
+  @media (max-width: 720px) {
+    .status-wrap { padding: 1.5rem 1.1rem 1.3rem; }
+    .status-grid { grid-template-columns: 1fr; gap: 0.6rem; }
+    .stat-value { font-size: 1.35rem; }
+    .progress-pct { font-size: 1.2rem; }
+  }
+
   /* === FOOTER === */
   footer {
     background: var(--ink);
@@ -1000,7 +1171,7 @@
     <li><a href="#together">Together</a></li>
     <li><a href="#family">Family</a></li>
     <li><a href="#swap">Buy</a></li>
-    <li><a href="#chart">Bonding</a></li>
+    <li><a href="#status">Bonding</a></li>
   </ul>
   <a href="#swap" class="nav-buy">BUY $MOLLY</a>
 </nav>
@@ -1043,6 +1214,53 @@
       <span class="unmute-icon">🔇</span>
       <span class="unmute-label">unmute</span>
     </button>
+  </div>
+</section>
+
+<!-- LIVE STATUS -->
+<section class="status-section" id="status" aria-label="Live bonding status">
+  <div class="status-wrap">
+    <div class="status-header">
+      <span class="status-pulse" aria-hidden="true"></span>
+      <span class="status-eyebrow">LIVE</span>
+      <span class="status-divider">·</span>
+      <span class="status-badge" id="statusBadge" data-state="loading">loading…</span>
+    </div>
+
+    <div class="status-grid">
+      <div class="status-stat">
+        <div class="stat-label">Market Cap</div>
+        <div class="stat-value" id="stat-mc">—</div>
+        <div class="stat-sub" id="stat-mc-usd">&nbsp;</div>
+      </div>
+      <div class="status-stat">
+        <div class="stat-label">Price / $MOLLY</div>
+        <div class="stat-value" id="stat-price">—</div>
+        <div class="stat-sub" id="stat-price-mon">&nbsp;</div>
+      </div>
+      <div class="status-stat">
+        <div class="stat-label">MON Raised</div>
+        <div class="stat-value" id="stat-raised">—</div>
+        <div class="stat-sub">in the curve</div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-top">
+        <span class="progress-label">Bonding curve progress</span>
+        <span class="progress-pct" id="progress-pct">—</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        <div class="progress-target" aria-hidden="true"></div>
+      </div>
+      <div class="progress-foot">
+        <span id="progress-foot-left">graduates at ~80% sold</span>
+        <span id="progress-foot-right" class="muted">refreshes every 20s</span>
+      </div>
+    </div>
+
+    <a href="#swap" class="status-cta" id="status-cta">PUSH THE CURVE →</a>
   </div>
 </section>
 
@@ -1276,51 +1494,6 @@
   </div>
 </section>
 
-<!-- BONDING STATUS -->
-<section class="chart-section" id="chart">
-  <div class="container">
-    <h2 class="section-heading">
-      Bonding to the Chain
-      <small>~ she's not on dex yet ~</small>
-    </h2>
-    <div class="bond-panel reveal">
-      <div class="bond-grid">
-        <div class="bond-cell">
-          <div class="bond-icon">🥚</div>
-          <div class="bond-step">STAGE 1</div>
-          <div class="bond-title">Hatched</div>
-          <div class="bond-desc">Token deployed on Monad. Lore established. Bow tied.</div>
-          <div class="bond-status done">✓ COMPLETE</div>
-        </div>
-        <div class="bond-cell active">
-          <div class="bond-icon">📈</div>
-          <div class="bond-step">STAGE 2</div>
-          <div class="bond-title">Bonding Curve</div>
-          <div class="bond-desc">Live on nad.fun's bonding curve right now. Every buy raises the floor. Reach the cap and she graduates to her own DEX pool.</div>
-          <div class="bond-status active-status">⚡ IN PROGRESS</div>
-        </div>
-        <div class="bond-cell">
-          <div class="bond-icon">🎓</div>
-          <div class="bond-step">STAGE 3</div>
-          <div class="bond-title">Graduation</div>
-          <div class="bond-desc">Curve fills → LP auto-deploys → MOLLY/WMON pair goes live on DEX. Chart unlocks. First Lady mode engaged.</div>
-          <div class="bond-status pending">⏳ PENDING</div>
-        </div>
-      </div>
-      <div class="bond-cta">
-        <p class="bond-help">
-          The chart embed lights up here automatically once she bonds.
-          Until then — every buy on nad.fun pushes her closer to graduation.
-        </p>
-        <a href="https://nad.fun/tokens/0xB72e6262DAE53cAF167F0966421a0B9782977777"
-           target="_blank" rel="noopener" class="btn btn-primary" style="justify-content: center; margin-top: 1rem;">
-          📈 PUSH THE CURVE
-        </a>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- FOOTER -->
 <footer>
   <ul class="footer-links">
@@ -1336,6 +1509,161 @@
 </footer>
 
 <script>
+  // ============ LIVE BONDING STATUS ============
+  // Reads nad.fun Lens contract on Monad mainnet, no deps
+  (function liveStatus() {
+    const RPC = 'https://rpc.monad.xyz';
+    const TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+    const LENS  = '0x7e78A8DE94f21804F7a17F4E8BF9EC2c872187ea';
+    const BONDING_CURVE_ROUTER = '0x6F6B8F1a20703309951a5127c45B49b1CD981A22';
+    const TOTAL_SUPPLY = 1_000_000_000;
+
+    // function selectors
+    const SEL = {
+      isGraduated: '0x68a4c8b7',
+      isLocked:    '0x4a4fbeec',
+      getProgress: '0xaef76501',
+      getAmountOut:'0xf2d65617', // (address,uint256,bool)
+    };
+
+    const pad = (h) => h.replace(/^0x/,'').padStart(64,'0').toLowerCase();
+    const padAddr = (a) => pad(a);
+    const padUint = (n) => pad(BigInt(n).toString(16));
+    const padBool = (b) => pad(b ? '1' : '0');
+
+    async function ethCall(data) {
+      const r = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'eth_call',
+          params:[{ to: LENS, data }, 'latest'] }),
+      });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message || 'rpc error');
+      return j.result; // hex string with 0x
+    }
+
+    // decode helpers
+    const hexBig = (hex) => BigInt(hex || '0x0');
+    const fromWei = (hex) => Number(hexBig(hex)) / 1e18;
+    const splitWords = (hex) => {
+      const s = hex.replace(/^0x/,'');
+      const out = [];
+      for (let i = 0; i < s.length; i += 64) out.push('0x' + s.slice(i, i+64));
+      return out;
+    };
+
+    // MON/USD via CoinGecko (free, no key)
+    let monUsdCache = { v: null, t: 0 };
+    async function getMonUsd() {
+      if (monUsdCache.v && Date.now() - monUsdCache.t < 60_000) return monUsdCache.v;
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=monad&vs_currencies=usd');
+        const j = await r.json();
+        const v = j?.monad?.usd;
+        if (v) { monUsdCache = { v, t: Date.now() }; return v; }
+      } catch (e) { /* offline ok */ }
+      return null;
+    }
+
+    const fmtNum = (n, decimals = 2) => {
+      if (!isFinite(n)) return '—';
+      if (n >= 1_000_000) return (n/1_000_000).toFixed(2) + 'M';
+      if (n >= 1_000)     return (n/1_000).toFixed(2) + 'K';
+      return n.toFixed(decimals);
+    };
+    const fmtUsd = (n) => '$' + fmtNum(n, 2);
+    const fmtMon = (n) => fmtNum(n, 2) + ' MON';
+
+    const $ = (id) => document.getElementById(id);
+
+    async function tick() {
+      try {
+        // Parallel reads
+        const [progHex, gradHex, lockHex, quoteHex, monUsd] = await Promise.all([
+          ethCall(SEL.getProgress + padAddr(TOKEN)),
+          ethCall(SEL.isGraduated + padAddr(TOKEN)),
+          ethCall(SEL.isLocked + padAddr(TOKEN)),
+          // getAmountOut(token, 1e18, true) → MOLLY per 1 MON
+          ethCall(SEL.getAmountOut + padAddr(TOKEN) + padUint(10n**18n) + padBool(true)),
+          getMonUsd(),
+        ]);
+
+        const isGrad = hexBig(gradHex) === 1n;
+        const isLock = hexBig(lockHex) === 1n;
+        const progressBp = Number(hexBig(progHex)); // basis points 0..10000
+        const progressPct = progressBp / 100; // 0..100
+
+        // quote: [router (32B), amountOut (32B)]
+        const [, amountOutHex] = splitWords(quoteHex);
+        const mollyPer1Mon = fromWei(amountOutHex);
+        const monPerMolly = mollyPer1Mon > 0 ? 1 / mollyPer1Mon : 0;
+        const mcMon = monPerMolly * TOTAL_SUPPLY;
+        const mcUsd = monUsd ? mcMon * monUsd : null;
+        const priceUsd = monUsd ? monPerMolly * monUsd : null;
+
+        // Estimate MON raised: from the standard nad.fun curve config
+        // Virtual MON reserve = 180k; raise at graduation ~30k MON.
+        // Without reading reserves directly, approximate from progress:
+        // (rough but visible — refines once real reserves wired)
+        const monRaisedApprox = (progressBp / 10000) * 30000;
+
+        // === update UI ===
+        const badge = $('statusBadge');
+        if (isGrad) {
+          badge.dataset.state = 'graduated';
+          badge.textContent = 'GRADUATED ✓';
+        } else if (isLock) {
+          badge.dataset.state = 'locked';
+          badge.textContent = 'LOCKED — listing';
+        } else {
+          badge.dataset.state = 'bonding';
+          badge.textContent = 'BONDING ⚡';
+        }
+
+        $('stat-mc').textContent = mcUsd ? fmtUsd(mcUsd) : fmtMon(mcMon);
+        $('stat-mc-usd').textContent = mcUsd ? `~ ${fmtMon(mcMon)}` : 'MON-USD offline';
+
+        if (priceUsd) {
+          $('stat-price').textContent = '$' + priceUsd.toFixed(6);
+          $('stat-price-mon').textContent = `${monPerMolly.toExponential(3)} MON`;
+        } else {
+          $('stat-price').textContent = monPerMolly.toExponential(3) + ' MON';
+          $('stat-price-mon').textContent = '';
+        }
+
+        $('stat-raised').textContent = fmtMon(monRaisedApprox);
+
+        $('progress-pct').textContent = progressPct.toFixed(2) + '%';
+        $('progress-fill').style.width = Math.min(100, progressPct) + '%';
+
+        // Flip CTA + helper text once graduated
+        const cta = $('status-cta');
+        if (isGrad) {
+          cta.textContent = 'TRADE ON DEX →';
+          cta.classList.add('graduated');
+          $('progress-foot-left').textContent = '🎓 graduated to DEX';
+        } else if (isLock) {
+          cta.textContent = 'LISTING SOON →';
+          $('progress-foot-left').textContent = 'curve locked — DEX listing in progress';
+        } else {
+          cta.textContent = 'PUSH THE CURVE →';
+          $('progress-foot-left').textContent = 'graduates at ~80% sold';
+        }
+      } catch (err) {
+        const badge = $('statusBadge');
+        if (badge) {
+          badge.dataset.state = 'error';
+          badge.textContent = 'rpc offline';
+        }
+        console.warn('liveStatus:', err);
+      }
+    }
+
+    tick();
+    setInterval(tick, 20_000);
+  })();
+
   // Hero unmute toggle
   (function () {
     const v = document.getElementById('heroVideo');
