@@ -1015,13 +1015,142 @@
     overflow: hidden;
     box-shadow: 6px 6px 0 var(--pink-deep);
     background: #0b0716;
-    aspect-ratio: 16 / 10;
   }
   .chart-frame iframe {
     width: 100%;
     height: 100%;
     border: 0;
     display: block;
+  }
+  /* ─── Molly's custom on-page chart (replaces broken DexScreener iframe) ─── */
+  .molly-chart {
+    background: linear-gradient(180deg, #1a0b2e 0%, #0b0716 100%);
+    padding: 16px 14px 14px;
+    color: #fff;
+  }
+  .mc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .mc-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mc-badge { font-size: 18px; }
+  .mc-symbol {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--pink);
+    letter-spacing: 1px;
+  }
+  .mc-status {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(249,197,230,.12);
+    color: var(--pink);
+    border: 1px solid rgba(249,197,230,.25);
+    text-transform: uppercase;
+  }
+  .mc-status.live { background: rgba(34,197,94,.15); color: #4ade80; border-color: rgba(34,197,94,.3); }
+  .mc-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .mc-pill {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(249,197,230,.15);
+    color: #c8b6e6;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .mc-pill:hover { border-color: var(--pink); color: #fff; }
+  .mc-pill.active {
+    background: var(--pink-deep);
+    border-color: var(--pink-deep);
+    color: #1a0033;
+  }
+  .mc-stats {
+    display: flex;
+    gap: 18px;
+    padding: 10px 4px 12px;
+    flex-wrap: wrap;
+  }
+  .mc-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mc-stat .lbl {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    color: #7e6d96;
+    text-transform: uppercase;
+  }
+  .mc-stat b {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .mc-stat b.up { color: #4ade80; }
+  .mc-stat b.down { color: #f87171; }
+  .mc-canvas {
+    width: 100%;
+    height: 360px;
+    background: #08000f;
+    border: 1px solid rgba(249,197,230,.1);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .mc-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7e6d96;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .mc-source {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding: 0 4px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    color: #7e6d96;
+    text-transform: uppercase;
+  }
+  .mc-source a { color: var(--pink); text-decoration: none; }
+  .mc-source a:hover { color: var(--pink-deep); }
+  @media (max-width: 600px){
+    .molly-chart { padding: 12px 10px 10px; }
+    .mc-canvas { height: 280px; }
+    .mc-pill { padding: 4px 7px; font-size: 10px; }
+    .mc-stats { gap: 12px; padding: 8px 2px 10px; }
+    .mc-stat .lbl { font-size: 8px; }
+    .mc-stat b { font-size: 12px; }
   }
   .chart-pair {
     max-width: 1080px;
@@ -1065,7 +1194,6 @@
     box-shadow: 4px 4px 0 var(--ink);
   }
   @media (max-width: 720px) {
-    .chart-frame { aspect-ratio: 4 / 5; }
     .chart-pair-addr { font-size: 0.7rem; }
   }
 
@@ -1322,7 +1450,6 @@
     .ca-row { font-size: 0.75rem; padding: 0.5rem 0.75rem; }
     .ca-copy { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
     .lore-card { transform: rotate(0) !important; }
-    .chart-frame iframe { height: 450px; }
   }
 
   /* === scroll reveal === */
@@ -1437,19 +1564,42 @@
       <small>~ live on dex ~</small>
     </h2>
     <div class="chart-frame reveal">
-      <iframe
-        src="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d?embed=1&theme=dark&info=0&trades=0"
-        loading="lazy"
-        title="MOLLY/WMON chart"
-        allow="clipboard-write"
-        allowfullscreen></iframe>
+      <div class="molly-chart">
+        <div class="mc-head">
+          <div class="mc-title">
+            <span class="mc-badge">🎀</span>
+            <span class="mc-symbol">MOLLY/MON</span>
+            <span class="mc-status" id="mcStatus">— LOADING —</span>
+          </div>
+          <div class="mc-pills" id="mcPills">
+            <button class="mc-pill" data-res="1">1m</button>
+            <button class="mc-pill" data-res="5">5m</button>
+            <button class="mc-pill" data-res="15">15m</button>
+            <button class="mc-pill active" data-res="60">1H</button>
+            <button class="mc-pill" data-res="240">4H</button>
+            <button class="mc-pill" data-res="1D">1D</button>
+          </div>
+        </div>
+        <div class="mc-stats" id="mcStats">
+          <span class="mc-stat"><span class="lbl">PRICE</span><b id="mcPrice">—</b></span>
+          <span class="mc-stat"><span class="lbl">PERIOD</span><b id="mcPct">—</b></span>
+          <span class="mc-stat"><span class="lbl">24H VOL</span><b id="mcVol">—</b></span>
+        </div>
+        <div class="mc-canvas" id="mcCanvas">
+          <div class="mc-fallback">⏳ loading molly's chart…</div>
+        </div>
+        <div class="mc-source">
+          <span>OHLC · NAD.FUN</span>
+          <a href="https://nad.fun/token/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener">trade on nad.fun ↗</a>
+        </div>
+      </div>
     </div>
     <div class="chart-pair">
       <span class="chart-pair-label">Pair</span>
       <code class="chart-pair-addr" id="pairAddr">0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d</code>
       <button class="chart-pair-copy" data-copy="pairAddr">copy</button>
       <a href="https://dexscreener.com/monad/0x86dfd5548a86d6ce487e9f5a0e16dddc9b906a7d"
-         target="_blank" rel="noopener" class="chart-pair-link">open ↗</a>
+         target="_blank" rel="noopener" class="chart-pair-link">DEX ↗</a>
     </div>
   </div>
 </section>
@@ -1906,6 +2056,204 @@
     });
   }, { threshold: 0.15 });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+
+<!-- Molly's custom chart — replaces broken DexScreener mobile iframe -->
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(function(){
+'use strict';
+
+const MOLLY_TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+const NAD_API     = '/api/nad';
+
+const CHART = {
+  resolution: '60',
+  chart: null,
+  series: null,
+  _retries: 0,
+};
+
+const LOOKBACK = {
+  '1':    150 * 60,
+  '5':    150 * 5 * 60,
+  '15':   150 * 15 * 60,
+  '30':   150 * 30 * 60,
+  '60':   150 * 3600,
+  '240':  150 * 4 * 3600,
+  '1D':   150 * 86400,
+};
+
+const $ = (s) => document.querySelector(s);
+
+function fmtPrice(p){
+  if (p == null || isNaN(p)) return '—';
+  const x = +p;
+  if (x === 0) return '0';
+  if (Math.abs(x) >= 1) return x.toFixed(4);
+  if (Math.abs(x) >= 0.0001) return x.toFixed(6);
+  return x.toExponential(2);
+}
+function fmt(n, d=2){
+  if (n==null || isNaN(n)) return '—';
+  const x = +n;
+  if (Math.abs(x) >= 1e9) return (x/1e9).toFixed(d)+'B';
+  if (Math.abs(x) >= 1e6) return (x/1e6).toFixed(d)+'M';
+  if (Math.abs(x) >= 1e3) return (x/1e3).toFixed(d)+'K';
+  if (Math.abs(x) >= 1) return x.toFixed(d);
+  return x.toFixed(4);
+}
+
+function buildChart(){
+  const container = $('#mcCanvas');
+  if (!container || !window.LightweightCharts){ return; }
+  if (container.clientWidth === 0){
+    CHART._retries = (CHART._retries || 0) + 1;
+    if (CHART._retries < 6){
+      requestAnimationFrame(buildChart);
+      return;
+    }
+    container.innerHTML = '<div class="mc-fallback">📊 chart container width=0 — refresh page</div>';
+    return;
+  }
+  CHART._retries = 0;
+  container.innerHTML = '';
+
+  try{
+    CHART.chart = LightweightCharts.createChart(container, {
+      width: container.clientWidth,
+      height: container.clientHeight,
+      layout: {
+        background: { type:'solid', color:'#08000f' },
+        textColor:  '#c8b6e6',
+        fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+      },
+      grid: {
+        vertLines: { color: 'rgba(249,197,230,.06)' },
+        horzLines: { color: 'rgba(249,197,230,.06)' },
+      },
+      rightPriceScale: { borderColor: 'rgba(249,197,230,.15)' },
+      timeScale: { borderColor: 'rgba(249,197,230,.15)', timeVisible: true, secondsVisible: false },
+      crosshair: { vertLine: { color:'rgba(232,127,196,.4)' }, horzLine: { color:'rgba(232,127,196,.4)' } },
+    });
+    CHART.series = CHART.chart.addCandlestickSeries({
+      upColor:       '#4ade80',
+      downColor:     '#f87171',
+      borderUpColor: '#4ade80',
+      borderDownColor:'#f87171',
+      wickUpColor:   '#4ade80',
+      wickDownColor: '#f87171',
+    });
+    new ResizeObserver(() => {
+      if (CHART.chart && container.clientWidth){
+        CHART.chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      }
+    }).observe(container);
+    loadBars(true);
+  } catch(e){
+    console.error('chart build failed', e);
+    container.innerHTML = '<div class="mc-fallback">⚠ chart failed: ' + (e.message||e) + '</div>';
+  }
+}
+
+async function loadBars(reset){
+  if (!CHART.series) return;
+  const now = Math.floor(Date.now()/1000);
+  const lookback = LOOKBACK[CHART.resolution] || (150 * 3600);
+  const from = now - lookback;
+  const url = `${NAD_API}/trade/chart/${MOLLY_TOKEN}?resolution=${CHART.resolution}&from=${from}&to=${now}&countback=500`;
+  try{
+    const r = await fetch(url);
+    const j = await r.json();
+    if (j.s !== 'ok' || !j.t || !j.t.length){
+      const container = $('#mcCanvas');
+      if (container){
+        container.innerHTML = `<div class="mc-fallback">📊 no chart data yet · <a href="https://nad.fun/token/${MOLLY_TOKEN}" target="_blank" rel="noopener" style="color:var(--pink);">view on nad.fun ↗</a></div>`;
+      }
+      return;
+    }
+    const bars = j.t.map((t, i) => ({
+      time:  Number(t),
+      open:  Number(j.o[i]),
+      high:  Number(j.h[i]),
+      low:   Number(j.l[i]),
+      close: Number(j.c[i]),
+    })).filter(b => !isNaN(b.close));
+
+    if (reset){
+      CHART.series.setData(bars);
+      CHART.chart.timeScale().fitContent();
+    } else {
+      const last = bars[bars.length - 1];
+      if (last) CHART.series.update(last);
+    }
+
+    // refresh stats
+    const last = bars[bars.length - 1];
+    if (last && bars.length){
+      const first = bars[0];
+      const pct = first.open ? ((last.close - first.open) / first.open) * 100 : 0;
+      const cls = pct >= 0 ? 'up' : 'down';
+      $('#mcPrice').textContent = fmtPrice(last.close) + ' MON';
+      const pctEl = $('#mcPct');
+      pctEl.textContent = (pct>=0?'+':'') + pct.toFixed(2) + '%';
+      pctEl.className = cls;
+      $('#mcStatus').className = 'mc-status live';
+      $('#mcStatus').textContent = '● LIVE';
+    }
+  }catch(e){
+    console.warn('chart load failed', e);
+    const container = $('#mcCanvas');
+    if (container && !container.querySelector('canvas')){
+      container.innerHTML = `<div class="mc-fallback">⚠ chart load failed · <a href="https://nad.fun/token/${MOLLY_TOKEN}" target="_blank" rel="noopener" style="color:var(--pink);">view on nad.fun ↗</a></div>`;
+    }
+  }
+}
+
+// Pull 24h volume separately for the stat tile
+async function loadVolume(){
+  try{
+    const r = await fetch(`${NAD_API}/trade/market/${MOLLY_TOKEN}`);
+    const j = await r.json();
+    const mi = j.market_info || {};
+    const vol = mi.volume ? Number(BigInt(mi.volume)) / 1e18 : null;
+    const px = +mi.price_usd || 0;
+    if (vol != null && px){
+      $('#mcVol').textContent = '$' + fmt(vol * px, 2);
+    }
+  }catch(e){ /* non-fatal */ }
+}
+
+// Pill bindings
+function bindPills(){
+  document.querySelectorAll('.mc-pill').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('.mc-pill').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      CHART.resolution = b.dataset.res;
+      loadBars(true);
+    };
+  });
+}
+
+// Boot when the chart section becomes visible (deferred until reveal-in)
+function init(){
+  bindPills();
+  // Wait until container has layout (chart is below the fold)
+  requestAnimationFrame(buildChart);
+  loadVolume();
+  // Auto-refresh every 60s
+  setInterval(() => loadBars(false), 60_000);
+  setInterval(loadVolume, 120_000);
+}
+
+if (document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
 </script>
 
 </body>
