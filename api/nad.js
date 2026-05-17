@@ -63,13 +63,13 @@ module.exports = async (req, res) => {
 
     const targetUrl = `${BASE}/${upstreamPath}${upstreamQuery ? '?' + upstreamQuery : ''}`;
 
-    // Random key from rotation pool
-    const apiKey = NAD_KEYS[Math.floor(Math.random() * NAD_KEYS.length)];
+    // 2026-05-17: nad.fun deprecated API key auth — endpoints are now public.
+    // Sending the (now-invalid) key returns 401. Keep NAD_KEYS array above for
+    // forward-compat in case auth comes back, but don't send any auth header now.
 
     const upstreamOpts = {
       method: req.method,
       headers: {
-        'X-API-Key': apiKey,
         'Accept': 'application/json',
       },
     };
