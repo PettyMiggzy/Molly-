@@ -1634,6 +1634,176 @@
     position: relative;
   }
 
+  /* === DEV WALLET TRANSPARENCY === */
+  .dev-section {
+    padding: 50px 22px 30px;
+    background: linear-gradient(180deg, transparent, rgba(176, 124, 255, 0.04), transparent);
+  }
+  .dev-wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    background: linear-gradient(160deg, rgba(107, 58, 160, 0.10), rgba(176, 124, 255, 0.06));
+    border: 2.5px solid rgba(176, 124, 255, 0.4);
+    border-radius: 24px;
+    padding: 32px 28px 26px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.45), inset 0 0 60px rgba(176, 124, 255, 0.04);
+  }
+  .dev-wrap::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    right: -10%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(176, 124, 255, 0.12), transparent 60%);
+    pointer-events: none;
+  }
+  .dev-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .dev-pulse {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #b07cff;
+    box-shadow: 0 0 16px #b07cff;
+    animation: devPulse 1.6s infinite;
+  }
+  @keyframes devPulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.35; transform:scale(.85)} }
+  .dev-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    color: #b07cff;
+    font-weight: 700;
+  }
+  .dev-title {
+    font-family: var(--display);
+    font-size: clamp(28px, 6vw, 44px);
+    color: var(--cream);
+    letter-spacing: 1px;
+    margin: 4px 0 6px;
+    line-height: 1;
+    position: relative;
+  }
+  .dev-title em {
+    color: #b07cff;
+    font-style: normal;
+    text-shadow: 0 0 24px rgba(176, 124, 255, 0.55);
+  }
+  .dev-sub {
+    font-family: var(--hand);
+    font-size: 16px;
+    color: rgba(253, 246, 236, 0.75);
+    margin-bottom: 18px;
+    position: relative;
+    line-height: 1.4;
+  }
+  .dev-address-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(176, 124, 255, 0.25);
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .dev-addr {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cream);
+    word-break: break-all;
+    letter-spacing: 0.5px;
+  }
+  .dev-copy, .dev-explorer {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(176, 124, 255, 0.35);
+    color: #b07cff;
+    text-decoration: none;
+    background: transparent;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .dev-copy:hover, .dev-explorer:hover {
+    background: rgba(176, 124, 255, 0.12);
+    color: var(--cream);
+  }
+  .dev-copy.copied {
+    background: rgba(116, 200, 100, 0.18);
+    border-color: rgba(116, 200, 100, 0.55);
+    color: #b8eb9c;
+  }
+  .dev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    position: relative;
+  }
+  .dev-card {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1.5px solid rgba(176, 124, 255, 0.25);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .dev-card-molly { border-color: rgba(232, 127, 196, 0.45); }
+  .dev-card-mon   { border-color: rgba(255, 216, 77, 0.45); }
+  .dev-card-staked{ border-color: rgba(176, 124, 255, 0.45); }
+  .dev-card-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .dev-card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(253, 246, 236, 0.55);
+    margin-bottom: 6px;
+  }
+  .dev-card-value {
+    font-family: var(--display);
+    font-size: clamp(22px, 5vw, 30px);
+    color: var(--cream);
+    letter-spacing: 0.5px;
+    line-height: 1;
+  }
+  .dev-card-molly .dev-card-value { color: #e87fc4; }
+  .dev-card-mon   .dev-card-value { color: #ffd84d; }
+  .dev-card-staked .dev-card-value { color: #b07cff; }
+  .dev-card-sub {
+    font-family: var(--hand);
+    font-size: 14px;
+    color: rgba(253, 246, 236, 0.6);
+    margin-top: 6px;
+    line-height: 1.2;
+  }
+  .dev-foot {
+    margin-top: 16px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.4);
+    position: relative;
+  }
+
   /* === scroll reveal === */
   .reveal {
     opacity: 0;
@@ -1849,6 +2019,47 @@
         <div class="ca-stat-value">BONDING</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- DEV WALLET · TRANSPARENCY -->
+<section class="dev-section" id="dev" aria-label="Dev wallet on display">
+  <div class="dev-wrap">
+    <div class="dev-header">
+      <span class="dev-pulse" aria-hidden="true"></span>
+      <span class="dev-eyebrow">🔍 DEV WALLET · ON DISPLAY</span>
+    </div>
+    <h2 class="dev-title">Skin in the <em>game</em>.</h2>
+    <p class="dev-sub">Every move on-chain. No hidden bags. No promises — just balance sheets.</p>
+
+    <div class="dev-address-row">
+      <code class="dev-addr" id="devAddr">0xa424c64aa051cf75749b6377bfc86f20f212cb24</code>
+      <button class="dev-copy" id="devCopyBtn" type="button" title="Copy address">copy</button>
+      <a class="dev-explorer" href="https://monadscan.com/address/0xa424c64aa051cf75749b6377bfc86f20f212cb24" target="_blank" rel="noopener">explorer ↗</a>
+    </div>
+
+    <div class="dev-grid">
+      <div class="dev-card dev-card-molly">
+        <div class="dev-card-icon">💜</div>
+        <div class="dev-card-label">MOLLY HELD</div>
+        <div class="dev-card-value" id="devMolly">—</div>
+        <div class="dev-card-sub" id="devMollyPct">— of supply</div>
+      </div>
+      <div class="dev-card dev-card-mon">
+        <div class="dev-card-icon">⚡</div>
+        <div class="dev-card-label">MON RESERVES</div>
+        <div class="dev-card-value" id="devMon">—</div>
+        <div class="dev-card-sub">treasury budget</div>
+      </div>
+      <div class="dev-card dev-card-staked">
+        <div class="dev-card-icon">🔒</div>
+        <div class="dev-card-label">STAKED</div>
+        <div class="dev-card-value" id="devStaked">soon</div>
+        <div class="dev-card-sub" id="devStakedSub">staking launches soon</div>
+      </div>
+    </div>
+
+    <div class="dev-foot" id="devFoot">refreshes every 30s · monad mainnet</div>
   </div>
 </section>
 
@@ -2370,6 +2581,134 @@
           els.btn.textContent = '🔥 BURN YOUR $MOLLY';
           if ((e.message || '').includes('User denied')) return;
           alert('Burn failed: ' + (e.message || 'unknown error'));
+        }
+      });
+    }
+
+    refresh();
+    setInterval(refresh, 30_000);
+  })();
+
+  // ============ DEV WALLET TRANSPARENCY ============
+  // Reads MOLLY.balanceOf(dev) + native MON balance every 30s.
+  // Once the staking contract is deployed, this will also read userTotalWeight
+  // from MollyStaking and reverse-engineer staked principal across positions.
+  (function devWallet() {
+    const RPC = 'https://rpc.monad.xyz';
+    const TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+    const DEV   = '0xa424c64aa051cf75749b6377bfc86f20f212cb24';
+    const TOTAL_SUPPLY = 1_000_000_000;
+    // Set this after MollyStaking deploys + verify
+    const STAKING = null;
+
+    const els = {
+      molly:     document.getElementById('devMolly'),
+      mollyPct:  document.getElementById('devMollyPct'),
+      mon:       document.getElementById('devMon'),
+      staked:    document.getElementById('devStaked'),
+      stakedSub: document.getElementById('devStakedSub'),
+      foot:      document.getElementById('devFoot'),
+      copyBtn:   document.getElementById('devCopyBtn'),
+    };
+    if (!els.molly) return;
+
+    function fmtBig(n) {
+      if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B';
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+      return Math.round(n).toLocaleString();
+    }
+    function fmtPct(n) {
+      if (n < 0.01) return n.toFixed(4) + '%';
+      if (n < 1) return n.toFixed(3) + '%';
+      return n.toFixed(2) + '%';
+    }
+
+    async function rpcCall(body) {
+      const r = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message);
+      return j.result;
+    }
+
+    async function readMollyBalance() {
+      // balanceOf(dev) — selector 0x70a08231
+      const data = '0x70a08231' + DEV.replace(/^0x/, '').padStart(64, '0').toLowerCase();
+      const hex = await rpcCall({ jsonrpc:'2.0', id:1, method:'eth_call',
+        params:[{ to: TOKEN, data }, 'latest'] });
+      return Number(BigInt(hex || '0x0')) / 1e18;
+    }
+
+    async function readMonBalance() {
+      const hex = await rpcCall({ jsonrpc:'2.0', id:1, method:'eth_getBalance',
+        params:[DEV, 'latest'] });
+      return Number(BigInt(hex || '0x0')) / 1e18;
+    }
+
+    async function readStakedWeight() {
+      if (!STAKING) return null;
+      // userTotalWeight(address) — selector 0x66de9d2c (from staking contract ABI)
+      // We hardcode the selector to avoid pulling in ethers.js
+      // keccak256("userTotalWeight(address)").slice(0,8) — compute at runtime if needed
+      const sel = '0x66de9d2c'; // placeholder — replace when contract deployed
+      const data = sel + DEV.replace(/^0x/, '').padStart(64, '0').toLowerCase();
+      try {
+        const hex = await rpcCall({ jsonrpc:'2.0', id:1, method:'eth_call',
+          params:[{ to: STAKING, data }, 'latest'] });
+        return Number(BigInt(hex || '0x0')) / 1e18;
+      } catch (e) { return null; }
+    }
+
+    async function refresh() {
+      try {
+        const [molly, mon, staked] = await Promise.all([
+          readMollyBalance().catch(() => null),
+          readMonBalance().catch(() => null),
+          readStakedWeight().catch(() => null),
+        ]);
+        if (molly != null) {
+          els.molly.textContent = fmtBig(molly);
+          els.mollyPct.textContent = fmtPct((molly / TOTAL_SUPPLY) * 100) + ' of supply';
+        }
+        if (mon != null) {
+          els.mon.textContent = fmtBig(mon) + ' MON';
+        }
+        if (STAKING && staked != null) {
+          els.staked.textContent = fmtBig(staked);
+          els.stakedSub.textContent = 'locked & earning';
+        }
+        if (els.foot) {
+          els.foot.textContent = 'updated ' + new Date().toLocaleTimeString() + ' · monad mainnet';
+        }
+      } catch (e) {
+        if (els.foot) els.foot.textContent = 'refresh failed — will retry';
+      }
+    }
+
+    // Copy button
+    if (els.copyBtn) {
+      els.copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(DEV);
+          const prev = els.copyBtn.textContent;
+          els.copyBtn.textContent = 'copied ✓';
+          els.copyBtn.classList.add('copied');
+          setTimeout(() => {
+            els.copyBtn.textContent = prev;
+            els.copyBtn.classList.remove('copied');
+          }, 1500);
+        } catch (e) {
+          // older browsers / non-secure context fallback
+          const ta = document.createElement('textarea');
+          ta.value = DEV;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (_) {}
+          document.body.removeChild(ta);
         }
       });
     }
