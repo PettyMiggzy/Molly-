@@ -43,22 +43,22 @@ module.exports = {
       chainId: 31337,
     },
   },
-  // Sourcify supports Monad mainnet (chain 143) — preferred verifier
+  // Sourcify supports Monad TESTNET only at this time. For mainnet, use Etherscan V2.
   sourcify: {
-    enabled: true,
+    enabled: false,
   },
-  // Etherscan-compatible block explorer config (monadscan can also pick up
-  // verifications from sourcify automatically, but having both is harmless)
+  // Etherscan V2 unified API — single key from etherscan.io works across all
+  // V2-supported chains including Monad (chain 143).
+  // Get a free key at https://etherscan.io/myapikey
   etherscan: {
-    apiKey: {
-      monad: process.env.MONADSCAN_API_KEY || 'placeholder',
-    },
+    apiKey: process.env.ETHERSCAN_API_KEY || '',
     customChains: [
       {
         network: 'monad',
         chainId: 143,
         urls: {
-          apiURL: 'https://api.monadscan.com/api',
+          // V2 endpoint: single domain, chainid passed as query param
+          apiURL: 'https://api.etherscan.io/v2/api',
           browserURL: 'https://monadscan.com',
         },
       },

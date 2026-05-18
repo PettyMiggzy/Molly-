@@ -2054,8 +2054,8 @@
       <div class="dev-card dev-card-staked">
         <div class="dev-card-icon">🔒</div>
         <div class="dev-card-label">STAKED</div>
-        <div class="dev-card-value" id="devStaked">soon</div>
-        <div class="dev-card-sub" id="devStakedSub">staking launches soon</div>
+        <div class="dev-card-value" id="devStaked">—</div>
+        <div class="dev-card-sub" id="devStakedSub">loading…</div>
       </div>
     </div>
 
@@ -2598,8 +2598,8 @@
     const TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
     const DEV   = '0xa424c64aa051cf75749b6377bfc86f20f212cb24';
     const TOTAL_SUPPLY = 1_000_000_000;
-    // Set this after MollyStaking deploys + verify
-    const STAKING = null;
+    // MollyStaking deployed 2026-05-18, verified on monadscan
+    const STAKING = '0xFa45c43d74382D99649ecE4CFD2823148A17C912';
 
     const els = {
       molly:     document.getElementById('devMolly'),
@@ -2651,10 +2651,11 @@
 
     async function readStakedWeight() {
       if (!STAKING) return null;
-      // userTotalWeight(address) — selector 0x66de9d2c (from staking contract ABI)
-      // We hardcode the selector to avoid pulling in ethers.js
-      // keccak256("userTotalWeight(address)").slice(0,8) — compute at runtime if needed
-      const sel = '0x66de9d2c'; // placeholder — replace when contract deployed
+      // userTotalWeight(address) selector — computed from contract ABI: 0x19beb249
+      // Returns the user's total weighted stake (amount × multiplier / 100, summed across positions).
+      // To show their actual MOLLY staked (not weighted), we'd need to iterate positions.
+      // For now we display weight, which is more meaningful anyway (higher = more committed).
+      const sel = '0x19beb249';
       const data = sel + DEV.replace(/^0x/, '').padStart(64, '0').toLowerCase();
       try {
         const hex = await rpcCall({ jsonrpc:'2.0', id:1, method:'eth_call',
@@ -2678,8 +2679,13 @@
           els.mon.textContent = fmtBig(mon) + ' MON';
         }
         if (STAKING && staked != null) {
-          els.staked.textContent = fmtBig(staked);
-          els.stakedSub.textContent = 'locked & earning';
+          if (staked > 0) {
+            els.staked.textContent = fmtBig(staked);
+            els.stakedSub.textContent = 'weight · locked & earning';
+          } else {
+            els.staked.textContent = '0';
+            els.stakedSub.textContent = 'not yet staked';
+          }
         }
         if (els.foot) {
           els.foot.textContent = 'updated ' + new Date().toLocaleTimeString() + ' · monad mainnet';
