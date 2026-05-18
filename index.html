@@ -1452,6 +1452,188 @@
     .lore-card { transform: rotate(0) !important; }
   }
 
+  /* === BURN METER === */
+  .burn-section {
+    padding: 60px 22px 30px;
+    background: linear-gradient(180deg, transparent, rgba(255, 138, 61, 0.05), transparent);
+  }
+  .burn-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    background: linear-gradient(160deg, rgba(255, 138, 61, 0.10), rgba(232, 127, 196, 0.06));
+    border: 2.5px solid rgba(255, 138, 61, 0.45);
+    border-radius: 24px;
+    padding: 32px 28px 26px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.4), inset 0 0 60px rgba(255, 138, 61, 0.05);
+  }
+  .burn-wrap::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    right: -10%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(255, 138, 61, 0.18), transparent 60%);
+    pointer-events: none;
+  }
+  .burn-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .burn-pulse {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 16px var(--orange);
+    animation: burnPulse 1.3s infinite;
+  }
+  @keyframes burnPulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.3; transform:scale(0.85)} }
+  .burn-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    color: var(--orange);
+    font-weight: 700;
+  }
+  .burn-title {
+    font-family: var(--display);
+    font-size: clamp(28px, 6vw, 44px);
+    color: var(--cream);
+    letter-spacing: 1px;
+    margin: 4px 0 22px;
+    line-height: 1;
+    position: relative;
+  }
+  .burn-title em {
+    color: var(--orange);
+    font-style: normal;
+    text-shadow: 0 0 24px rgba(255, 138, 61, 0.65);
+  }
+  .burn-stage {
+    text-align: center;
+    padding: 18px 14px 14px;
+    position: relative;
+  }
+  .burn-flame {
+    font-size: clamp(40px, 9vw, 64px);
+    line-height: 1;
+    filter: drop-shadow(0 0 24px rgba(255, 138, 61, 0.65));
+    animation: flameWiggle 2.2s ease-in-out infinite;
+  }
+  @keyframes flameWiggle {
+    0%,100% { transform: rotate(-4deg) translateY(0); }
+    50%     { transform: rotate(4deg) translateY(-4px); }
+  }
+  .burn-amount {
+    font-family: var(--display);
+    font-size: clamp(34px, 9vw, 64px);
+    color: var(--orange);
+    letter-spacing: 1.5px;
+    line-height: 1;
+    margin-top: 10px;
+    text-shadow: 0 0 28px rgba(255, 138, 61, 0.55);
+  }
+  .burn-amount-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--pink);
+    margin-top: 8px;
+  }
+  .burn-stat-row {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 14px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 138, 61, 0.3);
+  }
+  .burn-pct {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .burn-pct-sub {
+    font-family: var(--hand);
+    font-size: 14px;
+    color: var(--cream);
+    opacity: 0.85;
+  }
+  .burn-bar {
+    margin-top: 22px;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid rgba(255, 138, 61, 0.25);
+    position: relative;
+  }
+  .burn-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--orange), var(--pink-deep), var(--accent));
+    box-shadow: 0 0 18px rgba(255, 138, 61, 0.6);
+    transition: width 1.2s ease;
+    border-radius: 8px;
+  }
+  .burn-actions {
+    margin-top: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .burn-btn {
+    background: linear-gradient(135deg, var(--orange), var(--pink-deep));
+    color: var(--ink);
+    border: 0;
+    padding: 13px 26px;
+    border-radius: 14px;
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    box-shadow: var(--shadow-hard), 0 0 24px rgba(255, 138, 61, 0.4);
+    transition: transform 0.12s ease;
+  }
+  .burn-btn:hover:not(:disabled) { transform: translate(-2px, -2px); }
+  .burn-btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+  .burn-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .burn-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--pink);
+    text-decoration: none;
+    letter-spacing: 1.5px;
+    padding: 8px 14px;
+    border: 1px solid rgba(249, 197, 230, 0.3);
+    border-radius: 10px;
+    transition: all 0.15s;
+  }
+  .burn-link:hover {
+    color: var(--cream);
+    border-color: var(--pink);
+  }
+  .burn-foot {
+    margin-top: 16px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.45);
+    position: relative;
+  }
+
   /* === scroll reveal === */
   .reveal {
     opacity: 0;
@@ -1553,6 +1735,38 @@
     </div>
 
     <a href="#swap" class="status-cta" id="status-cta">PUSH THE CURVE →</a>
+  </div>
+</section>
+
+<!-- BURN METER -->
+<section class="burn-section" id="burn" aria-label="Burn meter">
+  <div class="burn-wrap">
+    <div class="burn-header">
+      <span class="burn-pulse" aria-hidden="true"></span>
+      <span class="burn-eyebrow">🔥 THE INCINERATOR · LIVE</span>
+    </div>
+    <h2 class="burn-title">Gone <em>forever</em>.</h2>
+
+    <div class="burn-stage">
+      <div class="burn-flame" aria-hidden="true">🔥</div>
+      <div class="burn-amount" id="burnAmt">—</div>
+      <div class="burn-amount-sub">$MOLLY BURNED · PERMANENT</div>
+      <div class="burn-stat-row">
+        <span class="burn-pct" id="burnPct">—</span>
+        <span class="burn-pct-sub">of total supply</span>
+      </div>
+    </div>
+
+    <div class="burn-bar">
+      <div class="burn-fill" id="burnFill"></div>
+    </div>
+
+    <div class="burn-actions">
+      <button class="burn-btn" id="burnBtn" type="button">🔥 BURN YOUR $MOLLY</button>
+      <a class="burn-link" href="https://monadscan.com/token/0xB72e6262DAE53cAF167F0966421a0B9782977777?a=0x000000000000000000000000000000000000dEaD" target="_blank" rel="noopener">all burns ↗</a>
+    </div>
+
+    <div class="burn-foot" id="burnFoot">refreshes every 30s · monad mainnet</div>
   </div>
 </section>
 
@@ -2056,6 +2270,113 @@
     });
   }, { threshold: 0.15 });
   document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // ============ BURN METER ============
+  // Reads MOLLY.balanceOf(0xdead) on Monad mainnet every 30s.
+  // Also wires the "BURN YOUR $MOLLY" button to trigger a wallet transfer.
+  (function burnMeter() {
+    const RPC = 'https://rpc.monad.xyz';
+    const TOKEN = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+    const DEAD = '0x000000000000000000000000000000000000dEaD';
+    const TOTAL_SUPPLY = 1_000_000_000;
+
+    const els = {
+      amount: document.getElementById('burnAmt'),
+      pct:    document.getElementById('burnPct'),
+      fill:   document.getElementById('burnFill'),
+      btn:    document.getElementById('burnBtn'),
+      foot:   document.getElementById('burnFoot'),
+    };
+    if (!els.amount) return;
+
+    function fmtBig(n) {
+      if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B';
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+      return Math.round(n).toLocaleString();
+    }
+
+    async function readBurned() {
+      // balanceOf(0xdead) selector: 0x70a08231
+      const data = '0x70a08231' + DEAD.replace(/^0x/, '').padStart(64, '0').toLowerCase();
+      const r = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call',
+          params: [{ to: TOKEN, data }, 'latest'] }),
+      });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message);
+      const wei = BigInt(j.result || '0x0');
+      return Number(wei) / 1e18;
+    }
+
+    async function refresh() {
+      try {
+        const burned = await readBurned();
+        const pctRaw = (burned / TOTAL_SUPPLY) * 100;
+        els.amount.textContent = fmtBig(burned);
+        // for a small burn show 4 decimals, scale up as it grows
+        const pctTxt = pctRaw < 0.01 ? pctRaw.toFixed(4) + '%'
+                     : pctRaw < 1    ? pctRaw.toFixed(3) + '%'
+                     : pctRaw.toFixed(2) + '%';
+        els.pct.textContent = pctTxt;
+        // bar uses sqrt to make small burns visible
+        const visualPct = Math.max(0.5, Math.min(100, Math.sqrt(pctRaw) * 10));
+        els.fill.style.width = visualPct + '%';
+        if (els.foot) els.foot.textContent = 'updated ' + new Date().toLocaleTimeString() + ' · monad mainnet';
+      } catch (e) {
+        if (els.foot) els.foot.textContent = 'refresh failed — will retry';
+      }
+    }
+
+    // Burn button: send MOLLY to 0xdead via connected wallet
+    if (els.btn) {
+      els.btn.addEventListener('click', async () => {
+        if (!window.ethereum) {
+          alert('Connect a wallet (MetaMask / Rabby / OKX) first');
+          return;
+        }
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const addr = accounts[0];
+          if (!addr) return;
+          const amount = prompt('How many $MOLLY do you want to burn forever?\n(Number only, e.g. 10000)');
+          if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return;
+          if (!confirm(`Burn ${Number(amount).toLocaleString()} $MOLLY?\n\nThis sends them to 0x...dEaD. Permanent. No undo.`)) return;
+          // ensure Monad chain
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x8f' }],
+            });
+          } catch (e) { /* ignore — assume already on right chain */ }
+          // transfer(to, amount) selector: 0xa9059cbb
+          const amtWei = BigInt(Math.floor(Number(amount) * 1e18));
+          const toPad = DEAD.replace(/^0x/, '').padStart(64, '0').toLowerCase();
+          const amtHex = amtWei.toString(16).padStart(64, '0');
+          const txData = '0xa9059cbb' + toPad + amtHex;
+          els.btn.disabled = true;
+          const prev = els.btn.textContent;
+          els.btn.textContent = '🔥 BURNING…';
+          const hash = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [{ from: addr, to: TOKEN, data: txData, value: '0x0' }],
+          });
+          els.btn.textContent = '✓ TX SENT';
+          setTimeout(() => { els.btn.textContent = prev; els.btn.disabled = false; refresh(); }, 4000);
+        } catch (e) {
+          els.btn.disabled = false;
+          els.btn.textContent = '🔥 BURN YOUR $MOLLY';
+          if ((e.message || '').includes('User denied')) return;
+          alert('Burn failed: ' + (e.message || 'unknown error'));
+        }
+      });
+    }
+
+    refresh();
+    setInterval(refresh, 30_000);
+  })();
 </script>
 
 <!-- Molly's custom chart — replaces broken DexScreener mobile iframe -->
