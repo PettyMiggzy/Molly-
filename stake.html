@@ -225,6 +225,36 @@
   .btn-danger { background: var(--red); color: var(--cream); }
   .btn-small { padding: 8px 14px; font-size: 12px; box-shadow: 3px 3px 0 var(--ink); }
 
+  /* Approve + Stake side-by-side on desktop, stacked on mobile */
+  .action-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .action-row .btn { flex: 1; min-width: 140px; justify-content: center; }
+  @media (max-width: 700px) {
+    .action-row { flex-direction: column; }
+    .action-row .btn { width: 100%; }
+  }
+
+  .withdrawable-box {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(255, 216, 77, 0.1);
+    border: 1px solid rgba(255, 216, 77, 0.4);
+    border-radius: 12px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .withdrawable-box[style*="none"] { display: none !important; }
+  .withdrawable-box:not([style*="none"]) { display: flex; }
+  @media (max-width: 700px) {
+    .withdrawable-box { flex-direction: column; align-items: stretch; text-align: center; }
+    .withdrawable-box .btn { width: 100%; }
+  }
+
   /* === STATS GRID === */
   .stats-grid {
     display: grid;
@@ -593,6 +623,118 @@
     animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* ============================================================ */
+  /* MOBILE RESPONSIVENESS                                         */
+  /* ============================================================ */
+
+  @media (max-width: 700px) {
+    body { font-size: 16px; }
+
+    /* Nav */
+    .nav-inner { padding: 12px 14px; }
+    .nav-brand { font-size: 18px; }
+    .nav-back { padding: 6px 10px; font-size: 10px; }
+
+    /* Hero */
+    .hero { padding: 36px 16px 20px; }
+    .hero h1 { line-height: 0.95; }
+    .hero-sub { font-size: 16px; line-height: 1.3; }
+    .hero-eyebrow { font-size: 10px; letter-spacing: 2px; }
+
+    /* Container */
+    .container { padding: 0 14px; }
+
+    /* Cards */
+    .card {
+      padding: 18px 16px;
+      margin: 14px 0;
+      border-radius: 18px;
+    }
+    .card-title { font-size: 22px; }
+    .card-sub { font-size: 14px; margin-bottom: 14px; }
+
+    /* Connect bar — stack vertically */
+    .connect-bar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+    .connect-bar .btn { width: 100%; justify-content: center; }
+    .wallet-info { justify-content: flex-start; }
+
+    /* Stat boxes — smaller min, tighter */
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .stat-box { padding: 11px 10px; }
+    .stat-label { font-size: 8.5px; letter-spacing: 1.4px; }
+    .stat-value { font-size: 18px; }
+    .stat-sub { font-size: 11px; }
+
+    /* Stake form — better spacing */
+    .form-row { gap: 8px; }
+    .input-wrap { padding: 4px 12px; min-width: 0; }
+    .input { font-size: 18px; padding: 4px 0 8px; }
+    .input-label { font-size: 8.5px; letter-spacing: 1.3px; }
+    .max-btn { padding: 5px 10px; font-size: 9.5px; }
+    .slider-value { font-size: 18px; }
+    .preset { font-size: 9px; padding: 4px 8px; }
+
+    .preview-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 10px;
+    }
+    .preview-label { font-size: 8.5px; letter-spacing: 1.2px; }
+    .preview-value { font-size: 15px; }
+
+    /* Stake buttons */
+    .card .btn { width: 100%; justify-content: center; }
+    .card div[style*="display:flex"] { flex-direction: column; }
+
+    /* Positions — single column */
+    .positions { grid-template-columns: 1fr; gap: 12px; }
+    .position { padding: 14px; }
+    .position-amount { font-size: 21px; }
+    .position-pending-value { font-size: 19px; }
+    .position-actions { gap: 5px; }
+    .position-actions .btn {
+      flex: 1 1 calc(50% - 3px);
+      min-width: 0;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+
+    /* Leaderboard */
+    .lb-row { padding: 9px 11px; font-size: 11px; gap: 8px; }
+    .lb-rank { font-size: 15px; width: 26px; }
+
+    /* Toasts */
+    .toast-wrap {
+      top: auto;
+      bottom: 12px;
+      right: 12px;
+      left: 12px;
+      max-width: none;
+    }
+    .toast { font-size: 14px; padding: 11px 14px; }
+  }
+
+  /* Extra small phones */
+  @media (max-width: 380px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .preview-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .position-actions .btn { font-size: 10px; padding: 7px 8px; }
+    .preset { font-size: 8.5px; padding: 3px 7px; }
+  }
+
+  /* Tablets — keep 3-column stat grid */
+  @media (min-width: 701px) and (max-width: 960px) {
+    .stats-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
 </style>
 </head>
 <body>
@@ -706,7 +848,7 @@
         <div class="stat-sub">in your wallet</div>
       </div>
     </div>
-    <div id="withdrawableBox" style="display:none; margin-top: 14px; padding: 12px 16px; background: rgba(255, 216, 77, 0.1); border: 1px solid rgba(255, 216, 77, 0.4); border-radius: 12px; display:flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+    <div class="withdrawable-box" id="withdrawableBox" style="display:none">
       <span style="font-family: var(--hand); color: var(--accent);">⚡ You have <strong id="withdrawableAmt">—</strong> MON waiting to pull</span>
       <button class="btn btn-small btn-primary" id="withdrawBtn" type="button">WITHDRAW</button>
     </div>
@@ -758,7 +900,7 @@
       </div>
     </div>
 
-    <div style="display:flex; gap:8px; flex-wrap: wrap;">
+    <div class="action-row">
       <button class="btn btn-primary" id="approveBtn" type="button" disabled>APPROVE MOLLY</button>
       <button class="btn btn-purple" id="stakeBtn" type="button" disabled>STAKE</button>
     </div>
@@ -933,33 +1075,65 @@
 
   // ===== WALLET CONNECT =====
   async function connect() {
+    // Mobile-no-wallet fallback: deep-link to MetaMask in-app browser
     if (!window.ethereum) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Strip protocol for MetaMask deep link format
+        const target = window.location.host + window.location.pathname;
+        toast('Opening in MetaMask…');
+        window.location.href = `https://metamask.app.link/dapp/${target}`;
+        return;
+      }
       toast('No wallet detected. Install MetaMask or Rabby.', 'err');
       return;
     }
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      // Ensure correct chain
-      const net = await provider.getNetwork();
-      if (Number(net.chainId) !== CHAIN_ID) {
+      // STEP 1: explicitly request accounts — triggers the wallet popup.
+      // Without this, getSigner() can silently fail on some wallets/setups
+      // (especially mobile in-app browsers and SES-locked-down MetaMask).
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
+      if (!accounts || accounts.length === 0) {
+        toast('No account authorized', 'err');
+        return;
+      }
+
+      // STEP 2: ensure correct chain. If wallet is on wrong chain, switch BEFORE
+      // creating the BrowserProvider — provider caches the chain at init time.
+      const currentChainHex = await window.ethereum.request({ method: 'eth_chainId' });
+      if (parseInt(currentChainHex, 16) !== CHAIN_ID) {
         await switchChain();
       }
+
+      // STEP 3: now create provider + signer
+      const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const addr = await signer.getAddress();
+
       state.walletProvider = provider;
       state.signer = signer;
       state.address = addr;
       state.stakingW = new Contract(STAKING_ADDR, STAKING_ABI, signer);
       state.mollyW = new Contract(MOLLY_ADDR, ERC20_ABI, signer);
       updateWalletUi();
+      toast(`Connected · ${shortAddr(addr)}`, 'ok');
       await refreshAll();
 
       // Listen for chain / account changes
       window.ethereum.on?.('accountsChanged', () => location.reload());
       window.ethereum.on?.('chainChanged', () => location.reload());
     } catch (e) {
-      console.error(e);
-      toast(e.shortMessage || e.message || 'Connect failed', 'err');
+      console.error('connect error:', e);
+      // Common wallet errors
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Connection rejected', 'err');
+      } else if (e.code === -32002) {
+        toast('Check your wallet — request pending', 'err');
+      } else {
+        toast(e.shortMessage || e.message || 'Connect failed', 'err');
+      }
     }
   }
 
@@ -970,8 +1144,8 @@
         params: [{ chainId: CHAIN_HEX }],
       });
     } catch (e) {
-      if (e.code === 4902) {
-        // Chain not added — add it
+      // 4902 = chain not added to wallet yet; 4001 = user rejected; -32603 = sometimes wraps 4902
+      if (e.code === 4902 || /unrecognized chain|chain.+not.+added/i.test(e.message || '')) {
         await window.ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [{
@@ -1062,7 +1236,7 @@
       // Withdrawable box
       const wb = document.getElementById('withdrawableBox');
       if (state.withdrawable > 0n) {
-        wb.style.display = '';
+        wb.style.display = 'flex';
         document.getElementById('withdrawableAmt').textContent = fmt(state.withdrawable, 6);
       } else {
         wb.style.display = 'none';
