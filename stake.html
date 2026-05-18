@@ -1,0 +1,1458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#1a0033">
+<title>MOLLY · stake · earn MON</title>
+<meta name="description" content="Stake MOLLY, earn MON. Anyone can fund the pool. Live on Monad mainnet.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Patrick+Hand&family=Caveat:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #1a0033;
+    --bg-mid: #2a0b4e;
+    --bg-light: #3d1968;
+    --pink: #f9c5e6;
+    --pink-deep: #e87fc4;
+    --bow: #f4a8d6;
+    --cream: #fdf6ec;
+    --molly-purple: #6b3aa0;
+    --molly-purple-dark: #4a2378;
+    --accent: #ffd84d;
+    --orange: #ff8a3d;
+    --ink: #1a0033;
+    --green: #74c864;
+    --red: #ff5a72;
+
+    --shadow-hard: 6px 6px 0 var(--ink);
+    --shadow-soft: 0 20px 60px rgba(0,0,0,0.5);
+
+    --display: 'Bagel Fat One', system-ui, sans-serif;
+    --hand: 'Patrick Hand', cursive;
+    --script: 'Caveat', cursive;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--hand);
+    background: var(--bg);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-size: 18px;
+    background-image:
+      radial-gradient(ellipse at top, rgba(176, 124, 255, 0.15), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(232, 127, 196, 0.08), transparent 50%);
+  }
+
+  /* === NAV === */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(26, 0, 51, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1.5px solid rgba(176, 124, 255, 0.18);
+  }
+  .nav-inner {
+    max-width: 1100px; margin: 0 auto;
+    padding: 14px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+  }
+  .nav-brand {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--cream);
+    text-decoration: none;
+    letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .nav-brand span { color: var(--pink-deep); text-shadow: 0 0 18px rgba(232, 127, 196, 0.55); }
+  .nav-back {
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.65);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(176, 124, 255, 0.25);
+    transition: all 0.15s;
+  }
+  .nav-back:hover { color: var(--cream); border-color: var(--pink-deep); }
+
+  /* === HERO === */
+  .hero {
+    text-align: center;
+    padding: 60px 22px 30px;
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--pink-deep);
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .hero-pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--pink-deep);
+    box-shadow: 0 0 16px var(--pink-deep);
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(44px, 10vw, 80px);
+    line-height: 0.95;
+    margin: 8px 0 16px;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, var(--cream) 0%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+    -webkit-text-fill-color: var(--accent);
+    text-shadow: 0 0 28px rgba(255, 216, 77, 0.55);
+  }
+  .hero-sub {
+    font-family: var(--script);
+    font-size: clamp(20px, 3.5vw, 28px);
+    color: var(--cream);
+    margin-bottom: 28px;
+    line-height: 1.2;
+  }
+  .hero-sub strong { color: var(--accent); font-weight: 700; }
+
+  /* === CARD BASE === */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 22px;
+  }
+  .card {
+    background: linear-gradient(160deg, rgba(107, 58, 160, 0.10), rgba(176, 124, 255, 0.04));
+    border: 2px solid rgba(176, 124, 255, 0.32);
+    border-radius: 22px;
+    padding: 24px;
+    margin: 18px 0;
+    position: relative;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+  .card-title {
+    font-family: var(--display);
+    font-size: clamp(20px, 4vw, 26px);
+    color: var(--cream);
+    margin: 0 0 6px;
+    letter-spacing: 0.5px;
+  }
+  .card-title em { color: var(--pink-deep); font-style: normal; }
+  .card-sub {
+    font-family: var(--hand);
+    font-size: 15px;
+    color: rgba(253, 246, 236, 0.7);
+    margin-bottom: 18px;
+  }
+
+  /* === CONNECT BAR === */
+  .connect-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    padding: 14px 18px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(176, 124, 255, 0.28);
+    border-radius: 16px;
+  }
+  .wallet-info {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .wallet-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 12px var(--red);
+  }
+  .wallet-dot.on { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  .wallet-addr { color: var(--cream); letter-spacing: 0.5px; }
+  .wallet-chain { color: rgba(253, 246, 236, 0.5); font-size: 10px; letter-spacing: 1.2px; }
+
+  /* === BUTTONS === */
+  .btn {
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 1px;
+    padding: 12px 22px;
+    background: var(--pink-deep);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 4px 4px 0 var(--ink);
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); }
+  .btn-purple  { background: #b07cff; color: var(--cream); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--cream);
+    border: 1.5px solid rgba(176, 124, 255, 0.4);
+    box-shadow: none;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .btn-ghost:hover:not(:disabled) { transform: none; box-shadow: none; border-color: var(--pink-deep); background: rgba(176, 124, 255, 0.1); }
+  .btn-danger { background: var(--red); color: var(--cream); }
+  .btn-small { padding: 8px 14px; font-size: 12px; box-shadow: 3px 3px 0 var(--ink); }
+
+  /* === STATS GRID === */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .stat-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1.5px solid rgba(176, 124, 255, 0.25);
+    border-radius: 14px;
+    padding: 14px 14px;
+    text-align: center;
+  }
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 1.8px;
+    color: rgba(253, 246, 236, 0.55);
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: var(--display);
+    font-size: clamp(20px, 3.5vw, 26px);
+    color: var(--cream);
+    line-height: 1;
+  }
+  .stat-value.pink { color: var(--pink-deep); }
+  .stat-value.yellow { color: var(--accent); }
+  .stat-value.purple { color: #b07cff; }
+  .stat-value.green { color: var(--green); }
+  .stat-sub {
+    font-family: var(--hand);
+    font-size: 12px;
+    color: rgba(253, 246, 236, 0.55);
+    margin-top: 4px;
+  }
+
+  /* === STAKE FORM === */
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .input-wrap {
+    flex: 1; min-width: 220px;
+    position: relative;
+    background: rgba(0,0,0,0.35);
+    border: 2px solid rgba(176, 124, 255, 0.3);
+    border-radius: 12px;
+    padding: 4px 14px;
+    transition: border-color 0.15s;
+  }
+  .input-wrap:focus-within { border-color: var(--pink-deep); }
+  .input-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.5);
+    padding-top: 6px;
+  }
+  .input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--cream);
+    font-family: var(--display);
+    font-size: 22px;
+    padding: 4px 0 10px;
+    outline: none;
+  }
+  .input::placeholder { color: rgba(253, 246, 236, 0.3); }
+  .input-suffix {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 11px;
+    color: rgba(253, 246, 236, 0.45);
+    letter-spacing: 1.5px;
+  }
+  .max-btn {
+    font-family: var(--mono); font-size: 10px;
+    background: rgba(232, 127, 196, 0.2);
+    color: var(--pink);
+    border: 1px solid rgba(232, 127, 196, 0.5);
+    border-radius: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    margin-left: 6px;
+    letter-spacing: 1px;
+    transition: all 0.12s;
+  }
+  .max-btn:hover { background: var(--pink-deep); color: var(--ink); }
+
+  /* Lock slider */
+  .slider-wrap { margin: 14px 0; }
+  .slider-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.6);
+  }
+  .slider-value {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .slider {
+    width: 100%;
+    height: 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 4px;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+  }
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 22px; height: 22px;
+    background: var(--pink-deep);
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(232, 127, 196, 0.5);
+  }
+  .slider::-moz-range-thumb {
+    width: 22px; height: 22px;
+    background: var(--pink-deep);
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .preset-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 10px;
+  }
+  .preset {
+    font-family: var(--mono); font-size: 10px;
+    background: rgba(176, 124, 255, 0.12);
+    color: rgba(253, 246, 236, 0.75);
+    border: 1px solid rgba(176, 124, 255, 0.28);
+    padding: 5px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.12s;
+  }
+  .preset:hover { background: rgba(176, 124, 255, 0.25); color: var(--cream); }
+  .preset.active {
+    background: var(--accent); color: var(--ink);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Preview chips */
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+    padding: 12px;
+    background: rgba(0,0,0,0.25);
+    border: 1px dashed rgba(176, 124, 255, 0.3);
+    border-radius: 12px;
+  }
+  .preview {
+    text-align: center;
+  }
+  .preview-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(253, 246, 236, 0.5);
+  }
+  .preview-value {
+    font-family: var(--display);
+    font-size: 18px;
+    color: var(--accent);
+    line-height: 1.1;
+    margin-top: 3px;
+  }
+
+  /* === POSITIONS === */
+  .positions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+  }
+  .position {
+    background: rgba(0,0,0,0.32);
+    border: 1.5px solid rgba(176, 124, 255, 0.3);
+    border-radius: 16px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .position.matured { border-color: rgba(116, 200, 100, 0.5); }
+  .position-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .position-id {
+    font-family: var(--mono); font-size: 10px;
+    color: rgba(253, 246, 236, 0.4);
+    letter-spacing: 1.5px;
+  }
+  .position-mult {
+    font-family: var(--display); font-size: 14px;
+    color: var(--accent);
+    background: rgba(255, 216, 77, 0.15);
+    padding: 3px 10px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+  }
+  .position-amount {
+    font-family: var(--display);
+    font-size: 24px;
+    color: var(--cream);
+    line-height: 1.1;
+  }
+  .position-amount-sub {
+    font-family: var(--mono); font-size: 10px;
+    color: rgba(253, 246, 236, 0.5);
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .position-bar-wrap {
+    height: 6px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .position-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pink-deep), var(--accent));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .position-bar.done {
+    background: linear-gradient(90deg, var(--green), #9be36c);
+  }
+  .position-meta {
+    font-family: var(--mono); font-size: 10px;
+    color: rgba(253, 246, 236, 0.6);
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    display: flex; justify-content: space-between;
+  }
+  .position-pending {
+    background: rgba(255, 216, 77, 0.1);
+    border: 1px solid rgba(255, 216, 77, 0.25);
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin: 10px 0;
+    text-align: center;
+  }
+  .position-pending-label {
+    font-family: var(--mono); font-size: 9px;
+    color: rgba(253, 246, 236, 0.5);
+    letter-spacing: 1.5px;
+  }
+  .position-pending-value {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .position-actions {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .position-actions .btn { flex: 1; min-width: 90px; }
+
+  /* === LEADERBOARD === */
+  .leaderboard {
+    display: grid;
+    gap: 6px;
+  }
+  .lb-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(176, 124, 255, 0.2);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .lb-rank {
+    font-family: var(--display);
+    font-size: 18px;
+    color: var(--accent);
+    width: 30px;
+  }
+  .lb-rank.gold { color: #ffd84d; }
+  .lb-rank.silver { color: #d8d8d8; }
+  .lb-rank.bronze { color: #cd7f32; }
+  .lb-addr { flex: 1; color: var(--cream); }
+  .lb-val { color: var(--pink-deep); font-weight: bold; }
+
+  /* === TOASTS === */
+  .toast-wrap {
+    position: fixed; top: 70px; right: 16px; z-index: 100;
+    display: flex; flex-direction: column; gap: 8px;
+    max-width: 360px;
+  }
+  .toast {
+    background: linear-gradient(160deg, var(--bg-light), var(--bg-mid));
+    border: 2px solid var(--pink-deep);
+    color: var(--cream);
+    padding: 12px 16px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    font-family: var(--hand);
+    font-size: 15px;
+    animation: slideIn 0.3s ease;
+    line-height: 1.3;
+  }
+  .toast.ok { border-color: var(--green); }
+  .toast.err { border-color: var(--red); }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+  .toast a {
+    display: block;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent); margin-top: 4px;
+    word-break: break-all;
+  }
+
+  /* === MISC === */
+  .badge {
+    display: inline-block;
+    font-family: var(--mono); font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 1.5px;
+    margin-right: 4px;
+  }
+  .badge-live {
+    background: rgba(116, 200, 100, 0.2);
+    color: var(--green);
+    border: 1px solid var(--green);
+  }
+  .empty-state {
+    padding: 30px;
+    text-align: center;
+    color: rgba(253, 246, 236, 0.5);
+    font-family: var(--hand);
+  }
+  .footer {
+    text-align: center;
+    padding: 40px 22px 30px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(253, 246, 236, 0.35);
+    letter-spacing: 1.5px;
+  }
+  .footer a { color: var(--pink-deep); text-decoration: none; }
+
+  /* spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(253, 246, 236, 0.3);
+    border-top-color: var(--cream);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">🎀 <span>Molly</span> · stake</a>
+    <a href="/" class="nav-back">← home</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="hero-eyebrow"><span class="hero-pulse"></span> LIVE ON MONAD · VERIFIED</span>
+  <h1>stake MOLLY<br>earn <em>MON</em></h1>
+  <p class="hero-sub">
+    pool decays <strong>1%/day</strong> to stakers · longer lock = bigger share<br>
+    anyone can fund the pool · everyone earns
+  </p>
+</section>
+
+<!-- CONNECT BAR -->
+<div class="container">
+  <div class="connect-bar">
+    <div class="wallet-info">
+      <span class="wallet-dot" id="walletDot"></span>
+      <span>
+        <span class="wallet-addr" id="walletAddr">not connected</span><br>
+        <span class="wallet-chain" id="walletChain">—</span>
+      </span>
+    </div>
+    <button class="btn btn-primary" id="connectBtn" type="button">CONNECT WALLET</button>
+  </div>
+</div>
+
+<!-- POOL STATS -->
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">🌊 the <em>pool</em></h2>
+    <p class="card-sub">live state on-chain · refreshes every 8s</p>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">POOL BALANCE</div>
+        <div class="stat-value yellow" id="statPool">—</div>
+        <div class="stat-sub">MON ready to drip</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">DAILY RATE</div>
+        <div class="stat-value pink" id="statRate">—</div>
+        <div class="stat-sub">% emitted per day</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">TOTAL WEIGHT</div>
+        <div class="stat-value purple" id="statWeight">—</div>
+        <div class="stat-sub">staked × multiplier</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">POSITIONS</div>
+        <div class="stat-value" id="statPositions">—</div>
+        <div class="stat-sub">active stakes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ALL-TIME PAID</div>
+        <div class="stat-value green" id="statDistributed">—</div>
+        <div class="stat-sub">MON to stakers</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ALL-TIME STAKED</div>
+        <div class="stat-value" id="statAllStaked">—</div>
+        <div class="stat-sub">MOLLY ever locked</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- YOUR DASHBOARD -->
+<div class="container" id="userSection" style="display:none">
+  <div class="card">
+    <h2 class="card-title">💜 your <em>dashboard</em></h2>
+    <p class="card-sub" id="dashSub">connect wallet to see your numbers</p>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">YOUR WEIGHT</div>
+        <div class="stat-value purple" id="myWeight">—</div>
+        <div class="stat-sub">total across positions</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">POOL SHARE</div>
+        <div class="stat-value yellow" id="myShare">—</div>
+        <div class="stat-sub">% of total weight</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">PENDING MON</div>
+        <div class="stat-value green" id="myPending">—</div>
+        <div class="stat-sub">across positions</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">LIFETIME CLAIMED</div>
+        <div class="stat-value" id="myClaimed">—</div>
+        <div class="stat-sub">MON ever paid out</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">LIFETIME FUNDED</div>
+        <div class="stat-value pink" id="myFunded">—</div>
+        <div class="stat-sub">MON you put in pool</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">MOLLY BALANCE</div>
+        <div class="stat-value" id="myMolly">—</div>
+        <div class="stat-sub">in your wallet</div>
+      </div>
+    </div>
+    <div id="withdrawableBox" style="display:none; margin-top: 14px; padding: 12px 16px; background: rgba(255, 216, 77, 0.1); border: 1px solid rgba(255, 216, 77, 0.4); border-radius: 12px; display:flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <span style="font-family: var(--hand); color: var(--accent);">⚡ You have <strong id="withdrawableAmt">—</strong> MON waiting to pull</span>
+      <button class="btn btn-small btn-primary" id="withdrawBtn" type="button">WITHDRAW</button>
+    </div>
+  </div>
+</div>
+
+<!-- STAKE -->
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">🔒 <em>stake</em> MOLLY</h2>
+    <p class="card-sub">pick an amount and a lock · longer = more weight = bigger share</p>
+
+    <div class="form-row">
+      <div class="input-wrap">
+        <div class="input-label">AMOUNT</div>
+        <input class="input" id="stakeAmount" type="text" inputmode="decimal" placeholder="0.0">
+        <span class="input-suffix" id="stakeSuffix">MOLLY</span>
+      </div>
+      <button class="max-btn" id="maxBtn" type="button">MAX</button>
+    </div>
+
+    <div class="slider-wrap">
+      <div class="slider-row">
+        <span>LOCK PERIOD</span>
+        <span class="slider-value"><span id="lockDays">30</span> days · <span id="lockMult">1.0×</span></span>
+      </div>
+      <input class="slider" id="lockSlider" type="range" min="30" max="365" step="1" value="30">
+      <div class="preset-row">
+        <button class="preset active" data-days="30" type="button">30d · 1.0×</button>
+        <button class="preset" data-days="60" type="button">60d · 1.5×</button>
+        <button class="preset" data-days="90" type="button">90d · 2.0×</button>
+        <button class="preset" data-days="180" type="button">180d · 3.5×</button>
+        <button class="preset" data-days="365" type="button">365d · 7.0×</button>
+      </div>
+    </div>
+
+    <div class="preview-grid">
+      <div class="preview">
+        <div class="preview-label">WEIGHT</div>
+        <div class="preview-value" id="prevWeight">—</div>
+      </div>
+      <div class="preview">
+        <div class="preview-label">NEW SHARE</div>
+        <div class="preview-value" id="prevShare">—</div>
+      </div>
+      <div class="preview">
+        <div class="preview-label">UNLOCKS</div>
+        <div class="preview-value" id="prevUnlock" style="font-size:14px">—</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; flex-wrap: wrap;">
+      <button class="btn btn-primary" id="approveBtn" type="button" disabled>APPROVE MOLLY</button>
+      <button class="btn btn-purple" id="stakeBtn" type="button" disabled>STAKE</button>
+    </div>
+    <p style="font-family: var(--hand); font-size: 13px; color: rgba(253,246,236,0.55); margin-top:10px;">
+      ⚠️ <strong>Early exit penalty:</strong> 10% of principal (60% burn / 40% dev) + forfeit all pending MON. Pick a lock you can hold.
+    </p>
+  </div>
+</div>
+
+<!-- YOUR POSITIONS -->
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">📜 your <em>positions</em></h2>
+    <p class="card-sub" id="positionsSub">connect wallet to see your stakes</p>
+    <div id="positionsList">
+      <div class="empty-state">no positions yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- FUND THE POOL -->
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">💧 <em>fund</em> the pool</h2>
+    <p class="card-sub">anyone can grow the pool · the more MON, the more emissions for everyone</p>
+    <div class="form-row">
+      <div class="input-wrap">
+        <div class="input-label">AMOUNT</div>
+        <input class="input" id="fundAmount" type="text" inputmode="decimal" placeholder="0.0">
+        <span class="input-suffix">MON</span>
+      </div>
+      <button class="btn btn-purple" id="fundBtn" type="button" disabled>FUND POOL</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEADERBOARDS -->
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">🏆 top <em>funders</em></h2>
+    <p class="card-sub">leaderboard updates as Funded events come in · top 10 shown</p>
+    <div class="leaderboard" id="lbFunders">
+      <div class="empty-state">loading…</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2 class="card-title">📊 contract <em>details</em></h2>
+    <div class="stats-grid">
+      <div class="stat-box" style="grid-column: span 2;">
+        <div class="stat-label">CONTRACT</div>
+        <div class="stat-value" style="font-family: var(--mono); font-size: 13px; word-break: break-all;">0xFa45c43d74382D99649ecE4CFD2823148A17C912</div>
+        <div class="stat-sub">
+          <a href="https://monadscan.com/address/0xFa45c43d74382D99649ecE4CFD2823148A17C912#code" target="_blank" rel="noopener" style="color: var(--pink-deep); text-decoration: none;">view on monadscan ↗</a>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">MOLLY TOKEN</div>
+        <div class="stat-value" style="font-family: var(--mono); font-size: 11px; word-break: break-all;">0xB72e6262…7777</div>
+        <div class="stat-sub">
+          <a href="https://monadscan.com/address/0xB72e6262DAE53cAF167F0966421a0B9782977777" target="_blank" rel="noopener" style="color: var(--pink-deep); text-decoration: none;">view ↗</a>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">CHAIN</div>
+        <div class="stat-value purple" style="font-size:18px">MONAD</div>
+        <div class="stat-sub">id 143 · mainnet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  built on monad · <a href="https://mollyonmonad.xyz">mollyonmonad.xyz</a> · stake at your own risk · early exits lose 10%
+</div>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script type="module">
+  import {
+    BrowserProvider, JsonRpcProvider, Contract,
+    formatEther, parseEther, formatUnits, parseUnits, getAddress
+  } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
+
+  // ===== CONFIG =====
+  const STAKING_ADDR = '0xFa45c43d74382D99649ecE4CFD2823148A17C912';
+  const MOLLY_ADDR   = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+  const RPC_URL      = 'https://rpc.monad.xyz';
+  const CHAIN_ID     = 143;
+  const CHAIN_HEX    = '0x8f';
+
+  // Minimal ABI — only what we use
+  const STAKING_ABI = [
+    'function stake(uint256 amount, uint256 lockDays) external returns (uint256)',
+    'function claim(uint256 positionId) external',
+    'function unstake(uint256 positionId) external',
+    'function extendLock(uint256 positionId, uint256 newLockDays) external',
+    'function fundRewards() external payable',
+    'function withdrawMon() external',
+    'function multiplierFor(uint256 lockDays) external pure returns (uint256)',
+    'function poolStats() external view returns (uint256 _poolBalance, uint256 _totalWeight, uint256 _activeStakes, uint256 _allTimeDistributed, uint256 _allTimeStaked, uint256 _dailyRateBps)',
+    'function userStats(address user) external view returns (uint256 _userWeight, uint256 _userPositions, uint256 _userLifetimeClaimed, uint256 _userLifetimeFunded)',
+    'function stakeCountOf(address user) external view returns (uint256)',
+    'function stakeAt(address user, uint256 positionId) external view returns (uint256 amount, uint256 weight, uint256 lockEnd, uint256 multiplier, uint256 lifetimeClaimed_, bool open)',
+    'function pendingReward(address user, uint256 positionId) external view returns (uint256)',
+    'function withdrawableMon(address) external view returns (uint256)',
+    'event Funded(address indexed funder, uint256 amount)',
+  ];
+
+  const ERC20_ABI = [
+    'function balanceOf(address) view returns (uint256)',
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function approve(address spender, uint256 amount) returns (bool)',
+    'function decimals() view returns (uint8)',
+  ];
+
+  // ===== STATE =====
+  const state = {
+    signer: null,
+    address: null,
+    provider: null,         // read-only RPC
+    walletProvider: null,   // wallet provider for writes
+    staking: null,          // contract (read)
+    stakingW: null,         // contract (write, needs signer)
+    molly: null,
+    mollyW: null,
+    pool: null,             // last poolStats
+    user: null,             // last userStats
+    positions: [],          // [{id, amount, weight, lockEnd, multiplier, lifetimeClaimed, open, pending}]
+    allowance: 0n,
+    mollyBal: 0n,
+    withdrawable: 0n,
+  };
+
+  // Read-only provider for instant pool stats before wallet connect
+  state.provider = new JsonRpcProvider(RPC_URL, CHAIN_ID);
+  state.staking = new Contract(STAKING_ADDR, STAKING_ABI, state.provider);
+  state.molly = new Contract(MOLLY_ADDR, ERC20_ABI, state.provider);
+
+  // ===== UTILITIES =====
+  function fmt(n, dp = 2) {
+    if (typeof n === 'bigint') n = Number(formatEther(n));
+    if (typeof n !== 'number' || !isFinite(n)) return '—';
+    if (n === 0) return '0';
+    if (n < 0.0001 && n > 0) return n.toExponential(2);
+    if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+    return n.toFixed(dp);
+  }
+  function shortAddr(a) {
+    if (!a) return '';
+    return a.slice(0, 6) + '…' + a.slice(-4);
+  }
+  function toast(msg, kind = '', txHash = null) {
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    let html = `<div>${msg}</div>`;
+    if (txHash) html += `<a href="https://monadscan.com/tx/${txHash}" target="_blank" rel="noopener">view tx ↗</a>`;
+    el.innerHTML = html;
+    wrap.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.3s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, kind === 'err' ? 7000 : 5000);
+  }
+
+  // ===== WALLET CONNECT =====
+  async function connect() {
+    if (!window.ethereum) {
+      toast('No wallet detected. Install MetaMask or Rabby.', 'err');
+      return;
+    }
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      // Ensure correct chain
+      const net = await provider.getNetwork();
+      if (Number(net.chainId) !== CHAIN_ID) {
+        await switchChain();
+      }
+      const signer = await provider.getSigner();
+      const addr = await signer.getAddress();
+      state.walletProvider = provider;
+      state.signer = signer;
+      state.address = addr;
+      state.stakingW = new Contract(STAKING_ADDR, STAKING_ABI, signer);
+      state.mollyW = new Contract(MOLLY_ADDR, ERC20_ABI, signer);
+      updateWalletUi();
+      await refreshAll();
+
+      // Listen for chain / account changes
+      window.ethereum.on?.('accountsChanged', () => location.reload());
+      window.ethereum.on?.('chainChanged', () => location.reload());
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.message || 'Connect failed', 'err');
+    }
+  }
+
+  async function switchChain() {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: CHAIN_HEX }],
+      });
+    } catch (e) {
+      if (e.code === 4902) {
+        // Chain not added — add it
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: CHAIN_HEX,
+            chainName: 'Monad',
+            nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
+            rpcUrls: [RPC_URL],
+            blockExplorerUrls: ['https://monadscan.com'],
+          }],
+        });
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  function updateWalletUi() {
+    const dot = document.getElementById('walletDot');
+    const addr = document.getElementById('walletAddr');
+    const chain = document.getElementById('walletChain');
+    const btn = document.getElementById('connectBtn');
+    if (state.address) {
+      dot.classList.add('on');
+      addr.textContent = shortAddr(state.address);
+      chain.textContent = 'MONAD MAINNET · CHAIN 143';
+      btn.textContent = 'CONNECTED';
+      btn.disabled = true;
+      document.getElementById('userSection').style.display = '';
+      document.getElementById('dashSub').textContent = 'your numbers · updates every 8s';
+    } else {
+      dot.classList.remove('on');
+      addr.textContent = 'not connected';
+      chain.textContent = '—';
+    }
+  }
+
+  // ===== READS =====
+  async function refreshPoolStats() {
+    try {
+      const p = await state.staking.poolStats();
+      state.pool = {
+        poolBalance: p[0],
+        totalWeight: p[1],
+        activeStakes: Number(p[2]),
+        allTimeDistributed: p[3],
+        allTimeStaked: p[4],
+        dailyRateBps: Number(p[5]),
+      };
+      document.getElementById('statPool').textContent = fmt(state.pool.poolBalance, 4);
+      document.getElementById('statRate').textContent = (state.pool.dailyRateBps / 100).toFixed(2) + '%';
+      document.getElementById('statWeight').textContent = fmt(state.pool.totalWeight);
+      document.getElementById('statPositions').textContent = state.pool.activeStakes;
+      document.getElementById('statDistributed').textContent = fmt(state.pool.allTimeDistributed, 4);
+      document.getElementById('statAllStaked').textContent = fmt(state.pool.allTimeStaked);
+      // Update preview share if relevant
+      updateStakePreview();
+    } catch (e) { console.error('poolStats failed', e); }
+  }
+
+  async function refreshUserStats() {
+    if (!state.address) return;
+    try {
+      const [u, mollyBal, allowance, withdrawable] = await Promise.all([
+        state.staking.userStats(state.address),
+        state.molly.balanceOf(state.address),
+        state.molly.allowance(state.address, STAKING_ADDR),
+        state.staking.withdrawableMon(state.address),
+      ]);
+      state.user = {
+        weight: u[0],
+        positions: Number(u[1]),
+        lifetimeClaimed: u[2],
+        lifetimeFunded: u[3],
+      };
+      state.mollyBal = mollyBal;
+      state.allowance = allowance;
+      state.withdrawable = withdrawable;
+
+      document.getElementById('myWeight').textContent = fmt(state.user.weight);
+      const totW = Number(formatEther(state.pool?.totalWeight || 0n));
+      const myW = Number(formatEther(state.user.weight));
+      const share = totW > 0 ? (myW / totW * 100) : 0;
+      document.getElementById('myShare').textContent = share.toFixed(2) + '%';
+      document.getElementById('myClaimed').textContent = fmt(state.user.lifetimeClaimed, 4);
+      document.getElementById('myFunded').textContent = fmt(state.user.lifetimeFunded, 4);
+      document.getElementById('myMolly').textContent = fmt(state.mollyBal);
+
+      // Withdrawable box
+      const wb = document.getElementById('withdrawableBox');
+      if (state.withdrawable > 0n) {
+        wb.style.display = '';
+        document.getElementById('withdrawableAmt').textContent = fmt(state.withdrawable, 6);
+      } else {
+        wb.style.display = 'none';
+      }
+
+      updateStakePreview();
+      updateButtonStates();
+    } catch (e) { console.error('userStats failed', e); }
+  }
+
+  async function refreshPositions() {
+    if (!state.address) {
+      document.getElementById('positionsSub').textContent = 'connect wallet to see your stakes';
+      document.getElementById('positionsList').innerHTML = '<div class="empty-state">no positions yet</div>';
+      return;
+    }
+    try {
+      const count = Number(await state.staking.stakeCountOf(state.address));
+      if (count === 0) {
+        document.getElementById('positionsSub').textContent = '0 positions · stake some MOLLY above';
+        document.getElementById('positionsList').innerHTML = '<div class="empty-state">no positions yet · stake some MOLLY above</div>';
+        state.positions = [];
+        return;
+      }
+      const reads = [];
+      for (let i = 0; i < count; i++) {
+        reads.push(state.staking.stakeAt(state.address, i).then(r => ({
+          id: i, amount: r[0], weight: r[1], lockEnd: Number(r[2]),
+          multiplier: Number(r[3]), lifetimeClaimed: r[4], open: r[5],
+        })));
+        reads.push(state.staking.pendingReward(state.address, i));
+      }
+      const results = await Promise.all(reads);
+      const positions = [];
+      for (let i = 0; i < count; i++) {
+        const p = results[i*2];
+        const pending = results[i*2 + 1];
+        p.pending = pending;
+        positions.push(p);
+      }
+      state.positions = positions;
+      const openCount = positions.filter(p => p.open).length;
+      document.getElementById('positionsSub').textContent =
+        `${openCount} open / ${count} total · refreshes every 8s`;
+      renderPositions();
+    } catch (e) { console.error('positions failed', e); }
+  }
+
+  function renderPositions() {
+    const list = document.getElementById('positionsList');
+    if (state.positions.length === 0) {
+      list.innerHTML = '<div class="empty-state">no positions yet</div>';
+      return;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const html = state.positions.map(p => {
+      if (!p.open) {
+        return `
+          <div class="position" style="opacity: 0.5">
+            <div class="position-head">
+              <span class="position-id">#${p.id} · closed</span>
+              <span class="position-mult">${(p.multiplier / 100).toFixed(1)}×</span>
+            </div>
+            <div class="position-amount">${fmt(p.amount)} <span style="font-size:14px; color: rgba(253,246,236,0.4)">MOLLY</span></div>
+            <div class="position-amount-sub">CLOSED · lifetime claimed ${fmt(p.lifetimeClaimed, 4)} MON</div>
+          </div>`;
+      }
+      const matured = now >= p.lockEnd;
+      const secsLeft = Math.max(0, p.lockEnd - now);
+      const totalLockSecs = p.lockEnd - (now - secsLeft); // approximation
+      const daysLeft = Math.ceil(secsLeft / 86400);
+      const unlockDate = new Date(p.lockEnd * 1000);
+      const progressPct = matured ? 100 : Math.min(99, Math.max(1, 100 - (secsLeft / totalLockSecs * 100)));
+
+      return `
+        <div class="position ${matured ? 'matured' : ''}">
+          <div class="position-head">
+            <span class="position-id">#${p.id}${matured ? ' · <span style="color: var(--green)">matured</span>' : ''}</span>
+            <span class="position-mult">${(p.multiplier / 100).toFixed(1)}×</span>
+          </div>
+          <div class="position-amount">${fmt(p.amount)} <span style="font-size:14px; color: rgba(253,246,236,0.5)">MOLLY</span></div>
+          <div class="position-amount-sub">weight ${fmt(p.weight)}</div>
+          <div class="position-bar-wrap">
+            <div class="position-bar ${matured ? 'done' : ''}" style="width: ${progressPct}%"></div>
+          </div>
+          <div class="position-meta">
+            <span>${matured ? '✓ unlocked' : `🔒 ${daysLeft}d left`}</span>
+            <span>${unlockDate.toLocaleDateString()}</span>
+          </div>
+          <div class="position-pending">
+            <div class="position-pending-label">PENDING MON</div>
+            <div class="position-pending-value">${fmt(p.pending, 6)}</div>
+          </div>
+          <div class="position-actions">
+            <button class="btn btn-primary btn-small" data-action="claim" data-id="${p.id}" type="button" ${p.pending === 0n ? 'disabled' : ''}>CLAIM</button>
+            ${matured
+              ? `<button class="btn btn-purple btn-small" data-action="unstake" data-id="${p.id}" type="button">UNSTAKE</button>`
+              : `<button class="btn btn-ghost btn-small" data-action="extend" data-id="${p.id}" type="button">EXTEND</button>
+                 <button class="btn btn-danger btn-small" data-action="early" data-id="${p.id}" type="button">EARLY</button>`}
+          </div>
+          ${p.lifetimeClaimed > 0n ? `<div style="margin-top:8px; font-family: var(--mono); font-size: 10px; color: rgba(253,246,236,0.45); text-align: center;">lifetime claimed: ${fmt(p.lifetimeClaimed, 4)} MON</div>` : ''}
+        </div>`;
+    }).join('');
+    list.innerHTML = html;
+
+    // Wire up action buttons
+    list.querySelectorAll('button[data-action]').forEach(b => {
+      b.addEventListener('click', () => handlePositionAction(b.dataset.action, Number(b.dataset.id)));
+    });
+  }
+
+  async function refreshAll() {
+    await refreshPoolStats();
+    if (state.address) {
+      await refreshUserStats();
+      await refreshPositions();
+    }
+    await refreshLeaderboard();
+  }
+
+  // ===== LEADERBOARD =====
+  // Pulls past Funded events to build a top-funders leaderboard.
+  async function refreshLeaderboard() {
+    try {
+      const list = document.getElementById('lbFunders');
+      const filter = state.staking.filters.Funded();
+      // Pull last ~50000 blocks (configurable; Monad blocks are fast)
+      const latest = await state.provider.getBlockNumber();
+      const fromBlock = Math.max(0, latest - 50000);
+      const logs = await state.staking.queryFilter(filter, fromBlock, latest);
+      const totals = new Map();
+      for (const l of logs) {
+        const funder = l.args.funder;
+        const amt = l.args.amount;
+        totals.set(funder, (totals.get(funder) || 0n) + amt);
+      }
+      const sorted = Array.from(totals.entries())
+        .sort((a, b) => (b[1] > a[1] ? 1 : -1))
+        .slice(0, 10);
+
+      if (sorted.length === 0) {
+        list.innerHTML = '<div class="empty-state">no funders yet · be the first 💧</div>';
+        return;
+      }
+
+      const html = sorted.map(([addr, amt], i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+        return `
+          <div class="lb-row">
+            <span class="lb-rank ${rankClass}">${medal}</span>
+            <span class="lb-addr">${shortAddr(addr)}</span>
+            <span class="lb-val">${fmt(amt, 4)} MON</span>
+          </div>`;
+      }).join('');
+      list.innerHTML = html;
+    } catch (e) {
+      console.error('leaderboard failed', e);
+      document.getElementById('lbFunders').innerHTML = '<div class="empty-state">leaderboard temporarily unavailable</div>';
+    }
+  }
+
+  // ===== STAKE FORM =====
+  let currentLockDays = 30;
+
+  function multiplierFor(d) {
+    if (d <= 30) return 100;
+    if (d <= 60) return 100 + Math.floor((d - 30) * 50 / 30);
+    if (d <= 90) return 150 + Math.floor((d - 60) * 50 / 30);
+    if (d <= 180) return 200 + Math.floor((d - 90) * 150 / 90);
+    return 350 + Math.floor((d - 180) * 350 / 185);
+  }
+
+  function setLockDays(d) {
+    currentLockDays = Math.max(30, Math.min(365, Math.floor(d)));
+    document.getElementById('lockDays').textContent = currentLockDays;
+    const mult = multiplierFor(currentLockDays);
+    document.getElementById('lockMult').textContent = (mult / 100).toFixed(1) + '×';
+    document.getElementById('lockSlider').value = currentLockDays;
+    document.querySelectorAll('.preset').forEach(p => {
+      p.classList.toggle('active', Number(p.dataset.days) === currentLockDays);
+    });
+    updateStakePreview();
+  }
+
+  function updateStakePreview() {
+    const amtStr = document.getElementById('stakeAmount').value;
+    let amt = 0;
+    try { amt = parseFloat(amtStr) || 0; } catch {}
+    const mult = multiplierFor(currentLockDays);
+    const weight = amt * mult / 100;
+    const unlockDate = new Date(Date.now() + currentLockDays * 86400 * 1000);
+
+    document.getElementById('prevWeight').textContent = weight > 0 ? fmt(weight) : '—';
+    document.getElementById('prevUnlock').textContent = unlockDate.toLocaleDateString();
+
+    const totW = Number(formatEther(state.pool?.totalWeight || 0n));
+    const newShare = (weight) / (totW + weight) * 100;
+    document.getElementById('prevShare').textContent = (weight > 0 && totW >= 0) ? newShare.toFixed(2) + '%' : '—';
+  }
+
+  function updateButtonStates() {
+    const amtStr = document.getElementById('stakeAmount').value;
+    let amtWei = 0n;
+    try { amtWei = parseEther(amtStr || '0'); } catch {}
+
+    const approveBtn = document.getElementById('approveBtn');
+    const stakeBtn = document.getElementById('stakeBtn');
+    const fundBtn = document.getElementById('fundBtn');
+
+    if (!state.address) {
+      approveBtn.disabled = true; stakeBtn.disabled = true; fundBtn.disabled = true;
+      return;
+    }
+
+    fundBtn.disabled = false;
+
+    if (amtWei === 0n) {
+      approveBtn.disabled = true;
+      stakeBtn.disabled = true;
+      return;
+    }
+    if (amtWei > state.mollyBal) {
+      approveBtn.disabled = true;
+      stakeBtn.disabled = true;
+      stakeBtn.textContent = 'INSUFFICIENT MOLLY';
+      return;
+    }
+    stakeBtn.textContent = 'STAKE';
+    if (state.allowance >= amtWei) {
+      approveBtn.disabled = true;
+      approveBtn.textContent = 'APPROVED ✓';
+      stakeBtn.disabled = false;
+    } else {
+      approveBtn.disabled = false;
+      approveBtn.textContent = 'APPROVE MOLLY';
+      stakeBtn.disabled = true;
+    }
+  }
+
+  // ===== WRITES =====
+  async function doApprove() {
+    if (!state.signer) return;
+    const amtStr = document.getElementById('stakeAmount').value;
+    let amtWei;
+    try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
+    try {
+      toast('Approving MOLLY…');
+      // Approve max for convenience
+      const MAX = (1n << 256n) - 1n;
+      const tx = await state.mollyW.approve(STAKING_ADDR, MAX);
+      toast('Approval sent · waiting…', '', tx.hash);
+      await tx.wait();
+      toast('Approved ✓', 'ok');
+      await refreshUserStats();
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.reason || 'Approve failed', 'err');
+    }
+  }
+
+  async function doStake() {
+    if (!state.signer) return;
+    const amtStr = document.getElementById('stakeAmount').value;
+    let amtWei;
+    try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
+    if (amtWei === 0n) { toast('Enter an amount', 'err'); return; }
+    try {
+      const tx = await state.stakingW.stake(amtWei, currentLockDays);
+      toast('Stake sent · waiting…', '', tx.hash);
+      await tx.wait();
+      toast(`Staked ${fmt(amtWei)} MOLLY for ${currentLockDays}d ✓`, 'ok');
+      document.getElementById('stakeAmount').value = '';
+      await refreshAll();
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.reason || 'Stake failed', 'err');
+    }
+  }
+
+  async function doFund() {
+    if (!state.signer) return;
+    const amtStr = document.getElementById('fundAmount').value;
+    let amtWei;
+    try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
+    if (amtWei === 0n) { toast('Enter an amount', 'err'); return; }
+    try {
+      const tx = await state.stakingW.fundRewards({ value: amtWei });
+      toast('Fund sent · waiting…', '', tx.hash);
+      await tx.wait();
+      toast(`Funded pool with ${fmt(amtWei, 4)} MON ✓`, 'ok');
+      document.getElementById('fundAmount').value = '';
+      await refreshAll();
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.reason || 'Fund failed', 'err');
+    }
+  }
+
+  async function doWithdrawMon() {
+    if (!state.signer) return;
+    try {
+      const tx = await state.stakingW.withdrawMon();
+      toast('Withdraw sent · waiting…', '', tx.hash);
+      await tx.wait();
+      toast('Withdrawn ✓', 'ok');
+      await refreshUserStats();
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.reason || 'Withdraw failed', 'err');
+    }
+  }
+
+  async function handlePositionAction(action, id) {
+    if (!state.signer) return;
+    try {
+      let tx;
+      if (action === 'claim') {
+        tx = await state.stakingW.claim(id);
+        toast('Claim sent · waiting…', '', tx.hash);
+        await tx.wait();
+        toast('Claimed ✓', 'ok');
+      } else if (action === 'unstake') {
+        tx = await state.stakingW.unstake(id);
+        toast('Unstake sent · waiting…', '', tx.hash);
+        await tx.wait();
+        toast('Unstaked ✓', 'ok');
+      } else if (action === 'early') {
+        if (!confirm('Early exit: lose 10% of principal + all pending MON. Continue?')) return;
+        tx = await state.stakingW.unstake(id);
+        toast('Early exit sent · waiting…', '', tx.hash);
+        await tx.wait();
+        toast('Position closed (early)', 'ok');
+      } else if (action === 'extend') {
+        const inp = prompt('Extend to how many days? (30-365)', '60');
+        if (!inp) return;
+        const newDays = parseInt(inp);
+        if (!newDays || newDays < 30 || newDays > 365) { toast('Invalid days', 'err'); return; }
+        tx = await state.stakingW.extendLock(id, newDays);
+        toast('Extend sent · waiting…', '', tx.hash);
+        await tx.wait();
+        toast(`Extended to ${newDays} days ✓`, 'ok');
+      }
+      await refreshAll();
+    } catch (e) {
+      console.error(e);
+      toast(e.shortMessage || e.reason || `${action} failed`, 'err');
+    }
+  }
+
+  // ===== EVENT LISTENERS =====
+  document.getElementById('connectBtn').addEventListener('click', connect);
+  document.getElementById('approveBtn').addEventListener('click', doApprove);
+  document.getElementById('stakeBtn').addEventListener('click', doStake);
+  document.getElementById('fundBtn').addEventListener('click', doFund);
+  document.getElementById('withdrawBtn').addEventListener('click', doWithdrawMon);
+  document.getElementById('maxBtn').addEventListener('click', () => {
+    if (!state.address) return toast('Connect wallet first');
+    document.getElementById('stakeAmount').value = formatEther(state.mollyBal);
+    updateStakePreview();
+    updateButtonStates();
+  });
+  document.getElementById('stakeAmount').addEventListener('input', () => {
+    updateStakePreview();
+    updateButtonStates();
+  });
+  document.getElementById('lockSlider').addEventListener('input', (e) => {
+    setLockDays(Number(e.target.value));
+  });
+  document.querySelectorAll('.preset').forEach(p => {
+    p.addEventListener('click', () => setLockDays(Number(p.dataset.days)));
+  });
+
+  // ===== AUTOCONNECT IF PREVIOUSLY CONNECTED =====
+  async function tryAutoConnect() {
+    if (!window.ethereum) return;
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts && accounts.length > 0) {
+        await connect();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ===== INIT =====
+  setLockDays(30);
+  refreshAll();
+  setInterval(refreshAll, 8000);
+  tryAutoConnect();
+</script>
+
+</body>
+</html>
