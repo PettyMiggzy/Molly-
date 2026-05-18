@@ -207,10 +207,62 @@ The combination of `newEnd > s.lockEnd` (must extend in time) + `newMult >= s.mu
 ```
 ✓ COMPILED CLEAN
   warnings: 0
-  bytecode: 13,284 bytes (54% of 24,576 EVM limit)
-  functions: 46 (+5 from patches)
-  events:    17 (+9 from patches)
+  bytecode: 13,408 bytes (55% of 24,576 EVM limit)
+  functions: 47 (+6 from patches total)
+  events:    17 (+9 from patches total)
 ```
+
+---
+
+## Round 2: Findings from re-audit (N1/N2/N3) ✅ ALL FIXED
+
+After applying the round-1 fixes, the auditor flagged three new issues introduced by the patches themselves. All addressed.
+
+### N1 — `nonReentrant` on `receive()`/`fundRewards()` broke Monorail refunds ✅ FIXED
+
+**Issue:** Adding `nonReentrant` to `receive()` (round-1 H2 fix) closed a legitimate path: when Monorail's router refunds leftover MON to the staking contract during `compound()`, the staking contract's `_lock == 2` causes `receive()` to revert, reverting the whole compound tx.
+
+The auditor verified that `_fund()` is provably safe to reenter — it just increments two SSTORE counters and calls `_updatePool()` (which is a no-op at elapsed=0). The H2 fix was overkill.
+
+**Fix:** Removed `nonReentrant` from both `receive()` and `fundRewards()`. Added explicit `@dev` comments explaining why each is safe.
+
+```diff
+- function fundRewards() external payable nonReentrant {
++ function fundRewards() external payable {
+
+- receive() external payable nonReentrant {
++ receive() external payable {
+```
+
+**Trade-off accepted:** Minor stat-pollution risk — if Monorail refunds dust to staking contract, the router's address gets a `userLifetimeFunded` credit. Acceptable cost for keeping compound working.
+
+**Note on 2300-gas `.transfer()` callers:** Documented as expected. Modern Solidity convention is `.call{value:}` which forwards adequate gas. Any caller using `.transfer()` will revert — this is industry-standard post-EIP-1884.
+
+### N2 — `_payMon` 30k gas cap too tight for smart wallets ✅ FIXED
+
+**Issue:** 30k gas was enough for EOAs but not for Gnosis Safe (typically 30-45k) or ERC-4337 accounts. Forces smart-wallet users into pull-pattern fallback even when their `receive()` would have worked with a slightly bigger budget.
+
+**Fix:** Raised gas cap to 100k. Still bounded (prevents grief from a recipient that burns infinite gas), but accommodates all realistic smart wallets.
+
+```diff
+- (bool ok, ) = payable(to).call{value: amount, gas: 30_000}("");
++ (bool ok, ) = payable(to).call{value: amount, gas: 100_000}("");
+```
+
+### N3 — `withdrawMon` locked to msg.sender ✅ FIXED
+
+**Issue:** If a contract user's `receive()` is broken even with full gas (or if they've lost access to the original wallet), they can't redirect their accumulated MON to a working address.
+
+**Fix:** Added `withdrawMonTo(address recipient)` as a sibling to `withdrawMon()`. Both routes go through `_withdrawMonTo()` helper to keep the CEI accounting consistent.
+
+```diff
++ function withdrawMonTo(address recipient) external nonReentrant {
++     require(recipient != address(0), "zero recipient");
++     _withdrawMonTo(msg.sender, recipient);
++ }
+```
+
+`withdrawMon()` unchanged for users who want the default (self) behavior.
 
 ---
 

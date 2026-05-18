@@ -334,13 +334,17 @@ contract MollyStaking {
     }
 
     /// @dev H5: try to send MON to `to`. If recipient is a contract whose
-    ///      receive() reverts (or gas runs out), credit balance to
+    ///      receive() reverts (or runs out of gas), credit balance to
     ///      withdrawableMon[to] for them to pull later via withdrawMon().
     ///      Never reverts on transfer failure — caller must already have
     ///      decremented internal accounting before calling this.
+    /// @dev N2: 100k gas cap. Enough for Gnosis Safe (~30-45k typical) and
+    ///      most ERC-4337 smart accounts. Still bounded — prevents grief via
+    ///      a recipient that burns all forwarded gas. Modern EOAs only use
+    ///      ~12k; the headroom is for smart wallets.
     function _payMon(address to, uint256 amount) internal {
         if (amount == 0) return;
-        (bool ok, ) = payable(to).call{value: amount, gas: 30_000}("");
+        (bool ok, ) = payable(to).call{value: amount, gas: 100_000}("");
         if (!ok) {
             withdrawableMon[to] += amount;
             emit MonWithdrawCredited(to, amount);
@@ -350,12 +354,24 @@ contract MollyStaking {
     /// @notice Pull any MON that was credited because a direct send failed.
     ///         (Common case: contract user with reverting/expensive receive().)
     function withdrawMon() external nonReentrant {
-        uint256 amt = withdrawableMon[msg.sender];
+        _withdrawMonTo(msg.sender, msg.sender);
+    }
+
+    /// @notice Pull credited MON to a different recipient than msg.sender.
+    /// @dev N3: lets a contract user with a broken receive() redirect to a
+    ///      working wallet they control. Without this, MON could be stuck.
+    function withdrawMonTo(address recipient) external nonReentrant {
+        require(recipient != address(0), "zero recipient");
+        _withdrawMonTo(msg.sender, recipient);
+    }
+
+    function _withdrawMonTo(address from, address to) internal {
+        uint256 amt = withdrawableMon[from];
         require(amt > 0, "nothing to withdraw");
-        withdrawableMon[msg.sender] = 0;
-        (bool ok, ) = payable(msg.sender).call{value: amt}("");
+        withdrawableMon[from] = 0;
+        (bool ok, ) = payable(to).call{value: amt}("");
         require(ok, "withdraw failed");
-        emit MonWithdrawn(msg.sender, amt);
+        emit MonWithdrawn(from, amt);
     }
 
     /// @notice Unstake a position. After lockEnd → full principal + rewards.
@@ -528,14 +544,21 @@ contract MollyStaking {
     // ╚══════════════════════════════════════════════════════════════════════
 
     /// @notice Send MON to grow the reward pool. Anyone may call.
-    /// @dev H2: nonReentrant — prevents weaponized re-entry through future edits to _fund.
-    function fundRewards() external payable nonReentrant {
+    /// @dev N1: NOT nonReentrant. _fund() is provably safe to reenter — it just
+    ///      increments two SSTORE counters and calls _updatePool() (which is a
+    ///      no-op at elapsed=0). Guarding it broke the Monorail router refund
+    ///      path during compound().
+    function fundRewards() external payable {
         _fund(msg.sender, msg.value);
     }
 
     /// @notice Fallback: plain MON transfers also fund the pool.
-    /// @dev H2: nonReentrant — same rationale as fundRewards.
-    receive() external payable nonReentrant {
+    /// @dev N1: NOT nonReentrant. Same rationale as fundRewards. Critically,
+    ///      this lets a whitelisted Monorail router refund leftover MON to us
+    ///      during compound() without reverting the whole tx.
+    ///      Note: 2300-gas .transfer() / .send() will still revert because the
+    ///      body is too expensive. Modern .call{value:} idiom works fine.
+    receive() external payable {
         _fund(msg.sender, msg.value);
     }
 
