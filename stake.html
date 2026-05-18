@@ -129,6 +129,22 @@
     -webkit-text-fill-color: var(--accent);
     text-shadow: 0 0 28px rgba(255, 216, 77, 0.55);
   }
+  .hero-img {
+    display: block;
+    max-width: min(560px, 92%);
+    width: 100%;
+    height: auto;
+    margin: 12px auto 18px;
+    border-radius: 24px;
+    filter: drop-shadow(0 18px 40px rgba(176, 124, 255, 0.45))
+            drop-shadow(0 0 24px rgba(232, 127, 196, 0.25));
+    transform: rotate(-1deg);
+    transition: transform 0.4s ease;
+  }
+  .hero-img:hover { transform: rotate(0deg) scale(1.02); }
+  @media (max-width: 700px) {
+    .hero-img { max-width: 88%; margin: 8px auto 14px; border-radius: 18px; }
+  }
   .hero-sub {
     font-family: var(--script);
     font-size: clamp(20px, 3.5vw, 28px);
@@ -751,7 +767,13 @@
 <!-- HERO -->
 <section class="hero">
   <span class="hero-eyebrow"><span class="hero-pulse"></span> LIVE ON MONAD · VERIFIED</span>
-  <h1>stake MOLLY<br>earn <em>MON</em></h1>
+  <img
+    src="/images/stake-hero.jpg"
+    srcset="/images/stake-hero.jpg 1x, /images/stake-hero@2x.jpg 2x"
+    alt="MOLLY STAKING"
+    class="hero-img"
+    width="1200" height="1200"
+    fetchpriority="high">
   <p class="hero-sub">
     pool decays <strong>1%/day</strong> to stakers · longer lock = bigger share<br>
     anyone can fund the pool · everyone earns
