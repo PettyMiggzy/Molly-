@@ -1543,6 +1543,34 @@
     throw new Error('tx receipt timeout (90s) · check monadscan for status');
   }
 
+  // Bypass ethers' Contract.method() entirely for tx sending. The issue:
+  // ethers v6 wraps the wallet's submission response into a TransactionResponse
+  // object, which calls _wrapTransactionResponse → tries to parse nonce as BigInt.
+  // Monad RPC returns nonce as the literal string "undefined" for some pending
+  // tx fields, which throws "Cannot convert undefined to a BigInt" BEFORE the
+  // tx hash even reaches our code.
+  //
+  // Solution: encode the calldata via ethers (it's fine for encoding), then
+  // submit via raw window.ethereum.request('eth_sendTransaction'). That returns
+  // just the tx hash as a string — no parsing. Then waitForTx polls the receipt.
+  async function sendContractTx(contract, methodName, args, value = 0n) {
+    if (!state.address) throw new Error('Not connected');
+    const data = contract.interface.encodeFunctionData(methodName, args);
+    const target = await contract.getAddress();
+    const txParams = {
+      from: state.address,
+      to: target,
+      data: data,
+    };
+    if (value && value > 0n) txParams.value = '0x' + value.toString(16);
+
+    const hash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [txParams],
+    });
+    return hash;
+  }
+
   async function doApprove() {
     if (!state.signer) return;
     const amtStr = document.getElementById('stakeAmount').value;
@@ -1551,14 +1579,18 @@
     try {
       toast('Approving MOLLY…');
       const MAX = (1n << 256n) - 1n;
-      const tx = await state.mollyW.approve(STAKING_ADDR, MAX);
-      toast('Approval sent · waiting…', '', tx.hash);
-      await waitForTx(tx.hash);
+      const hash = await sendContractTx(state.mollyW, 'approve', [STAKING_ADDR, MAX]);
+      toast('Approval sent · waiting…', '', hash);
+      await waitForTx(hash);
       toast('Approved ✓', 'ok');
       await refreshUserStats();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || e.message || 'Approve failed', 'err');
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Transaction rejected', 'err');
+      } else {
+        toast(e.shortMessage || e.reason || e.message || 'Approve failed', 'err');
+      }
     }
   }
 
@@ -1569,15 +1601,19 @@
     try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
     if (amtWei === 0n) { toast('Enter an amount', 'err'); return; }
     try {
-      const tx = await state.stakingW.stake(amtWei, currentLockDays);
-      toast('Stake sent · waiting…', '', tx.hash);
-      await waitForTx(tx.hash);
+      const hash = await sendContractTx(state.stakingW, 'stake', [amtWei, currentLockDays]);
+      toast('Stake sent · waiting…', '', hash);
+      await waitForTx(hash);
       toast(`Staked ${fmt(amtWei)} MOLLY for ${currentLockDays}d ✓`, 'ok');
       document.getElementById('stakeAmount').value = '';
       await refreshAll();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || 'Stake failed', 'err');
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Transaction rejected', 'err');
+      } else {
+        toast(e.shortMessage || e.reason || e.message || 'Stake failed', 'err');
+      }
     }
   }
 
@@ -1588,66 +1624,78 @@
     try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
     if (amtWei === 0n) { toast('Enter an amount', 'err'); return; }
     try {
-      const tx = await state.stakingW.fundRewards({ value: amtWei });
-      toast('Fund sent · waiting…', '', tx.hash);
-      await waitForTx(tx.hash);
+      const hash = await sendContractTx(state.stakingW, 'fundRewards', [], amtWei);
+      toast('Fund sent · waiting…', '', hash);
+      await waitForTx(hash);
       toast(`Funded pool with ${fmt(amtWei, 4)} MON ✓`, 'ok');
       document.getElementById('fundAmount').value = '';
       await refreshAll();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || 'Fund failed', 'err');
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Transaction rejected', 'err');
+      } else {
+        toast(e.shortMessage || e.reason || e.message || 'Fund failed', 'err');
+      }
     }
   }
 
   async function doWithdrawMon() {
     if (!state.signer) return;
     try {
-      const tx = await state.stakingW.withdrawMon();
-      toast('Withdraw sent · waiting…', '', tx.hash);
-      await waitForTx(tx.hash);
+      const hash = await sendContractTx(state.stakingW, 'withdrawMon', []);
+      toast('Withdraw sent · waiting…', '', hash);
+      await waitForTx(hash);
       toast('Withdrawn ✓', 'ok');
       await refreshUserStats();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || 'Withdraw failed', 'err');
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Transaction rejected', 'err');
+      } else {
+        toast(e.shortMessage || e.reason || e.message || 'Withdraw failed', 'err');
+      }
     }
   }
 
   async function handlePositionAction(action, id) {
     if (!state.signer) return;
     try {
-      let tx;
+      let hash;
       if (action === 'claim') {
-        tx = await state.stakingW.claim(id);
-        toast('Claim sent · waiting…', '', tx.hash);
-        await waitForTx(tx.hash);
+        hash = await sendContractTx(state.stakingW, 'claim', [id]);
+        toast('Claim sent · waiting…', '', hash);
+        await waitForTx(hash);
         toast('Claimed ✓', 'ok');
       } else if (action === 'unstake') {
-        tx = await state.stakingW.unstake(id);
-        toast('Unstake sent · waiting…', '', tx.hash);
-        await waitForTx(tx.hash);
+        hash = await sendContractTx(state.stakingW, 'unstake', [id]);
+        toast('Unstake sent · waiting…', '', hash);
+        await waitForTx(hash);
         toast('Unstaked ✓', 'ok');
       } else if (action === 'early') {
         if (!confirm('Early exit: lose 10% of principal + all pending MON. Continue?')) return;
-        tx = await state.stakingW.unstake(id);
-        toast('Early exit sent · waiting…', '', tx.hash);
-        await waitForTx(tx.hash);
+        hash = await sendContractTx(state.stakingW, 'unstake', [id]);
+        toast('Early exit sent · waiting…', '', hash);
+        await waitForTx(hash);
         toast('Position closed (early)', 'ok');
       } else if (action === 'extend') {
         const inp = prompt('Extend to how many days? (30-365)', '60');
         if (!inp) return;
         const newDays = parseInt(inp);
         if (!newDays || newDays < 30 || newDays > 365) { toast('Invalid days', 'err'); return; }
-        tx = await state.stakingW.extendLock(id, newDays);
-        toast('Extend sent · waiting…', '', tx.hash);
-        await waitForTx(tx.hash);
+        hash = await sendContractTx(state.stakingW, 'extendLock', [id, newDays]);
+        toast('Extend sent · waiting…', '', hash);
+        await waitForTx(hash);
         toast(`Extended to ${newDays} days ✓`, 'ok');
       }
       await refreshAll();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || `${action} failed`, 'err');
+      if (e.code === 4001 || /reject|denied/i.test(e.message || '')) {
+        toast('Transaction rejected', 'err');
+      } else {
+        toast(e.shortMessage || e.reason || e.message || `${action} failed`, 'err');
+      }
     }
   }
 
