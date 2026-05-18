@@ -130,7 +130,7 @@ contract MollyStaking {
     event PenaltyApplied(address indexed user, uint256 burned, uint256 toDev, uint256 forfeitedRewards);
     // H5: pull-pattern events for failed-send credits
     event MonWithdrawCredited(address indexed user, uint256 amount);
-    event MonWithdrawn(address indexed user, uint256 amount);
+    event MonWithdrawn(address indexed user, address indexed to, uint256 amount);
     // M2: admin observability events
     event PausedSet(bool paused);
     event DailyRateSet(uint256 oldBps, uint256 newBps);
@@ -371,7 +371,7 @@ contract MollyStaking {
         withdrawableMon[from] = 0;
         (bool ok, ) = payable(to).call{value: amt}("");
         require(ok, "withdraw failed");
-        emit MonWithdrawn(from, amt);
+        emit MonWithdrawn(from, to, amt);
     }
 
     /// @notice Unstake a position. After lockEnd → full principal + rewards.
