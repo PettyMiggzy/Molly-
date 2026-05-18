@@ -1180,24 +1180,69 @@
       await refreshUserStats();
       await refreshPositions();
     }
-    await refreshLeaderboard();
+    // Leaderboard is fetched separately, not in this hot loop (it walks block ranges)
   }
 
   // ===== LEADERBOARD =====
-  // Pulls past Funded events to build a top-funders leaderboard.
+  // Pulls Funded events from contract deployment to now. Public Monad RPC has
+  // a 100-block hard limit on eth_getLogs, so we chunk requests. Contract was
+  // deployed around block 75,408,300 — we start from there to keep things fast.
+  const CONTRACT_DEPLOY_BLOCK = 75408300;
+  const LOG_CHUNK = 95; // safely under the 100-block hard limit
+  let leaderboardScanning = false;
+
   async function refreshLeaderboard() {
+    if (leaderboardScanning) return;
+    leaderboardScanning = true;
+    const list = document.getElementById('lbFunders');
     try {
-      const list = document.getElementById('lbFunders');
-      const filter = state.staking.filters.Funded();
-      // Pull last ~50000 blocks (configurable; Monad blocks are fast)
       const latest = await state.provider.getBlockNumber();
-      const fromBlock = Math.max(0, latest - 50000);
-      const logs = await state.staking.queryFilter(filter, fromBlock, latest);
+      const totalRange = latest - CONTRACT_DEPLOY_BLOCK;
+      const chunks = Math.ceil(totalRange / LOG_CHUNK);
+      // If too many chunks (contract has been live a long time), only scan recent
+      // history to keep page load snappy. Indexer can fill in older data later.
+      const MAX_CHUNKS = 200;
+      const startBlock = chunks > MAX_CHUNKS
+        ? latest - (MAX_CHUNKS * LOG_CHUNK)
+        : CONTRACT_DEPLOY_BLOCK;
+      const actualChunks = Math.ceil((latest - startBlock) / LOG_CHUNK);
+
+      // Show progress hint for large scans
+      if (actualChunks > 20) {
+        list.innerHTML = `<div class="empty-state">scanning recent blocks · ${actualChunks} chunks…</div>`;
+      }
+
+      // FunderEvent topic for ethers v6
+      const fundedTopic = state.staking.interface.getEvent('Funded').topicHash;
       const totals = new Map();
-      for (const l of logs) {
-        const funder = l.args.funder;
-        const amt = l.args.amount;
-        totals.set(funder, (totals.get(funder) || 0n) + amt);
+
+      // Chunk the scan
+      for (let from = startBlock; from <= latest; from += LOG_CHUNK) {
+        const to = Math.min(from + LOG_CHUNK - 1, latest);
+        try {
+          const logs = await state.provider.send('eth_getLogs', [{
+            address: STAKING_ADDR.toLowerCase(),
+            fromBlock: '0x' + from.toString(16),
+            toBlock: '0x' + to.toString(16),
+            topics: [fundedTopic],
+          }]);
+          for (const log of logs) {
+            const parsed = state.staking.interface.parseLog({
+              topics: log.topics, data: log.data,
+            });
+            if (!parsed) continue;
+            const funder = parsed.args.funder;
+            const amt = parsed.args.amount;
+            totals.set(funder, (totals.get(funder) || 0n) + amt);
+          }
+        } catch (e) { /* skip bad chunk, keep going */ }
+      }
+
+      const sorted = Array.from(totals.entries())
+        .sort((a, b) => (b[1] > a[1] ? 1 : -1))
+        .slice(0, 10);
+
+      if (sorted.length === 0) {
       }
       const sorted = Array.from(totals.entries())
         .sort((a, b) => (b[1] > a[1] ? 1 : -1))
@@ -1221,7 +1266,9 @@
       list.innerHTML = html;
     } catch (e) {
       console.error('leaderboard failed', e);
-      document.getElementById('lbFunders').innerHTML = '<div class="empty-state">leaderboard temporarily unavailable</div>';
+      list.innerHTML = '<div class="empty-state">no funders yet · be the first 💧</div>';
+    } finally {
+      leaderboardScanning = false;
     }
   }
 
@@ -1304,6 +1351,29 @@
   }
 
   // ===== WRITES =====
+
+  // Resilient receipt poller. ethers v6 calls getTransaction() while polling,
+  // and Monad's public RPC can return malformed pending tx data ("nonce: undefined"
+  // as a literal string) that throws a BigInt parse error mid-wait.
+  // We bypass that by polling getTransactionReceipt directly via raw RPC.
+  async function waitForTx(txHash, timeoutMs = 90_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const r = await state.provider.send('eth_getTransactionReceipt', [txHash]);
+        if (r && r.blockNumber) {
+          if (r.status === '0x0') throw new Error('tx reverted on-chain');
+          return r;
+        }
+      } catch (e) {
+        if (String(e.message || '').includes('reverted')) throw e;
+        // ignore transient RPC errors and keep polling
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    throw new Error('tx receipt timeout (90s) · check monadscan for status');
+  }
+
   async function doApprove() {
     if (!state.signer) return;
     const amtStr = document.getElementById('stakeAmount').value;
@@ -1311,16 +1381,15 @@
     try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
     try {
       toast('Approving MOLLY…');
-      // Approve max for convenience
       const MAX = (1n << 256n) - 1n;
       const tx = await state.mollyW.approve(STAKING_ADDR, MAX);
       toast('Approval sent · waiting…', '', tx.hash);
-      await tx.wait();
+      await waitForTx(tx.hash);
       toast('Approved ✓', 'ok');
       await refreshUserStats();
     } catch (e) {
       console.error(e);
-      toast(e.shortMessage || e.reason || 'Approve failed', 'err');
+      toast(e.shortMessage || e.reason || e.message || 'Approve failed', 'err');
     }
   }
 
@@ -1333,7 +1402,7 @@
     try {
       const tx = await state.stakingW.stake(amtWei, currentLockDays);
       toast('Stake sent · waiting…', '', tx.hash);
-      await tx.wait();
+      await waitForTx(tx.hash);
       toast(`Staked ${fmt(amtWei)} MOLLY for ${currentLockDays}d ✓`, 'ok');
       document.getElementById('stakeAmount').value = '';
       await refreshAll();
@@ -1352,7 +1421,7 @@
     try {
       const tx = await state.stakingW.fundRewards({ value: amtWei });
       toast('Fund sent · waiting…', '', tx.hash);
-      await tx.wait();
+      await waitForTx(tx.hash);
       toast(`Funded pool with ${fmt(amtWei, 4)} MON ✓`, 'ok');
       document.getElementById('fundAmount').value = '';
       await refreshAll();
@@ -1367,7 +1436,7 @@
     try {
       const tx = await state.stakingW.withdrawMon();
       toast('Withdraw sent · waiting…', '', tx.hash);
-      await tx.wait();
+      await waitForTx(tx.hash);
       toast('Withdrawn ✓', 'ok');
       await refreshUserStats();
     } catch (e) {
@@ -1383,18 +1452,18 @@
       if (action === 'claim') {
         tx = await state.stakingW.claim(id);
         toast('Claim sent · waiting…', '', tx.hash);
-        await tx.wait();
+        await waitForTx(tx.hash);
         toast('Claimed ✓', 'ok');
       } else if (action === 'unstake') {
         tx = await state.stakingW.unstake(id);
         toast('Unstake sent · waiting…', '', tx.hash);
-        await tx.wait();
+        await waitForTx(tx.hash);
         toast('Unstaked ✓', 'ok');
       } else if (action === 'early') {
         if (!confirm('Early exit: lose 10% of principal + all pending MON. Continue?')) return;
         tx = await state.stakingW.unstake(id);
         toast('Early exit sent · waiting…', '', tx.hash);
-        await tx.wait();
+        await waitForTx(tx.hash);
         toast('Position closed (early)', 'ok');
       } else if (action === 'extend') {
         const inp = prompt('Extend to how many days? (30-365)', '60');
@@ -1403,7 +1472,7 @@
         if (!newDays || newDays < 30 || newDays > 365) { toast('Invalid days', 'err'); return; }
         tx = await state.stakingW.extendLock(id, newDays);
         toast('Extend sent · waiting…', '', tx.hash);
-        await tx.wait();
+        await waitForTx(tx.hash);
         toast(`Extended to ${newDays} days ✓`, 'ok');
       }
       await refreshAll();
@@ -1451,6 +1520,11 @@
   setLockDays(30);
   refreshAll();
   setInterval(refreshAll, 8000);
+  // Leaderboard refreshes on a slower cadence — it walks block ranges and
+  // doesn't need to be hot. Initial fetch after a 2s delay so pool stats
+  // paint first.
+  setTimeout(refreshLeaderboard, 2000);
+  setInterval(refreshLeaderboard, 60_000);
   tryAutoConnect();
 </script>
 
