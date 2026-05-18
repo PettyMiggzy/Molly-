@@ -52,19 +52,18 @@ module.exports = {
   sourcify: {
     enabled: false,
   },
-  // Monadscan has its OWN API (api.monadscan.com) and its OWN API keys.
-  // NOT etherscan.io — that's a different service that doesn't support Monad mainnet.
-  // Register: https://monadscan.com/register → get API key from your account
+  // Etherscan V2 unified API. Single etherscan.io key works across all
+  // V2-supported chains, including Monad mainnet (chain 143).
+  // Get key at: https://etherscan.io/myapikey  (must be etherscan.io,
+  // NOT bscscan.com / polygonscan.com etc.)
   etherscan: {
-    apiKey: {
-      monadMainnet: process.env.MONADSCAN_API_KEY || '',
-    },
+    apiKey: process.env.ETHERSCAN_API_KEY || '',
     customChains: [
       {
         network: 'monadMainnet',
         chainId: 143,
         urls: {
-          apiURL: 'https://api.monadscan.com/api',
+          apiURL: 'https://api.etherscan.io/v2/api',
           browserURL: 'https://monadscan.com',
         },
       },
