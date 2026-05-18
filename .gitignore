@@ -4,6 +4,11 @@ cache/
 broadcast/
 .deployed-address
 
+# Hardhat build outputs
+artifacts/
+cache/
+typechain-types/
+
 # Secrets — NEVER commit
 .env
 .env.*
@@ -14,5 +19,8 @@ broadcast/
 .vscode/
 .idea/
 
-# Node (in case anything pulls deps later)
+# Node
 node_modules/
+package-lock.json
+npm-debug.log
+yarn.lock

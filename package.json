@@ -1,0 +1,17 @@
+{
+  "name": "molly-staking-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hardhat project for deploying MollyStaking.sol to Monad mainnet",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network monad",
+    "verify": "hardhat run scripts/verify-only.js --network monad"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.10",
+    "hardhat": "^2.22.0",
+    "dotenv": "^16.4.5"
+  }
+}
