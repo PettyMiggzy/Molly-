@@ -84,6 +84,7 @@ contract MollyStaking {
 
     // ─── OWNER/CONFIG ──────────────────────────────────────────────────────
     address public owner;
+    address public pendingOwner;    // M1: two-step ownership transfer staging
     address public devWallet;
     address public monorailRouter; // whitelisted target for compound swaps
     bool    public paused;          // freezes new stakes / new funding routes
@@ -100,8 +101,8 @@ contract MollyStaking {
 
     // ─── PER-USER STATE ────────────────────────────────────────────────────
     struct Stake {
-        uint128 amount;       // MOLLY staked (fits 3.4e20, way more than 1B supply)
-        uint64  weight;       // amount * multiplier / 100 (rounded down)
+        uint128 amount;       // MOLLY staked in wei (uint128 max ≈ 3.4e38 wei = 3.4e20 whole tokens; 1B supply needs only 1e27 wei — fine)
+        uint128 weight;       // amount × multiplier / 100 in wei units; uint128 covers 1B supply × 7x mult
         uint32  lockEnd;      // unix seconds (good until 2106)
         uint16  multiplier;   // bps where 100 = 1.0x (max 700)
         uint256 rewardDebt;   // snapshot: weight × accRewardPerWeight at last sync
@@ -113,6 +114,10 @@ contract MollyStaking {
     mapping(address => uint256) public userTotalWeight;
     mapping(address => uint256) public userLifetimeClaimed;
     mapping(address => uint256) public userLifetimeFunded; // for funder leaderboard
+    /// H5: pull-pattern escape hatch. If a contract user's receive() reverts
+    /// during claim/unstake, we credit their pending MON here instead of
+    /// reverting the whole tx. User pulls later via withdrawMon().
+    mapping(address => uint256) public withdrawableMon;
 
     // ─── EVENTS ────────────────────────────────────────────────────────────
     event Staked(address indexed user, uint256 indexed positionId, uint256 amount, uint256 lockDays, uint256 multiplier, uint256 weight);
@@ -123,6 +128,17 @@ contract MollyStaking {
     event Compounded(address indexed user, uint256 monIn, uint256 mollyOut, uint256 newLockDays);
     event PoolEmitted(uint256 emission, uint256 newAccRewardPerWeight);
     event PenaltyApplied(address indexed user, uint256 burned, uint256 toDev, uint256 forfeitedRewards);
+    // H5: pull-pattern events for failed-send credits
+    event MonWithdrawCredited(address indexed user, uint256 amount);
+    event MonWithdrawn(address indexed user, uint256 amount);
+    // M2: admin observability events
+    event PausedSet(bool paused);
+    event DailyRateSet(uint256 oldBps, uint256 newBps);
+    event MonorailRouterSet(address indexed oldRouter, address indexed newRouter);
+    event DevWalletSet(address indexed oldWallet, address indexed newWallet);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed pendingOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event TokenRescued(address indexed token, address indexed to, uint256 amount);
 
     // ─── MODIFIERS ─────────────────────────────────────────────────────────
     modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
@@ -259,7 +275,7 @@ contract MollyStaking {
     ///         new lock days. Cannot shorten. Earnings keep accruing seamlessly.
     /// @param positionId index in caller's stakes array
     /// @param newLockDays must be >= current remaining lock (in days) and <= 365
-    function extendLock(uint256 positionId, uint256 newLockDays) external nonReentrant {
+    function extendLock(uint256 positionId, uint256 newLockDays) external nonReentrant notPaused {
         Stake storage s = _stakes[msg.sender][positionId];
         require(s.open, "closed");
         require(newLockDays <= MAX_LOCK_DAYS, "max lock");
@@ -267,6 +283,7 @@ contract MollyStaking {
         uint256 nowTs = block.timestamp;
         uint256 newEnd = nowTs + newLockDays * 1 days;
         require(newEnd > s.lockEnd, "must extend");
+        require(newEnd <= type(uint32).max, "lockEnd overflow"); // H1: parity with _openPosition
 
         _updatePool();
 
@@ -275,16 +292,17 @@ contract MollyStaking {
         uint256 pending = owed > s.rewardDebt ? owed - s.rewardDebt : 0;
 
         uint256 newMult = multiplierFor(newLockDays);
-        require(newMult > s.multiplier, "no upgrade"); // extension only meaningful if mult goes up
+        // M3: allow lateral renewals (same multiplier, longer end). Only block multiplier DOWNGRADES.
+        require(newMult >= s.multiplier, "no downgrade");
         uint256 newWeight = (uint256(s.amount) * newMult) / 100;
-        require(newWeight <= type(uint64).max, "weight overflow");
+        require(newWeight <= type(uint128).max, "weight overflow");
 
         // Update totals
         totalWeight = totalWeight - s.weight + newWeight;
         userTotalWeight[msg.sender] = userTotalWeight[msg.sender] - s.weight + newWeight;
 
         s.multiplier = uint16(newMult);
-        s.weight = uint64(newWeight);
+        s.weight = uint128(newWeight);
         s.lockEnd = uint32(newEnd);
         // Reset rewardDebt so pending stays accrued (we re-credit it as if just earned)
         s.rewardDebt = (newWeight * accRewardPerWeight) / PRECISION - pending;
@@ -311,10 +329,33 @@ contract MollyStaking {
         s.lifetimeClaimed += pending;
         userLifetimeClaimed[user] += pending;
 
-        (bool ok, ) = payable(user).call{value: pending}("");
-        require(ok, "MON transfer failed");
-
+        _payMon(user, pending);
         emit Claimed(user, positionId, pending);
+    }
+
+    /// @dev H5: try to send MON to `to`. If recipient is a contract whose
+    ///      receive() reverts (or gas runs out), credit balance to
+    ///      withdrawableMon[to] for them to pull later via withdrawMon().
+    ///      Never reverts on transfer failure — caller must already have
+    ///      decremented internal accounting before calling this.
+    function _payMon(address to, uint256 amount) internal {
+        if (amount == 0) return;
+        (bool ok, ) = payable(to).call{value: amount, gas: 30_000}("");
+        if (!ok) {
+            withdrawableMon[to] += amount;
+            emit MonWithdrawCredited(to, amount);
+        }
+    }
+
+    /// @notice Pull any MON that was credited because a direct send failed.
+    ///         (Common case: contract user with reverting/expensive receive().)
+    function withdrawMon() external nonReentrant {
+        uint256 amt = withdrawableMon[msg.sender];
+        require(amt > 0, "nothing to withdraw");
+        withdrawableMon[msg.sender] = 0;
+        (bool ok, ) = payable(msg.sender).call{value: amt}("");
+        require(ok, "withdraw failed");
+        emit MonWithdrawn(msg.sender, amt);
     }
 
     /// @notice Unstake a position. After lockEnd → full principal + rewards.
@@ -342,18 +383,20 @@ contract MollyStaking {
         activeStakeCount -= 1;
 
         uint256 toUser;
-        uint256 monPayout;
 
         if (early) {
-            // Forfeit pending rewards back to pool
+            // H3: forfeit just redistributes ALREADY-EMITTED rewards. Don't double-count
+            //     in allTimeDistributed — those rewards were tallied when poolBalance
+            //     drained to accRewardPerWeight inside _updatePool().
             if (pending > 0 && totalWeight > 0) {
                 // Distribute to remaining stakers
                 accRewardPerWeight += (pending * PRECISION) / totalWeight;
-                allTimeDistributed += pending; // it WILL eventually be distributed
             } else if (pending > 0) {
-                // No one left to receive — put back in pool for future stakers
+                // No stakers left — pending was emitted but unclaimable. Return
+                // it to poolBalance so it re-drips later. Roll back the lifetime
+                // distributed counter since it'll be re-counted on next emission.
                 poolBalance += pending;
-                allTimeDistributed -= 0; // already counted as emitted in pool drain; just add to budget
+                allTimeDistributed -= pending;
             }
 
             // 10% penalty: 60% burn, 40% dev
@@ -368,18 +411,16 @@ contract MollyStaking {
 
             emit PenaltyApplied(msg.sender, burnAmt, devAmt, pending);
             emit Unstaked(msg.sender, positionId, toUser, 0, true);
-            monPayout = 0;
         } else {
-            // Lock expired — pay full principal + rewards
+            // Lock expired — pay full principal + rewards. H5: MON via pull-pattern
+            //     so a broken receive() on the user can't trap their MOLLY.
             toUser = amount;
             require(MOLLY.transfer(msg.sender, amount), "user xfer failed");
 
             if (pending > 0) {
                 s.lifetimeClaimed += pending;
                 userLifetimeClaimed[msg.sender] += pending;
-                (bool ok, ) = payable(msg.sender).call{value: pending}("");
-                require(ok, "MON transfer failed");
-                monPayout = pending;
+                _payMon(msg.sender, pending);
             }
 
             emit Unstaked(msg.sender, positionId, amount, pending, false);
@@ -427,6 +468,8 @@ contract MollyStaking {
         s.rewardDebt = owed;
         s.lifetimeClaimed += pending;
         userLifetimeClaimed[msg.sender] += pending;
+        // H4: same accounting as _claim → emit the same event so indexers see it
+        emit Claimed(msg.sender, positionId, pending);
     }
 
     /// @dev Internal helper — performs the Monorail swap, verifies output.
@@ -456,7 +499,7 @@ contract MollyStaking {
         uint256 mult = multiplierFor(lockDays);
         uint256 weight = (amount * mult) / 100;
         require(weight > 0, "weight=0");
-        require(weight <= type(uint64).max, "weight overflow");
+        require(weight <= type(uint128).max, "weight overflow");
         require(amount <= type(uint128).max, "amount overflow");
         uint256 lockEndTs = block.timestamp + lockDays * 1 days;
         require(lockEndTs <= type(uint32).max, "lockEnd overflow");
@@ -464,7 +507,7 @@ contract MollyStaking {
         positionId = _stakes[user].length;
         _stakes[user].push(Stake({
             amount: uint128(amount),
-            weight: uint64(weight),
+            weight: uint128(weight),
             lockEnd: uint32(lockEndTs),
             multiplier: uint16(mult),
             rewardDebt: (weight * accRewardPerWeight) / PRECISION,
@@ -485,12 +528,14 @@ contract MollyStaking {
     // ╚══════════════════════════════════════════════════════════════════════
 
     /// @notice Send MON to grow the reward pool. Anyone may call.
-    function fundRewards() external payable {
+    /// @dev H2: nonReentrant — prevents weaponized re-entry through future edits to _fund.
+    function fundRewards() external payable nonReentrant {
         _fund(msg.sender, msg.value);
     }
 
     /// @notice Fallback: plain MON transfers also fund the pool.
-    receive() external payable {
+    /// @dev H2: nonReentrant — same rationale as fundRewards.
+    receive() external payable nonReentrant {
         _fund(msg.sender, msg.value);
     }
 
@@ -553,34 +598,57 @@ contract MollyStaking {
     // ║ ADMIN (intentionally limited)
     // ╚══════════════════════════════════════════════════════════════════════
 
-    function setPaused(bool p) external onlyOwner { paused = p; }
+    function setPaused(bool p) external onlyOwner {
+        paused = p;
+        emit PausedSet(p);
+    }
 
     function setDailyRate(uint256 bps) external onlyOwner {
         require(bps <= MAX_DAILY_RATE_BPS, "too high");
         _updatePool(); // settle at old rate before switching
+        uint256 old = dailyRateBps;
         dailyRateBps = bps;
+        emit DailyRateSet(old, bps);
     }
 
     function setMonorailRouter(address r) external onlyOwner {
+        address old = monorailRouter;
         monorailRouter = r; // may set to 0 to disable compound entirely
+        emit MonorailRouterSet(old, r);
     }
 
     function setDevWallet(address w) external onlyOwner {
         require(w != address(0), "zero");
+        address old = devWallet;
         devWallet = w;
+        emit DevWalletSet(old, w);
     }
 
+    /// M1: Two-step ownership transfer. Step 1 is owner-initiated, step 2
+    ///     requires the pending owner to call acceptOwnership themselves.
+    ///     Prevents fat-finger fatalities.
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "zero");
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "not pending owner");
+        address old = owner;
+        owner = pendingOwner;
+        pendingOwner = address(0);
+        emit OwnershipTransferred(old, owner);
     }
 
     /// @notice Owner can sweep tokens that were accidentally sent to this contract,
     ///         EXCLUDING MOLLY (staked) and MON (pool). Defense against support spam,
     ///         not a backdoor.
-    function rescueToken(address token, address to, uint256 amount) external onlyOwner {
+    /// @dev M4: nonReentrant — malicious token's transfer() could call back.
+    function rescueToken(address token, address to, uint256 amount) external onlyOwner nonReentrant {
         require(token != address(MOLLY), "no rescue MOLLY");
         require(to != address(0), "zero");
         require(IERC20(token).transfer(to, amount), "rescue failed");
+        emit TokenRescued(token, to, amount);
     }
 }
