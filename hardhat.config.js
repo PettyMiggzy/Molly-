@@ -1,9 +1,9 @@
-// hardhat.config.js — MollyStaking deploy config
+// hardhat.config.js — MollyStaking deploy + verify config
 //
-// Settings here MUST match the audit-locked compile settings:
-//   solc 0.8.24, optimizer enabled, runs 200, viaIR off, EVM 'paris'
-//
-// Sources live in contracts/ (not the default src/ — overridden below).
+// Network name must be `monadMainnet` so the etherscan apiKey lookup works.
+// Verify command:
+//   $env:ETHERSCAN_API_KEY = "your-key-from-etherscan.io"
+//   npx hardhat verify --network monadMainnet 0xFa45c43d74382D99649ecE4CFD2823148A17C912 0xB72e6262DAE53cAF167F0966421a0B9782977777 0xa424c64aa051cf75749b6377bfc86f20f212cb24 0x0000000000000000000000000000000000000000
 
 require('@nomicfoundation/hardhat-toolbox');
 require('@nomicfoundation/hardhat-verify');
@@ -12,7 +12,6 @@ require('dotenv').config();
 const DEPLOYER_KEY = process.env.DEPLOYER_KEY;
 const RPC = process.env.RPC || 'https://rpc.monad.xyz';
 
-// Defensive: pad key with 0x if user pasted without it
 function normalizeKey(k) {
   if (!k) return [];
   if (k.startsWith('0x')) return [k];
@@ -34,6 +33,12 @@ module.exports = {
     cache: './cache',
   },
   networks: {
+    monadMainnet: {
+      url: RPC,
+      chainId: 143,
+      accounts: normalizeKey(DEPLOYER_KEY),
+    },
+    // Legacy alias — keeps old --network monad commands working
     monad: {
       url: RPC,
       chainId: 143,
@@ -43,22 +48,22 @@ module.exports = {
       chainId: 31337,
     },
   },
-  // Sourcify supports Monad TESTNET only at this time. For mainnet, use Etherscan V2.
+  // Sourcify doesn't have Monad mainnet (chain 143) — disable to silence errors
   sourcify: {
     enabled: false,
   },
-  // Etherscan V2 unified API — single key from etherscan.io works across all
-  // V2-supported chains including Monad (chain 143).
-  // Get a free key at https://etherscan.io/myapikey
+  // Etherscan V2 unified API. Single key from etherscan.io covers Monad + 60+ chains.
+  // Get key at: https://etherscan.io/myapikey (must be etherscan.io, NOT bscscan.com etc.)
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY || '',
+    apiKey: {
+      monadMainnet: process.env.ETHERSCAN_API_KEY || '',
+    },
     customChains: [
       {
-        network: 'monad',
+        network: 'monadMainnet',
         chainId: 143,
         urls: {
-          // V2 endpoint: single domain, chainid passed as query param
-          apiURL: 'https://api.etherscan.io/v2/api',
+          apiURL: 'https://api.etherscan.io/v2/api?chainid=143',
           browserURL: 'https://monadscan.com',
         },
       },
