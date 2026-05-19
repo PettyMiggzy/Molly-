@@ -12,6 +12,105 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎀</text></svg>">
 
 <style>
+  /* ===== BACKROOM INTRO SPLASH ===== */
+  .br-splash {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.8s ease, visibility 0s linear 0.8s;
+  }
+  .br-splash.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .br-splash-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .br-splash::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .br-splash-skip {
+    position: absolute;
+    bottom: 28px;
+    right: 28px;
+    z-index: 3;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(245, 232, 208, 0.55);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(245, 232, 208, 0.25);
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .br-splash-skip:hover {
+    color: var(--cream, #f5e8d0);
+    border-color: var(--brass, #c9a96e);
+    background: rgba(0, 0, 0, 0.6);
+  }
+  .br-splash-sound {
+    position: absolute;
+    bottom: 28px;
+    left: 28px;
+    z-index: 3;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(245, 232, 208, 0.25);
+    color: rgba(245, 232, 208, 0.7);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .br-splash-sound:hover {
+    color: var(--cream, #f5e8d0);
+    border-color: var(--brass, #c9a96e);
+    background: rgba(0, 0, 0, 0.6);
+  }
+  .br-splash-eyebrow {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: rgba(245, 232, 208, 0.4);
+    text-transform: uppercase;
+  }
+  @media (max-width: 600px) {
+    .br-splash-skip,
+    .br-splash-sound { bottom: 18px; }
+    .br-splash-skip  { right: 18px; padding: 7px 12px; font-size: 10px; }
+    .br-splash-sound { left: 18px; width: 38px; height: 38px; font-size: 14px; }
+    .br-splash-eyebrow { top: 20px; font-size: 9px; letter-spacing: 3px; }
+  }
+
   :root {
     --bg: #07030a;
     --bg-mid: #14070f;
@@ -728,6 +827,18 @@
 </style>
 </head>
 <body>
+
+<!-- ===== BACKROOM INTRO SPLASH ===== -->
+<div class="br-splash" id="brSplash">
+  <video class="br-splash-video" id="brSplashVideo"
+         src="./assets/backroom-intro.mp4"
+         poster="./assets/backroom-intro-poster.jpg"
+         autoplay muted playsinline preload="auto">
+  </video>
+  <div class="br-splash-eyebrow">entering · the backroom</div>
+  <button class="br-splash-sound" id="brSplashSound" type="button" aria-label="toggle sound">🔇</button>
+  <button class="br-splash-skip" id="brSplashSkip" type="button">SKIP →</button>
+</div>
 
 <div class="smoke"></div>
 
@@ -1726,6 +1837,48 @@ window.addEventListener('load', () => {
   setTimeout(newHand, 600);
 });
 
+</script>
+
+<!-- ===== BACKROOM INTRO SPLASH LOGIC ===== -->
+<script>
+  (function() {
+    const splash = document.getElementById('brSplash');
+    if (!splash) return;
+    const video  = document.getElementById('brSplashVideo');
+    const skip   = document.getElementById('brSplashSkip');
+    const sound  = document.getElementById('brSplashSound');
+
+    if (sessionStorage.getItem('backroom_splash_seen') === '1') {
+      splash.remove();
+      return;
+    }
+
+    let dismissed = false;
+    function dismiss() {
+      if (dismissed) return;
+      dismissed = true;
+      sessionStorage.setItem('backroom_splash_seen', '1');
+      splash.classList.add('hidden');
+      setTimeout(() => splash.remove(), 900);
+    }
+
+    video.addEventListener('ended', dismiss);
+    video.addEventListener('click', dismiss);
+    skip.addEventListener('click', (e) => { e.stopPropagation(); dismiss(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !dismissed) dismiss();
+    });
+    video.addEventListener('error', () => setTimeout(dismiss, 800));
+    setTimeout(() => { if (!dismissed) dismiss(); }, 8000);
+
+    sound.addEventListener('click', (e) => {
+      e.stopPropagation();
+      video.muted = !video.muted;
+      sound.textContent = video.muted ? '🔇' : '🔊';
+    });
+
+    video.play().catch(() => {});
+  })();
 </script>
 
 </body>
