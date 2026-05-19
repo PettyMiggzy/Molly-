@@ -123,6 +123,29 @@
     transition: color 0.2s;
   }
   .nav-links a:hover { color: var(--pink); }
+  .nav-stake {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent) !important;
+    font-weight: 700;
+  }
+  .nav-stake:hover { color: var(--cream) !important; }
+  .nav-new {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    background: var(--pink-deep);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-weight: 700;
+    animation: navNewPulse 1.6s infinite;
+  }
+  @keyframes navNewPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 127, 196, 0.6); }
+    50% { box-shadow: 0 0 0 5px rgba(232, 127, 196, 0); }
+  }
   .nav-buy {
     background: var(--pink-deep);
     color: var(--ink);
@@ -1428,6 +1451,13 @@
 
   /* === MOBILE === */
   @media (max-width: 800px) {
+    .nav-links li:not(.nav-stake-li) { display: none; }
+    .nav-links {
+      display: flex !important;
+      gap: 0.5rem;
+    }
+    .nav-stake { font-size: 0.85rem; padding: 4px 0; }
+    .nav-new { font-size: 8px; padding: 1px 5px; }
     .hero-bubble {
       top: -10px;
       right: -5px;
@@ -1442,7 +1472,6 @@
     .hero-text { text-align: center; }
     .hero-ctas { justify-content: center; }
     .hero-img { order: -1; max-width: 320px; margin: 0 auto; }
-    .nav-links { display: none; }
     nav { padding: 0.75rem 1rem; }
     .nav-brand { font-size: 1.2rem; }
     section { padding: 4rem 1rem; }
@@ -1826,6 +1855,7 @@
     <li><a href="#together">Together</a></li>
     <li><a href="#family">Family</a></li>
     <li><a href="#chart">Chart</a></li>
+    <li class="nav-stake-li"><a href="/stake.html" class="nav-stake">Stake <span class="nav-new">NEW</span></a></li>
     <li><a href="#swap">Buy</a></li>
   </ul>
   <a href="#swap" class="nav-buy">BUY $MOLLY</a>
