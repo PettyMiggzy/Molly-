@@ -1,0 +1,1732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#0a0508">
+<title>The Backroom · play heads-up</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Patrick+Hand&family=Caveat:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@1,400;1,700;0,700;0,900&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎀</text></svg>">
+
+<style>
+  :root {
+    --bg: #07030a;
+    --bg-mid: #14070f;
+    --table-felt: #4a1230;
+    --table-felt-dark: #2d0a1c;
+    --table-felt-light: #6a1c45;
+    --wood: #3a1f1a;
+    --wood-mid: #4a261d;
+    --wood-light: #6a3825;
+    --brass: #c9a96e;
+    --brass-bright: #e8c890;
+    --cream: #f5e8d0;
+    --pink: #e87fc4;
+    --pink-bright: #ff6db3;
+    --pink-deep: #c2509b;
+    --molly: #b07cff;
+    --gold: #ffd84d;
+    --burn: #ff5a2c;
+    --ash: #6b4f3f;
+    --ink: #0a0508;
+    --red-card: #c02835;
+
+    --display: 'Bagel Fat One', system-ui, sans-serif;
+    --serif: 'Playfair Display', Georgia, serif;
+    --hand: 'Patrick Hand', cursive;
+    --script: 'Caveat', cursive;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--hand);
+    background: var(--bg);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.4;
+    font-size: 16px;
+    background-image:
+      radial-gradient(ellipse 800px 400px at 50% 30%, rgba(232, 127, 196, 0.08), transparent 60%),
+      radial-gradient(ellipse 600px 300px at 10% 80%, rgba(192, 169, 110, 0.05), transparent 60%),
+      radial-gradient(ellipse 700px 400px at 90% 60%, rgba(176, 124, 255, 0.04), transparent 60%);
+  }
+
+  /* SMOKE */
+  .smoke {
+    position: fixed; inset: 0; pointer-events: none; z-index: 2;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 220, 200, 0.03), transparent 25%),
+      radial-gradient(circle at 80% 70%, rgba(255, 220, 200, 0.02), transparent 30%);
+    animation: drift 22s infinite ease-in-out alternate;
+  }
+  @keyframes drift { from{transform:translate(0,0)} to{transform:translate(20px,-15px)} }
+
+  /* NAV */
+  .topnav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(201, 169, 110, 0.18);
+    background: linear-gradient(180deg, rgba(7,3,10,0.95), rgba(7,3,10,0.7));
+    backdrop-filter: blur(8px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-style: italic; font-weight: 900; font-size: 19px; color: var(--cream); }
+  .brand-mark { width: 32px; height: 32px; background: radial-gradient(circle, var(--pink-bright), var(--pink-deep)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 18px rgba(232, 127, 196, 0.5); }
+  .brand small { color: var(--brass); font-size: 10px; letter-spacing: 2px; font-weight: 700; font-style: normal; font-family: var(--mono); margin-left: 4px; }
+  .nav-cta { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--pink); text-decoration: none; }
+  .nav-cta:hover { color: var(--cream); }
+
+  /* HEADER STATS */
+  .hand-bar {
+    display: flex; justify-content: center; gap: 22px;
+    flex-wrap: wrap;
+    padding: 16px 20px 10px;
+    border-bottom: 1px dashed rgba(201, 169, 110, 0.15);
+    position: relative; z-index: 3;
+  }
+  .hb {
+    text-align: center;
+  }
+  .hb-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    color: rgba(245, 232, 208, 0.55);
+  }
+  .hb-value {
+    font-family: var(--display);
+    font-size: 20px;
+    color: var(--cream);
+    line-height: 1;
+    margin-top: 3px;
+  }
+  .hb-value.gold { color: var(--gold); }
+  .hb-value.pink { color: var(--pink); }
+  .hb-value.burn { color: var(--burn); }
+
+  /* MAIN LAYOUT */
+  .play {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 16px 16px 40px;
+    position: relative; z-index: 3;
+  }
+
+  /* SEAT (used for both AI on top + you at bottom) */
+  .seat-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(20, 7, 15, 0.95), rgba(40, 14, 28, 0.95));
+    border: 2px solid var(--brass);
+    border-radius: 14px;
+    padding: 12px 16px;
+    position: relative;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+  .seat-card.active {
+    border-color: var(--pink-bright);
+    box-shadow: 0 0 24px rgba(232, 127, 196, 0.45), 0 8px 24px rgba(0,0,0,0.6);
+  }
+  .seat-card.folded { opacity: 0.4; filter: grayscale(80%); }
+  .seat-card.winner {
+    border-color: var(--gold);
+    box-shadow: 0 0 40px rgba(255, 216, 77, 0.6), 0 8px 24px rgba(0,0,0,0.6);
+    animation: winPulse 1s infinite alternate;
+  }
+  @keyframes winPulse { from{transform:scale(1)} to{transform:scale(1.01)} }
+
+  .seat-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--molly), var(--pink-deep));
+    border: 2.5px solid var(--brass);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+  }
+  .seat-card.you .seat-avatar { background: radial-gradient(circle, var(--pink-bright), var(--pink-deep)); }
+
+  .seat-info {
+    min-width: 0;
+  }
+  .seat-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--cream);
+    line-height: 1;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .seat-tag {
+    font-family: var(--mono);
+    font-size: 8px;
+    background: var(--molly);
+    color: var(--cream);
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 1.2px;
+    font-style: normal;
+    font-weight: 700;
+  }
+  .seat-tag.you { background: var(--pink-bright); color: var(--ink); }
+  .seat-stack {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+  .seat-stack small { color: rgba(255,216,77,0.5); font-size: 9px; }
+  .seat-bet-amount {
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--pink);
+  }
+  .seat-bet-amount:empty { display: none; }
+
+  .seat-cards {
+    display: flex; gap: 5px;
+  }
+
+  /* CARDS */
+  .card {
+    width: 56px; height: 78px;
+    border-radius: 6px;
+    background: var(--cream);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.15);
+    position: relative;
+    display: flex; flex-direction: column;
+    padding: 5px 6px;
+    font-family: var(--serif);
+    font-weight: 900;
+    color: var(--ink);
+    transition: transform 0.3s ease;
+  }
+  .card.red { color: var(--red-card); }
+  .card.back {
+    background: radial-gradient(circle at 50% 50%, var(--pink-bright), var(--pink-deep)),
+                linear-gradient(135deg, var(--pink-deep), var(--pink-bright));
+    border: 2px solid var(--brass);
+    color: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    overflow: hidden;
+  }
+  .card.back::after {
+    content: '🎀';
+    filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+  }
+  .card .rank { font-size: 16px; line-height: 1; }
+  .card .suit { font-size: 14px; line-height: 1; margin-top: 2px; }
+  .card .center-suit { position: absolute; left: 50%; top: 55%; transform: translate(-50%, -50%); font-size: 30px; opacity: 0.9; }
+  .card.empty {
+    background: rgba(0,0,0,0.25);
+    border: 1.5px dashed rgba(245, 232, 208, 0.18);
+    box-shadow: none;
+  }
+  .card.winning {
+    box-shadow: 0 0 16px var(--gold), 0 4px 10px rgba(0,0,0,0.5);
+    animation: cardGlow 0.8s infinite alternate;
+  }
+  @keyframes cardGlow { from{transform:translateY(0)} to{transform:translateY(-3px)} }
+
+  /* TABLE / FELT BAR */
+  .felt {
+    margin: 18px 0;
+    padding: 22px 18px;
+    background:
+      radial-gradient(ellipse at center, var(--table-felt-light), var(--table-felt) 60%, var(--table-felt-dark));
+    border-radius: 24px;
+    border: 4px solid var(--wood-mid);
+    box-shadow:
+      0 0 0 2px var(--brass),
+      inset 0 0 60px rgba(0,0,0,0.4),
+      0 18px 50px rgba(0,0,0,0.7);
+    position: relative;
+  }
+  .felt::before {
+    content: '';
+    position: absolute; inset: -50px -30px -50px -30px;
+    background: radial-gradient(ellipse at 50% 50%, rgba(255, 240, 200, 0.1), transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .center-block {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px;
+  }
+
+  .community-row {
+    display: flex; justify-content: center; gap: 6px;
+    min-height: 84px;
+  }
+
+  /* POT VISUALIZATION */
+  .pot-block {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .pot-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(245, 232, 208, 0.6);
+  }
+  .pot-amount {
+    font-family: var(--display);
+    font-size: 32px;
+    line-height: 1;
+    margin: 4px 0 8px;
+    color: var(--cream);
+    text-shadow: 0 0 18px rgba(255, 216, 77, 0.3);
+  }
+
+  /* SPLIT BARS — visualize 70/20/10 */
+  .split-bars {
+    display: flex;
+    gap: 3px;
+    width: 240px;
+    margin: 0 auto;
+    height: 18px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(201, 169, 110, 0.3);
+  }
+  .split-winner { background: linear-gradient(180deg, var(--gold), #b8950a); flex: 7; }
+  .split-burn   { background: linear-gradient(180deg, var(--burn), #a8260a); flex: 2; }
+  .split-dev    { background: linear-gradient(180deg, var(--molly), #6b3aa0); flex: 1; }
+
+  .split-legend {
+    display: flex; justify-content: center; gap: 16px;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+  }
+  .split-legend span {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .legend-dot.gold { background: var(--gold); }
+  .legend-dot.burn { background: var(--burn); }
+  .legend-dot.dev  { background: var(--molly); }
+
+  /* DEALER SPEECH */
+  .dealer {
+    margin-top: 20px;
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 0 6px;
+  }
+  .dealer-avatar {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--pink), var(--pink-deep));
+    border: 2px solid var(--brass);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 14px rgba(232, 127, 196, 0.4);
+    flex-shrink: 0;
+  }
+  .dealer-bubble {
+    background: rgba(20, 7, 15, 0.85);
+    border: 1px solid rgba(201, 169, 110, 0.4);
+    padding: 10px 14px;
+    border-radius: 14px;
+    border-top-left-radius: 4px;
+    font-family: var(--script);
+    font-size: 18px;
+    color: var(--cream);
+    line-height: 1.3;
+    flex: 1;
+  }
+  .dealer-bubble small {
+    display: block;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 1.8px;
+    color: var(--brass);
+    margin-bottom: 4px;
+    font-style: normal;
+  }
+  .dealer-bubble em { color: var(--pink); font-style: italic; }
+  .dealer-bubble strong { color: var(--gold); font-weight: 900; font-family: var(--display); font-size: 16px; }
+
+  /* ACTION BAR */
+  .actions-bar {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, rgba(20, 7, 15, 0.7), rgba(20, 7, 15, 0.95));
+    border: 1.5px solid rgba(232, 127, 196, 0.45);
+    border-radius: 14px;
+    box-shadow: 0 -10px 40px rgba(232, 127, 196, 0.1);
+  }
+  .actions-bar.disabled { opacity: 0.4; pointer-events: none; }
+
+  .actions {
+    display: flex; gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .act-btn {
+    font-family: var(--display);
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    padding: 11px 16px;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform 0.1s, box-shadow 0.1s;
+    color: var(--ink);
+    background: var(--cream);
+  }
+  .act-btn:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .act-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 2px 2px 0 var(--ink); }
+  .act-check { background: var(--brass); }
+  .act-call  { background: var(--gold); }
+  .act-raise { background: var(--pink-bright); }
+  .act-fold  { background: #888; }
+
+  .candle {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    min-width: 50px;
+  }
+  .candle-icon {
+    font-size: 26px;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 200, 100, 0.6));
+    animation: flicker 0.7s infinite alternate;
+  }
+  @keyframes flicker { from{opacity:1; transform:rotate(-1deg)} to{opacity:.85; transform:rotate(1deg)} }
+  .candle-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 1.2px;
+  }
+
+  /* RAISE PANEL */
+  .raise-panel {
+    display: none;
+    grid-column: 1 / -1;
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.45);
+    border: 1px dashed var(--pink);
+    border-radius: 10px;
+  }
+  .raise-panel.show { display: block; }
+  .raise-input-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .raise-presets {
+    display: flex; gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .raise-preset {
+    background: rgba(232, 127, 196, 0.15);
+    border: 1px solid var(--pink);
+    color: var(--cream);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .raise-preset:hover { background: var(--pink-bright); color: var(--ink); }
+  .raise-input {
+    flex: 1;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--brass);
+    color: var(--cream);
+    font-family: var(--mono);
+    font-size: 16px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    width: 100%;
+  }
+  .raise-confirm {
+    background: var(--pink-bright);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    font-family: var(--display);
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+
+  /* STATS FOOTER */
+  .stats-foot {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 14px;
+    background: linear-gradient(160deg, rgba(74, 18, 48, 0.18), rgba(20, 7, 15, 0.5));
+    border: 1.5px solid rgba(201, 169, 110, 0.25);
+    border-radius: 14px;
+  }
+  .sf-stat { text-align: center; }
+  .sf-label { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: rgba(245, 232, 208, 0.55); }
+  .sf-value { font-family: var(--display); font-size: 17px; color: var(--cream); line-height: 1; margin-top: 4px; }
+  .sf-value.gold { color: var(--gold); }
+  .sf-value.burn { color: var(--burn); }
+  .sf-value.pink { color: var(--pink); }
+
+  /* BURN OVERLAY ANIMATION */
+  .burn-overlay {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    background: radial-gradient(ellipse at center, rgba(255, 90, 44, 0.25), rgba(7, 3, 10, 0.85) 70%);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+  .burn-overlay.show {
+    display: flex;
+    animation: burnFade 3s forwards;
+  }
+  @keyframes burnFade {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .burn-flame {
+    font-size: 120px;
+    filter: drop-shadow(0 0 40px rgba(255, 90, 44, 0.8));
+    animation: flameUp 3s forwards;
+  }
+  @keyframes flameUp {
+    0% { transform: translateY(40px) scale(0.5); opacity: 0; }
+    30% { transform: translateY(0) scale(1.3); opacity: 1; }
+    70% { transform: translateY(-20px) scale(1.1); opacity: 1; }
+    100% { transform: translateY(-80px) scale(0.8); opacity: 0; }
+  }
+  .burn-text {
+    position: absolute;
+    bottom: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .burn-text-big {
+    font-family: var(--display);
+    font-size: 48px;
+    color: var(--burn);
+    text-shadow: 0 0 24px rgba(255, 90, 44, 0.8);
+    line-height: 1;
+  }
+  .burn-text-small {
+    font-family: var(--script);
+    font-size: 22px;
+    color: var(--cream);
+    margin-top: 8px;
+  }
+
+  /* WIN OVERLAY */
+  .win-overlay {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 99;
+    background: rgba(7, 3, 10, 0.7);
+    backdrop-filter: blur(6px);
+  }
+  .win-overlay.show { display: flex; }
+  .win-card {
+    background: linear-gradient(160deg, var(--wood-mid), var(--wood));
+    border: 3px solid var(--gold);
+    border-radius: 22px;
+    padding: 32px 36px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(255, 216, 77, 0.4), 0 30px 80px rgba(0,0,0,0.7);
+    max-width: 420px;
+    width: calc(100% - 40px);
+  }
+  .win-card.lose { border-color: rgba(245, 232, 208, 0.3); box-shadow: 0 30px 80px rgba(0,0,0,0.7); }
+  .win-card.lose .win-eyebrow { color: rgba(245, 232, 208, 0.5); }
+  .win-card.lose .win-title { color: rgba(245, 232, 208, 0.7); }
+  .win-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--gold);
+  }
+  .win-title {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 36px;
+    color: var(--gold);
+    margin: 6px 0 12px;
+    line-height: 1;
+    text-shadow: 0 0 24px rgba(255, 216, 77, 0.4);
+  }
+  .win-detail {
+    font-family: var(--script);
+    font-size: 22px;
+    color: var(--cream);
+    margin-bottom: 14px;
+  }
+  .win-detail strong { color: var(--pink); font-weight: 700; }
+  .win-amounts {
+    display: flex; justify-content: center; gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .wa {
+    text-align: center;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(245, 232, 208, 0.1);
+    min-width: 90px;
+  }
+  .wa-label {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 1.5px;
+    color: rgba(245, 232, 208, 0.55);
+  }
+  .wa-amount {
+    font-family: var(--display);
+    font-size: 18px;
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .wa-amount.gold { color: var(--gold); }
+  .wa-amount.burn { color: var(--burn); }
+  .wa-amount.dev  { color: var(--molly); }
+  .next-btn {
+    background: var(--pink-bright);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 5px 5px 0 var(--ink);
+    transition: transform 0.1s;
+  }
+  .next-btn:hover { transform: translate(-2px,-2px); box-shadow: 7px 7px 0 var(--ink); }
+
+  /* HAND HISTORY ROW */
+  .hand-result {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px dashed rgba(245, 232, 208, 0.15);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(245, 232, 208, 0.7);
+    letter-spacing: 0.5px;
+    display: none;
+  }
+  .hand-result.show { display: block; }
+  .hand-result strong { color: var(--gold); font-weight: 700; }
+  .hand-result em { color: var(--pink); font-style: italic; }
+
+  .footer {
+    text-align: center;
+    padding: 30px 22px 20px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: rgba(245, 232, 208, 0.35);
+    letter-spacing: 2px;
+  }
+
+  /* MOBILE */
+  @media (max-width: 700px) {
+    .hand-bar { gap: 14px; padding: 12px 14px 8px; }
+    .hb-value { font-size: 16px; }
+    .play { padding: 12px 12px 30px; }
+    .felt { padding: 18px 12px; border-width: 3px; }
+    .seat-card { grid-template-columns: auto 1fr; gap: 10px; padding: 10px 12px; }
+    .seat-cards { grid-column: 1 / -1; justify-content: center; margin-top: 8px; }
+    .seat-avatar { width: 44px; height: 44px; font-size: 20px; }
+    .seat-name { font-size: 16px; }
+    .card { width: 42px; height: 58px; padding: 3px 4px; }
+    .card .rank { font-size: 13px; }
+    .card .suit { font-size: 11px; }
+    .card .center-suit { font-size: 22px; }
+    .pot-amount { font-size: 26px; }
+    .split-bars { width: 200px; }
+    .actions-bar { grid-template-columns: 1fr; }
+    .actions { width: 100%; }
+    .act-btn { flex: 1; min-width: 70px; font-size: 11px; padding: 10px 12px; }
+    .candle { flex-direction: row; }
+    .stats-foot { grid-template-columns: repeat(2, 1fr); }
+    .win-title { font-size: 28px; }
+    .burn-flame { font-size: 80px; }
+    .burn-text-big { font-size: 36px; }
+  }
+
+  /* DEALER BUTTON DOT */
+  .dealer-dot {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 26px; height: 26px;
+    background: var(--cream);
+    color: var(--ink);
+    border: 2px solid var(--brass);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display);
+    font-size: 13px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  }
+
+  /* fold/check label flash */
+  .last-act-label {
+    display: inline-block;
+    margin-left: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(232, 127, 196, 0.2);
+    color: var(--pink);
+    letter-spacing: 1px;
+  }
+  .last-act-label.fold { background: rgba(120, 120, 120, 0.3); color: #aaa; }
+  .last-act-label.check { background: rgba(201, 169, 110, 0.25); color: var(--brass); }
+  .last-act-label.call { background: rgba(255, 216, 77, 0.2); color: var(--gold); }
+  .last-act-label.raise, .last-act-label.bet { background: rgba(232, 127, 196, 0.25); color: var(--pink); }
+  .last-act-label.allin { background: rgba(255, 90, 44, 0.25); color: var(--burn); }
+
+</style>
+</head>
+<body>
+
+<div class="smoke"></div>
+
+<!-- BURN ANIMATION OVERLAY -->
+<div class="burn-overlay" id="burnOverlay">
+  <div class="burn-flame">🔥</div>
+  <div class="burn-text">
+    <div class="burn-text-big" id="burnAmt">—</div>
+    <div class="burn-text-small">MOLLY · gone forever</div>
+  </div>
+</div>
+
+<!-- WIN/LOSS OVERLAY -->
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card" id="winCard">
+    <div class="win-eyebrow" id="winEyebrow">HAND WON</div>
+    <div class="win-title" id="winTitle">YOU TAKE THE POT</div>
+    <div class="win-detail" id="winDetail">Two Pair · <strong>Kings & Tens</strong></div>
+    <div class="win-amounts" id="winAmounts">
+      <div class="wa"><div class="wa-label">🏆 YOU</div><div class="wa-amount gold" id="waWinner">+0</div></div>
+      <div class="wa"><div class="wa-label">🔥 BURN</div><div class="wa-amount burn" id="waBurn">0</div></div>
+      <div class="wa"><div class="wa-label">💜 HOUSE</div><div class="wa-amount dev" id="waDev">0</div></div>
+    </div>
+    <button class="next-btn" id="nextHandBtn">DEAL NEXT HAND</button>
+  </div>
+</div>
+
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-mark">🎀</div>
+    <span>The Backroom</span>
+    <small>HEADS-UP · DEMO</small>
+  </div>
+  <a class="nav-cta" href="/poker-mockup.html">← lobby</a>
+</nav>
+
+
+<!-- HAND HEADER -->
+<div class="hand-bar">
+  <div class="hb">
+    <div class="hb-label">HAND</div>
+    <div class="hb-value" id="hbHand">#1</div>
+  </div>
+  <div class="hb">
+    <div class="hb-label">POT</div>
+    <div class="hb-value gold" id="hbPot">0</div>
+  </div>
+  <div class="hb">
+    <div class="hb-label">STREET</div>
+    <div class="hb-value pink" id="hbStreet">PRE-FLOP</div>
+  </div>
+  <div class="hb">
+    <div class="hb-label">WILL BURN</div>
+    <div class="hb-value burn" id="hbBurn">0</div>
+  </div>
+</div>
+
+
+<main class="play">
+
+  <!-- AI SEAT -->
+  <div class="seat-card" id="aiSeat">
+    <div class="seat-avatar">🤖</div>
+    <div class="seat-info">
+      <div class="seat-name">
+        Mongrod <span class="seat-tag">AI</span>
+        <span class="last-act-label" id="aiAct" style="display:none"></span>
+      </div>
+      <div class="seat-stack"><span id="aiStack">100,000</span> <small>MOLLY</small></div>
+      <div class="seat-bet-amount" id="aiBetLine"></div>
+    </div>
+    <div class="seat-cards" id="aiCards">
+      <div class="card back"></div>
+      <div class="card back"></div>
+    </div>
+    <div class="dealer-dot" id="aiDealerBtn" style="display:none">D</div>
+  </div>
+
+
+  <!-- THE FELT -->
+  <div class="felt">
+    <div class="center-block">
+
+      <!-- Community cards -->
+      <div class="community-row" id="community">
+        <div class="card empty"></div>
+        <div class="card empty"></div>
+        <div class="card empty"></div>
+        <div class="card empty"></div>
+        <div class="card empty"></div>
+      </div>
+
+      <!-- Pot -->
+      <div class="pot-block">
+        <div class="pot-label">POT</div>
+        <div class="pot-amount" id="potDisplay">0</div>
+
+        <div class="split-bars" title="70% winner · 20% burn · 10% house">
+          <div class="split-winner"></div>
+          <div class="split-burn"></div>
+          <div class="split-dev"></div>
+        </div>
+        <div class="split-legend">
+          <span><span class="legend-dot gold"></span><span id="potWinner">0</span></span>
+          <span><span class="legend-dot burn"></span><span id="potBurn">0</span></span>
+          <span><span class="legend-dot dev"></span><span id="potDev">0</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- YOU SEAT -->
+  <div class="seat-card you" id="youSeat">
+    <div class="seat-avatar">👾</div>
+    <div class="seat-info">
+      <div class="seat-name">
+        You <span class="seat-tag you">YOU</span>
+        <span class="last-act-label" id="youAct" style="display:none"></span>
+      </div>
+      <div class="seat-stack"><span id="youStack">100,000</span> <small>MOLLY</small></div>
+      <div class="seat-bet-amount" id="youBetLine"></div>
+    </div>
+    <div class="seat-cards" id="youCards">
+      <div class="card empty"></div>
+      <div class="card empty"></div>
+    </div>
+    <div class="dealer-dot" id="youDealerBtn" style="display:none">D</div>
+  </div>
+
+
+  <!-- DEALER NARRATION -->
+  <div class="dealer">
+    <div class="dealer-avatar">🎀</div>
+    <div class="dealer-bubble">
+      <small>MOLLY · DEALER</small>
+      <span id="dealerSay">welcome to the backroom. take a breath. let's play.</span>
+    </div>
+  </div>
+
+
+  <!-- ACTION BAR -->
+  <div class="actions-bar" id="actionsBar">
+    <div class="actions" id="actions">
+      <button class="act-btn act-check" data-act="check">CHECK</button>
+      <button class="act-btn act-call" data-act="call">CALL</button>
+      <button class="act-btn act-raise" data-act="raise">RAISE</button>
+      <button class="act-btn act-fold" data-act="fold">FOLD</button>
+    </div>
+    <div class="candle">
+      <div class="candle-icon">🕯️</div>
+      <div class="candle-time" id="candleTime">your move</div>
+    </div>
+
+    <!-- RAISE PANEL -->
+    <div class="raise-panel" id="raisePanel">
+      <div class="raise-input-row">
+        <input type="number" class="raise-input" id="raiseInput" placeholder="bet amount">
+        <button class="raise-confirm" id="raiseConfirm">RAISE TO</button>
+      </div>
+      <div class="raise-presets" id="raisePresets">
+        <button class="raise-preset" data-mul="0.5">½ POT</button>
+        <button class="raise-preset" data-mul="0.66">⅔ POT</button>
+        <button class="raise-preset" data-mul="1">POT</button>
+        <button class="raise-preset" data-mul="2">2× POT</button>
+        <button class="raise-preset" data-mul="999">ALL-IN</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hand-result" id="handResult"></div>
+
+
+  <!-- STATS FOOTER -->
+  <div class="stats-foot">
+    <div class="sf-stat">
+      <div class="sf-label">HANDS</div>
+      <div class="sf-value" id="sfHands">0</div>
+    </div>
+    <div class="sf-stat">
+      <div class="sf-label">YOU WON</div>
+      <div class="sf-value gold" id="sfWon">0</div>
+    </div>
+    <div class="sf-stat">
+      <div class="sf-label">P / L</div>
+      <div class="sf-value pink" id="sfPL">0</div>
+    </div>
+    <div class="sf-stat">
+      <div class="sf-label">BURNED</div>
+      <div class="sf-value burn" id="sfBurned">0</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="footer">
+  PLAYABLE DEMO · NO REAL FUNDS · STARTING STACK 100K MOLLY · 70/20/10 SPLIT
+</div>
+
+
+<!-- pokersolver via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/pokersolver@2.1.4/pokersolver.js"></script>
+
+<script>
+"use strict";
+
+// ============================================================
+// THE BACKROOM · heads-up demo · client-side game logic
+// ============================================================
+
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const SUITS = ['s','h','d','c'];
+
+const SUIT_GLYPH = { s:'♠', h:'♥', d:'♦', c:'♣' };
+const RANK_DISPLAY = { '2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','T':'10','J':'J','Q':'Q','K':'K','A':'A' };
+
+const SB = 1000;       // small blind
+const BB = 2000;       // big blind
+const START_STACK = 100000;
+
+// Pot split bps
+const WINNER_BPS = 7000;
+const BURN_BPS   = 2000;
+const DEV_BPS    = 1000;
+
+// Game state
+const state = {
+  handNum: 0,
+  youStack: START_STACK,
+  aiStack:  START_STACK,
+  pot: 0,
+  youBet: 0,
+  aiBet: 0,
+  deck: [],
+  youCards: [],
+  aiCards: [],
+  community: [],
+  street: 'preflop',       // preflop | flop | turn | river | showdown
+  turn: 'you',
+  dealer: 'you',           // dealer alternates each hand
+  minRaise: BB,
+  raiserAfter: null,       // which player needs to re-act after a raise
+  yourAct: null,
+  aiAct: null,
+  actionLog: [],
+  totals: { hands:0, won:0, lost:0, pl:0, burned:0 },
+};
+
+// ---------- DECK / DEALING ----------
+function freshDeck() {
+  const deck = [];
+  for (const r of RANKS) for (const s of SUITS) deck.push(r+s);
+  return deck;
+}
+
+function shuffle(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+// ---------- HAND EVALUATION ----------
+function evaluate(cards) {
+  // pokersolver expects format like 'As', 'Kh'
+  return window.Hand.solve(cards);
+}
+
+// Pre-flop strength (0-100), rough Sklansky-style
+function preflopStrength(hand) {
+  const r1 = RANKS.indexOf(hand[0][0]);
+  const r2 = RANKS.indexOf(hand[1][0]);
+  const s1 = hand[0][1];
+  const s2 = hand[1][1];
+  const hi = Math.max(r1, r2);
+  const lo = Math.min(r1, r2);
+  const isPair = (r1 === r2);
+  const isSuited = (s1 === s2);
+  const gap = hi - lo;
+
+  let score = 0;
+
+  if (isPair) {
+    // 22 -> 36, AA -> 96
+    score = 36 + hi * 5;
+  } else {
+    score = 20 + hi * 3 + lo;        // base
+    if (isSuited) score += 8;
+    if (gap === 1 && lo >= 4) score += 6;   // connected
+    else if (gap === 2 && lo >= 5) score += 3;
+    if (hi === 12) score += 5;              // ace bonus
+  }
+
+  // Premium calibration
+  if (isPair && hi === 12) return 98;       // AA
+  if (isPair && hi === 11) return 92;       // KK
+  if (isPair && hi === 10) return 86;       // QQ
+  if (hi === 12 && lo === 11 && isSuited) return 88; // AKs
+  if (hi === 12 && lo === 11) return 80;             // AKo
+
+  return Math.min(100, score);
+}
+
+// Post-flop strength using pokersolver
+function postflopStrength(hand, community) {
+  const all = hand.concat(community);
+  const h = evaluate(all);
+  // Map hand name to a 0-100 score
+  const NAME_TIER = {
+    'Royal Flush': 100,
+    'Straight Flush': 99,
+    'Four of a Kind': 96,
+    'Full House': 90,
+    'Flush': 82,
+    'Straight': 75,
+    'Three of a Kind': 65,
+    'Two Pair': 52,
+    'Pair': 35,
+    'High Card': 14,
+  };
+  const base = NAME_TIER[h.name] ?? 0;
+  // Add a touch based on hand rank within tier (top-pair vs bottom-pair etc)
+  // pokersolver rank: higher = better within hands of same name
+  const ranking = Math.min(8, (h.rank || 0) / 50);
+  return base + ranking;
+}
+
+// ---------- POT SPLIT ----------
+function computeSplit(pot) {
+  const toWinner = Math.floor(pot * WINNER_BPS / 10000);
+  const toBurn   = Math.floor(pot * BURN_BPS   / 10000);
+  const toDev    = pot - toWinner - toBurn;
+  return { toWinner, toBurn, toDev };
+}
+
+// ---------- RENDER ----------
+function fmt(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1_000) return Math.round(n / 100) / 10 + 'K';
+  return String(n);
+}
+function fmtFull(n) {
+  return n.toLocaleString();
+}
+
+function renderCard(code, opts = {}) {
+  const rank = code[0];
+  const suit = code[1];
+  const isRed = (suit === 'h' || suit === 'd');
+  const cls = ['card', isRed ? 'red' : '', opts.winning ? 'winning' : ''].filter(Boolean).join(' ');
+  return `
+    <div class="${cls}">
+      <span class="rank">${RANK_DISPLAY[rank]}</span>
+      <span class="suit">${SUIT_GLYPH[suit]}</span>
+      <span class="center-suit">${SUIT_GLYPH[suit]}</span>
+    </div>`;
+}
+
+function renderBack() {
+  return '<div class="card back"></div>';
+}
+
+function renderEmpty() {
+  return '<div class="card empty"></div>';
+}
+
+function render() {
+  // Stacks
+  document.getElementById('youStack').textContent = fmtFull(state.youStack);
+  document.getElementById('aiStack').textContent  = fmtFull(state.aiStack);
+
+  // Pot
+  document.getElementById('potDisplay').textContent = fmtFull(state.pot);
+  document.getElementById('hbPot').textContent = fmt(state.pot);
+
+  const split = computeSplit(state.pot);
+  document.getElementById('potWinner').textContent = fmtFull(split.toWinner);
+  document.getElementById('potBurn').textContent   = fmtFull(split.toBurn);
+  document.getElementById('potDev').textContent    = fmtFull(split.toDev);
+  document.getElementById('hbBurn').textContent    = fmt(split.toBurn);
+
+  // Street
+  document.getElementById('hbStreet').textContent = state.street.toUpperCase();
+  document.getElementById('hbHand').textContent = '#' + state.handNum;
+
+  // Your cards
+  const youCardsEl = document.getElementById('youCards');
+  youCardsEl.innerHTML = state.youCards.length
+    ? state.youCards.map(c => renderCard(c, { winning: state.winningCards?.includes(c) })).join('')
+    : renderEmpty() + renderEmpty();
+
+  // AI cards — face down until showdown
+  const aiCardsEl = document.getElementById('aiCards');
+  if (state.aiShown) {
+    aiCardsEl.innerHTML = state.aiCards.map(c => renderCard(c, { winning: state.winningCards?.includes(c) })).join('');
+  } else {
+    aiCardsEl.innerHTML = state.aiCards.length ? renderBack() + renderBack() : renderEmpty() + renderEmpty();
+  }
+
+  // Community
+  const communityEl = document.getElementById('community');
+  const slots = [];
+  for (let i = 0; i < 5; i++) {
+    if (state.community[i]) {
+      slots.push(renderCard(state.community[i], { winning: state.winningCards?.includes(state.community[i]) }));
+    } else {
+      slots.push(renderEmpty());
+    }
+  }
+  communityEl.innerHTML = slots.join('');
+
+  // Bet lines
+  document.getElementById('youBetLine').textContent = state.youBet > 0 ? `bet ${fmt(state.youBet)}` : '';
+  document.getElementById('aiBetLine').textContent  = state.aiBet  > 0 ? `bet ${fmt(state.aiBet)}`  : '';
+
+  // Action labels
+  const youActEl = document.getElementById('youAct');
+  if (state.yourAct) {
+    youActEl.textContent = state.yourAct.toUpperCase();
+    youActEl.className = 'last-act-label ' + state.yourAct;
+    youActEl.style.display = '';
+  } else {
+    youActEl.style.display = 'none';
+  }
+  const aiActEl = document.getElementById('aiAct');
+  if (state.aiAct) {
+    aiActEl.textContent = state.aiAct.toUpperCase();
+    aiActEl.className = 'last-act-label ' + state.aiAct;
+    aiActEl.style.display = '';
+  } else {
+    aiActEl.style.display = 'none';
+  }
+
+  // Active seat
+  document.getElementById('youSeat').classList.toggle('active', state.turn === 'you' && state.street !== 'showdown' && state.street !== 'ended');
+  document.getElementById('aiSeat').classList.toggle('active', state.turn === 'ai' && state.street !== 'showdown' && state.street !== 'ended');
+
+  // Dealer button
+  document.getElementById('youDealerBtn').style.display = state.dealer === 'you' ? '' : 'none';
+  document.getElementById('aiDealerBtn').style.display  = state.dealer === 'ai'  ? '' : 'none';
+
+  // Action buttons
+  const isYourTurn = state.turn === 'you' && state.street !== 'showdown' && state.street !== 'ended';
+  document.getElementById('actionsBar').classList.toggle('disabled', !isYourTurn);
+
+  const callAmount = Math.max(0, state.aiBet - state.youBet);
+  const checkBtn = document.querySelector('[data-act="check"]');
+  const callBtn  = document.querySelector('[data-act="call"]');
+  const raiseBtn = document.querySelector('[data-act="raise"]');
+  const foldBtn  = document.querySelector('[data-act="fold"]');
+
+  if (callAmount === 0) {
+    checkBtn.style.display = '';
+    callBtn.style.display = 'none';
+  } else {
+    checkBtn.style.display = 'none';
+    callBtn.style.display = '';
+    callBtn.textContent = 'CALL ' + fmt(callAmount);
+    if (callAmount >= state.youStack) callBtn.textContent = 'CALL ALL-IN';
+  }
+
+  // Hide fold if checking is free
+  foldBtn.style.display = callAmount > 0 ? '' : 'none';
+
+  // Stack-out: can't raise if no chips left
+  raiseBtn.disabled = state.youStack <= callAmount;
+}
+
+// ---------- DEALER LINES ----------
+function say(text) {
+  document.getElementById('dealerSay').innerHTML = text;
+}
+
+const PRE_DEAL_LINES = [
+  "shuffling. don't look at me like that.",
+  "blinds up. let's see what fate dealt you.",
+  "deep breath. the cards are coming.",
+  "you sure about that buy-in? too late now.",
+  "fresh deck. clean slate.",
+];
+const FLOP_LINES = [
+  "the flop. she favors the bold.",
+  "three on the board. now we find out who lied.",
+  "first three cards. <em>read the room.</em>",
+];
+const TURN_LINES = [
+  "the turn. one more to come.",
+  "fourth card. plans change.",
+  "turn card down. who's still pretending?",
+];
+const RIVER_LINES = [
+  "the river. <em>no more secrets.</em>",
+  "fifth and final. show me what you got.",
+  "river card down. last chance to fold or fight.",
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ---------- HAND FLOW ----------
+function newHand() {
+  state.handNum++;
+  state.totals.hands++;
+  state.deck = shuffle(freshDeck());
+  state.youCards = [state.deck.pop(), state.deck.pop()];
+  state.aiCards  = [state.deck.pop(), state.deck.pop()];
+  state.community = [];
+  state.pot = 0;
+  state.youBet = 0;
+  state.aiBet = 0;
+  state.street = 'preflop';
+  state.yourAct = null;
+  state.aiAct = null;
+  state.aiShown = false;
+  state.winningCards = null;
+  state.minRaise = BB;
+  state.raiserAfter = null;
+  state.actionLog = [];
+  document.getElementById('handResult').classList.remove('show');
+  document.getElementById('handResult').innerHTML = '';
+
+  // Alternate dealer button
+  if (state.handNum > 1) state.dealer = (state.dealer === 'you') ? 'ai' : 'you';
+
+  // Post blinds — heads-up: dealer is small blind
+  if (state.dealer === 'you') {
+    postBlind('you', SB);
+    postBlind('ai', BB);
+    state.turn = 'you'; // dealer acts first preflop in heads-up
+  } else {
+    postBlind('ai', SB);
+    postBlind('you', BB);
+    state.turn = 'ai';
+  }
+
+  say(pick(PRE_DEAL_LINES));
+  render();
+
+  if (state.turn === 'ai') {
+    setTimeout(aiAct, 1100);
+  }
+}
+
+function postBlind(who, amt) {
+  const cap = (who === 'you') ? state.youStack : state.aiStack;
+  const blind = Math.min(amt, cap);
+  if (who === 'you') {
+    state.youStack -= blind;
+    state.youBet = blind;
+  } else {
+    state.aiStack -= blind;
+    state.aiBet = blind;
+  }
+  state.pot += blind;
+}
+
+// ---------- PLAYER ACTION ----------
+function doAction(act, raiseTo) {
+  if (state.turn !== 'you') return;
+  const callAmount = Math.max(0, state.aiBet - state.youBet);
+
+  if (act === 'fold') {
+    state.yourAct = 'fold';
+    endHand('ai', 'fold');
+    return;
+  }
+  if (act === 'check') {
+    if (callAmount !== 0) return;
+    state.yourAct = 'check';
+    state.actionLog.push('you check');
+  }
+  if (act === 'call') {
+    const cost = Math.min(callAmount, state.youStack);
+    state.youStack -= cost;
+    state.youBet += cost;
+    state.pot += cost;
+    state.yourAct = state.youStack === 0 ? 'allin' : 'call';
+    state.actionLog.push('you call ' + fmt(cost));
+  }
+  if (act === 'raise') {
+    // raiseTo = total bet amount (relative to current street, in MOLLY)
+    const total = raiseTo;
+    const minTotal = state.aiBet + state.minRaise;
+    if (total < minTotal && total < state.youStack + state.youBet) return;
+    const cost = Math.min(total - state.youBet, state.youStack);
+    state.youStack -= cost;
+    state.youBet += cost;
+    state.pot += cost;
+    state.minRaise = state.youBet - state.aiBet; // raise increment
+    state.yourAct = state.youStack === 0 ? 'allin' : 'raise';
+    state.raiserAfter = 'ai';
+    state.actionLog.push(`you ${state.yourAct} to ${fmt(state.youBet)}`);
+  }
+
+  hideRaisePanel();
+  state.turn = 'ai';
+  render();
+
+  // Check if betting round complete
+  if (bettingRoundComplete()) {
+    setTimeout(advanceStreet, 700);
+  } else {
+    setTimeout(aiAct, 900);
+  }
+}
+
+// ---------- AI ----------
+function aiAct() {
+  if (state.turn !== 'ai') return;
+  if (state.street === 'showdown' || state.street === 'ended') return;
+
+  const callAmount = Math.max(0, state.youBet - state.aiBet);
+  const strength = (state.street === 'preflop')
+    ? preflopStrength(state.aiCards)
+    : postflopStrength(state.aiCards, state.community);
+
+  // Some randomness — AI personality
+  const variance = (Math.random() - 0.5) * 20;
+  const adjusted = strength + variance;
+
+  // Bluff frequency
+  const bluffRoll = Math.random();
+  const isBluffing = bluffRoll < 0.08;
+
+  // Decision tree
+  let decision;
+
+  if (callAmount === 0) {
+    // No bet to call — check or bet?
+    if (adjusted > 75 || isBluffing) {
+      // Bet
+      const betSize = adjusted > 90
+        ? Math.floor(state.pot * 0.8)
+        : Math.floor(state.pot * 0.5);
+      const total = state.aiBet + Math.max(BB, betSize);
+      decision = { act: 'raise', to: Math.min(total, state.aiBet + state.aiStack) };
+    } else if (adjusted > 50 && Math.random() < 0.4) {
+      // Probing bet
+      decision = { act: 'raise', to: state.aiBet + Math.floor(state.pot * 0.3 + BB) };
+    } else {
+      decision = { act: 'check' };
+    }
+  } else {
+    // Facing a bet
+    const potOdds = callAmount / (state.pot + callAmount);
+
+    if (adjusted > 88) {
+      // Monster — raise big
+      const target = state.youBet + Math.max(state.minRaise * 2, Math.floor(state.pot * 0.7));
+      decision = { act: 'raise', to: Math.min(target, state.aiBet + state.aiStack) };
+    } else if (adjusted > 70 || (isBluffing && state.street !== 'preflop')) {
+      // Strong/bluff: call or raise
+      if (Math.random() < 0.6) {
+        decision = { act: 'call' };
+      } else {
+        const target = state.youBet + Math.max(state.minRaise, Math.floor(state.pot * 0.5));
+        decision = { act: 'raise', to: Math.min(target, state.aiBet + state.aiStack) };
+      }
+    } else if (adjusted > 45) {
+      // Medium: call if odds reasonable
+      if (potOdds < 0.35) {
+        decision = { act: 'call' };
+      } else {
+        decision = { act: 'fold' };
+      }
+    } else {
+      // Weak — fold most of the time
+      if (Math.random() < 0.12 && callAmount < state.pot * 0.3) {
+        decision = { act: 'call' }; // bluff catch / probe
+      } else {
+        decision = { act: 'fold' };
+      }
+    }
+  }
+
+  // Apply decision
+  if (decision.act === 'fold') {
+    state.aiAct = 'fold';
+    endHand('you', 'fold');
+    return;
+  }
+  if (decision.act === 'check') {
+    state.aiAct = 'check';
+    state.actionLog.push('mongrod checks');
+  }
+  if (decision.act === 'call') {
+    const cost = Math.min(callAmount, state.aiStack);
+    state.aiStack -= cost;
+    state.aiBet += cost;
+    state.pot += cost;
+    state.aiAct = state.aiStack === 0 ? 'allin' : 'call';
+    state.actionLog.push('mongrod calls ' + fmt(cost));
+  }
+  if (decision.act === 'raise') {
+    const total = decision.to;
+    const cost = Math.min(total - state.aiBet, state.aiStack);
+    state.aiStack -= cost;
+    state.aiBet += cost;
+    state.pot += cost;
+    state.minRaise = state.aiBet - state.youBet;
+    state.aiAct = state.aiStack === 0 ? 'allin' : 'raise';
+    state.raiserAfter = 'you';
+    state.actionLog.push(`mongrod ${state.aiAct} to ${fmt(state.aiBet)}`);
+  }
+
+  state.turn = 'you';
+  render();
+
+  if (bettingRoundComplete()) {
+    setTimeout(advanceStreet, 700);
+  }
+}
+
+function bettingRoundComplete() {
+  // Both bets equal AND both have had a chance to act
+  if (state.youBet !== state.aiBet) return false;
+
+  // First to act check/bet, opponent matches: round is over only after second action
+  // Preflop special case: BB gets an option even if SB just calls
+  if (state.street === 'preflop') {
+    // Both players must have acted this street
+    if (!state.yourAct || !state.aiAct) return false;
+    // If the BB has only had blind posted and called, give option
+    if (state.raiserAfter === null && state.yourAct === 'check' && state.aiAct === 'check') return true;
+    return state.yourAct && state.aiAct;
+  }
+  return state.yourAct && state.aiAct;
+}
+
+// ---------- STREET ADVANCEMENT ----------
+function advanceStreet() {
+  // Reset round bets
+  state.youBet = 0;
+  state.aiBet = 0;
+  state.yourAct = null;
+  state.aiAct = null;
+  state.minRaise = BB;
+  state.raiserAfter = null;
+
+  // All-in scenario: if either player has 0 stack, run remaining streets
+  const runItOut = (state.youStack === 0 || state.aiStack === 0);
+
+  if (state.street === 'preflop') {
+    state.street = 'flop';
+    state.community.push(state.deck.pop(), state.deck.pop(), state.deck.pop());
+    say(pick(FLOP_LINES));
+  } else if (state.street === 'flop') {
+    state.street = 'turn';
+    state.community.push(state.deck.pop());
+    say(pick(TURN_LINES));
+  } else if (state.street === 'turn') {
+    state.street = 'river';
+    state.community.push(state.deck.pop());
+    say(pick(RIVER_LINES));
+  } else if (state.street === 'river') {
+    return showdown();
+  }
+
+  // First to act after preflop = non-dealer (out of position)
+  state.turn = (state.dealer === 'you') ? 'ai' : 'you';
+  render();
+
+  if (runItOut) {
+    setTimeout(advanceStreet, 1300);
+    return;
+  }
+
+  if (state.turn === 'ai') {
+    setTimeout(aiAct, 1100);
+  }
+}
+
+// ---------- SHOWDOWN ----------
+function showdown() {
+  state.street = 'showdown';
+  state.aiShown = true;
+
+  // Evaluate both hands
+  const youHand = evaluate(state.youCards.concat(state.community));
+  const aiHand  = evaluate(state.aiCards.concat(state.community));
+
+  const winners = window.Hand.winners([youHand, aiHand]);
+  let winner, winnerHand, loserHand;
+  if (winners.length === 2) {
+    // Tie — split pot 50/50 (rare)
+    winner = 'tie';
+    winnerHand = youHand;
+  } else if (winners[0] === youHand) {
+    winner = 'you';
+    winnerHand = youHand;
+    loserHand = aiHand;
+  } else {
+    winner = 'ai';
+    winnerHand = aiHand;
+    loserHand = youHand;
+  }
+
+  // Highlight winning cards
+  state.winningCards = (winnerHand.cards || []).map(c => c.toString().toLowerCase()).map(c => {
+    // pokersolver returns cards like "Kh" — uppercase rank. Normalize.
+    return c[0].toUpperCase() + c[1].toLowerCase();
+  });
+
+  // Find the original card codes that are in winningCards
+  const findCode = (target) => {
+    return [...state.community, ...state.youCards, ...state.aiCards].find(c => c === target);
+  };
+  state.winningCards = state.winningCards.map(findCode).filter(Boolean);
+
+  render();
+
+  setTimeout(() => endHand(winner, 'showdown', winnerHand), 1400);
+}
+
+// ---------- END OF HAND ----------
+function endHand(winner, how, winnerHand) {
+  state.street = 'ended';
+  const pot = state.pot;
+  const split = computeSplit(pot);
+
+  // Apply to stacks
+  if (winner === 'you') {
+    state.youStack += split.toWinner;
+    state.totals.won += 1;
+    state.totals.pl  += split.toWinner;
+    state.totals.pl  -= (pot - split.toWinner) * 0 + 0; // your share of input is captured by stack changes already
+  } else if (winner === 'ai') {
+    state.aiStack += split.toWinner;
+    state.totals.lost += 1;
+  } else if (winner === 'tie') {
+    // Split between both
+    state.youStack += Math.floor(split.toWinner / 2);
+    state.aiStack  += split.toWinner - Math.floor(split.toWinner / 2);
+  }
+  state.totals.burned += split.toBurn;
+
+  // Compute P/L (your stack relative to start)
+  state.totals.pl = state.youStack - START_STACK;
+
+  // Hand result line
+  const handResult = document.getElementById('handResult');
+  let resultText;
+  if (winner === 'you') {
+    resultText = `you won the pot of <strong>${fmtFull(pot)}</strong>` +
+                 (how === 'fold' ? ` (mongrod folded)` : ` with <em>${winnerHand.descr || winnerHand.name}</em>`);
+  } else if (winner === 'ai') {
+    resultText = `mongrod won the pot of <strong>${fmtFull(pot)}</strong>` +
+                 (how === 'fold' ? ` (you folded)` : ` with <em>${winnerHand.descr || winnerHand.name}</em>`);
+  } else {
+    resultText = `split pot — both hands equal`;
+  }
+  handResult.innerHTML = resultText + ` · 🔥 ${fmtFull(split.toBurn)} burned · 💜 ${fmtFull(split.toDev)} to house`;
+  handResult.classList.add('show');
+
+  // Update stats
+  document.getElementById('sfHands').textContent = state.totals.hands;
+  document.getElementById('sfWon').textContent = state.totals.won;
+  document.getElementById('sfPL').textContent = (state.totals.pl >= 0 ? '+' : '') + fmt(state.totals.pl);
+  document.getElementById('sfPL').style.color = state.totals.pl >= 0 ? 'var(--gold)' : 'var(--burn)';
+  document.getElementById('sfBurned').textContent = fmt(state.totals.burned);
+
+  // Trigger burn animation if pot > 0
+  if (split.toBurn > 0) {
+    showBurnAnim(split.toBurn);
+  }
+
+  // Show win/loss screen after burn animation
+  setTimeout(() => showWinScreen(winner, how, winnerHand, split, pot), 1500);
+
+  render();
+}
+
+// ---------- BURN ANIMATION ----------
+function showBurnAnim(amount) {
+  const overlay = document.getElementById('burnOverlay');
+  document.getElementById('burnAmt').textContent = fmtFull(amount);
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 3000);
+}
+
+// ---------- WIN SCREEN ----------
+function showWinScreen(winner, how, winnerHand, split, pot) {
+  const overlay = document.getElementById('winOverlay');
+  const card    = document.getElementById('winCard');
+  const eyebrow = document.getElementById('winEyebrow');
+  const title   = document.getElementById('winTitle');
+  const detail  = document.getElementById('winDetail');
+
+  if (winner === 'you') {
+    card.classList.remove('lose');
+    eyebrow.textContent = 'HAND WON';
+    title.textContent = 'YOU TAKE THE POT';
+    if (how === 'fold') {
+      detail.innerHTML = `mongrod folded · pot was <strong>${fmtFull(pot)}</strong>`;
+    } else {
+      detail.innerHTML = `${winnerHand.descr || winnerHand.name}`;
+    }
+  } else if (winner === 'ai') {
+    card.classList.add('lose');
+    eyebrow.textContent = 'HAND LOST';
+    title.textContent = 'MONGROD TAKES IT';
+    if (how === 'fold') {
+      detail.innerHTML = `you folded · pot was <strong>${fmtFull(pot)}</strong>`;
+    } else {
+      detail.innerHTML = `${winnerHand.descr || winnerHand.name}`;
+    }
+  } else {
+    card.classList.remove('lose');
+    eyebrow.textContent = 'SPLIT POT';
+    title.textContent = 'TIE GAME';
+    detail.innerHTML = `both hands equal · ${winnerHand.descr || winnerHand.name}`;
+  }
+
+  document.getElementById('waWinner').textContent = '+' + fmtFull(split.toWinner);
+  document.getElementById('waBurn').textContent   = '−' + fmtFull(split.toBurn);
+  document.getElementById('waDev').textContent    = '−' + fmtFull(split.toDev);
+
+  overlay.classList.add('show');
+}
+
+// ---------- RAISE PANEL ----------
+function showRaisePanel() {
+  const panel = document.getElementById('raisePanel');
+  panel.classList.add('show');
+  const minRaise = state.aiBet + state.minRaise;
+  document.getElementById('raiseInput').value = minRaise;
+  document.getElementById('raiseInput').min = minRaise;
+  document.getElementById('raiseInput').max = state.youBet + state.youStack;
+}
+
+function hideRaisePanel() {
+  document.getElementById('raisePanel').classList.remove('show');
+}
+
+// ---------- EVENT WIRING ----------
+document.getElementById('actions').addEventListener('click', (e) => {
+  const btn = e.target.closest('.act-btn');
+  if (!btn) return;
+  const act = btn.dataset.act;
+  if (act === 'raise') {
+    showRaisePanel();
+  } else {
+    doAction(act);
+  }
+});
+
+document.getElementById('raiseConfirm').addEventListener('click', () => {
+  const input = document.getElementById('raiseInput');
+  let total = parseInt(input.value, 10);
+  const minTotal = state.aiBet + state.minRaise;
+  const maxTotal = state.youBet + state.youStack;
+  if (!total || total < minTotal) total = minTotal;
+  if (total > maxTotal) total = maxTotal;
+  doAction('raise', total);
+});
+
+document.getElementById('raisePresets').addEventListener('click', (e) => {
+  const btn = e.target.closest('.raise-preset');
+  if (!btn) return;
+  const mul = parseFloat(btn.dataset.mul);
+  const input = document.getElementById('raiseInput');
+  let total;
+  if (mul === 999) {
+    // all-in
+    total = state.youBet + state.youStack;
+  } else {
+    total = state.aiBet + Math.max(state.minRaise, Math.floor(state.pot * mul));
+  }
+  total = Math.min(total, state.youBet + state.youStack);
+  input.value = total;
+});
+
+document.getElementById('nextHandBtn').addEventListener('click', () => {
+  document.getElementById('winOverlay').classList.remove('show');
+  // Check stack: bust condition
+  if (state.youStack <= 0) {
+    say("you're out of chips. <em>refill the rack.</em>");
+    state.youStack = START_STACK;
+    state.aiStack = START_STACK;
+  }
+  if (state.aiStack <= 0) {
+    state.youStack = START_STACK;
+    state.aiStack = START_STACK;
+  }
+  newHand();
+});
+
+// ---------- BOOT ----------
+window.addEventListener('load', () => {
+  if (!window.Hand) {
+    say("can't load the deck. <em>refresh the page.</em>");
+    return;
+  }
+  setTimeout(newHand, 600);
+});
+
+</script>
+
+</body>
+</html>
