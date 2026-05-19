@@ -1,0 +1,1453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#0a0508">
+<title>The Backroom · MOLLY · UI preview</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Patrick+Hand&family=Caveat:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@1,400;1,700;0,700;0,900&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎀</text></svg>">
+
+<style>
+  :root {
+    --bg: #07030a;
+    --bg-mid: #14070f;
+    --table-felt: #4a1230;
+    --table-felt-dark: #2d0a1c;
+    --table-felt-light: #6a1c45;
+    --wood: #3a1f1a;
+    --wood-mid: #4a261d;
+    --wood-light: #6a3825;
+    --brass: #c9a96e;
+    --brass-bright: #e8c890;
+    --cream: #f5e8d0;
+    --pink: #e87fc4;
+    --pink-bright: #ff6db3;
+    --pink-deep: #c2509b;
+    --molly: #b07cff;
+    --gold: #ffd84d;
+    --burn: #ff5a2c;
+    --ash: #6b4f3f;
+    --green-felt: #1a3a2a;
+    --ink: #0a0508;
+    --red-card: #c02835;
+
+    --display: 'Bagel Fat One', system-ui, sans-serif;
+    --serif: 'Playfair Display', Georgia, serif;
+    --hand: 'Patrick Hand', cursive;
+    --script: 'Caveat', cursive;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--hand);
+    background: var(--bg);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.5;
+    font-size: 16px;
+    /* Smoke / haze ambience */
+    background-image:
+      radial-gradient(ellipse 800px 400px at 50% 30%, rgba(232, 127, 196, 0.10), transparent 60%),
+      radial-gradient(ellipse 600px 300px at 10% 80%, rgba(192, 169, 110, 0.06), transparent 60%),
+      radial-gradient(ellipse 700px 400px at 90% 60%, rgba(176, 124, 255, 0.05), transparent 60%);
+  }
+
+  /* === GLOBAL ATMOSPHERE === */
+  .smoke {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 220, 200, 0.025), transparent 25%),
+      radial-gradient(circle at 80% 70%, rgba(255, 220, 200, 0.02), transparent 30%);
+    animation: drift 22s infinite ease-in-out alternate;
+  }
+  @keyframes drift { from{transform:translate(0,0)} to{transform:translate(20px,-15px)} }
+
+  /* === TOP NAV === */
+  .topnav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px;
+    border-bottom: 1px solid rgba(201, 169, 110, 0.18);
+    background: linear-gradient(180deg, rgba(7,3,10,0.95), rgba(7,3,10,0.7));
+    backdrop-filter: blur(8px);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 22px;
+    color: var(--cream);
+    letter-spacing: 1px;
+  }
+  .brand-mark {
+    width: 36px; height: 36px;
+    background: radial-gradient(circle, var(--pink-bright), var(--pink-deep));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 18px rgba(232, 127, 196, 0.5);
+  }
+  .brand small { color: var(--brass); font-size: 11px; letter-spacing: 3px; font-weight: 700; font-style: normal; font-family: var(--mono); margin-left: 6px; }
+
+  .tabs {
+    display: flex; gap: 4px;
+    background: rgba(0,0,0,0.4);
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid rgba(201, 169, 110, 0.25);
+  }
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    padding: 9px 18px;
+    background: transparent;
+    border: none;
+    color: rgba(245, 232, 208, 0.6);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--brass); color: var(--ink); }
+  .tab:not(.active):hover { color: var(--cream); }
+
+  .nav-cta {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--pink);
+    text-decoration: none;
+  }
+  .nav-cta::before { content: '← '; }
+  .nav-cta:hover { color: var(--cream); }
+
+  /* === HERO HEADER === */
+  .hero-header {
+    text-align: center;
+    padding: 30px 22px 16px;
+    position: relative; z-index: 3;
+  }
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--brass);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: ''; width: 30px; height: 1px; background: var(--brass); opacity: 0.6;
+  }
+  .hero-title {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 900;
+    font-size: clamp(40px, 7vw, 72px);
+    letter-spacing: 2px;
+    line-height: 1;
+    margin: 6px 0 4px;
+    color: var(--cream);
+    text-shadow:
+      0 0 30px rgba(232, 127, 196, 0.4),
+      2px 2px 0 rgba(0,0,0,0.6);
+  }
+  .hero-sub {
+    font-family: var(--script);
+    font-size: 22px;
+    color: var(--pink);
+    margin-top: 4px;
+  }
+  .hero-meta {
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: rgba(245, 232, 208, 0.55);
+  }
+  .hero-meta span { color: var(--brass); }
+
+  /* ============ LOBBY VIEW ============ */
+  .lobby {
+    max-width: 1180px;
+    margin: 30px auto;
+    padding: 0 22px;
+    position: relative; z-index: 3;
+  }
+  .lobby-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+  }
+
+  .tables-list {
+    display: grid;
+    gap: 18px;
+  }
+
+  .table-card {
+    background: linear-gradient(160deg, var(--wood-mid), var(--wood));
+    border: 2px solid var(--brass);
+    border-radius: 18px;
+    padding: 22px 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .table-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, var(--table-felt), transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .table-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 60px rgba(232, 127, 196, 0.3), 0 16px 50px rgba(0,0,0,0.6);
+  }
+  .table-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    position: relative; z-index: 2;
+    margin-bottom: 14px;
+  }
+  .table-card-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--cream);
+    line-height: 1;
+  }
+  .table-card-name small {
+    display: block;
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 10px;
+    color: var(--brass);
+    letter-spacing: 2px;
+    margin-top: 5px;
+    font-weight: 400;
+  }
+  .table-stakes {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--brass);
+    padding: 6px 12px;
+    border-radius: 10px;
+    text-align: right;
+  }
+  .stakes-amount {
+    font-family: var(--display);
+    font-size: 18px;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .stakes-label {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    color: rgba(245, 232, 208, 0.55);
+    letter-spacing: 1.5px;
+    margin-top: 3px;
+  }
+
+  .table-card-body {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 16px;
+    align-items: center;
+    position: relative; z-index: 2;
+  }
+  .seats-row {
+    display: flex; gap: 4px;
+  }
+  .seat-dot {
+    width: 14px; height: 14px;
+    background: rgba(0,0,0,0.4);
+    border: 1.5px solid rgba(201, 169, 110, 0.4);
+    border-radius: 50%;
+  }
+  .seat-dot.filled { background: var(--pink); border-color: var(--pink-bright); box-shadow: 0 0 8px rgba(232, 127, 196, 0.6); }
+  .seat-dot.ai { background: var(--molly); border-color: var(--molly); }
+
+  .pot-display {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: rgba(245, 232, 208, 0.6);
+    text-align: right;
+  }
+  .pot-amount {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--cream);
+    display: block;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .table-card-footer {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(201, 169, 110, 0.25);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(245, 232, 208, 0.55);
+    letter-spacing: 1.2px;
+    position: relative; z-index: 2;
+  }
+  .table-card-footer .last-action { color: var(--pink); }
+
+  .join-btn {
+    background: var(--pink-bright);
+    color: var(--ink);
+    border: none;
+    font-family: var(--display);
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.6);
+    transition: transform 0.1s;
+  }
+  .join-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.6); }
+
+  /* SIDEBAR */
+  .sidebar {
+    display: flex; flex-direction: column;
+    gap: 14px;
+  }
+  .panel {
+    background: linear-gradient(160deg, rgba(74, 18, 48, 0.18), rgba(20, 7, 15, 0.5));
+    border: 1.5px solid rgba(201, 169, 110, 0.3);
+    border-radius: 16px;
+    padding: 18px;
+  }
+  .panel-title {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--brass);
+    margin: 0 0 14px;
+    text-align: center;
+    letter-spacing: 1.5px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(201, 169, 110, 0.3);
+  }
+  .panel-stat {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px dotted rgba(245, 232, 208, 0.08);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .panel-stat:last-child { border-bottom: none; }
+  .panel-stat-label { color: rgba(245, 232, 208, 0.6); letter-spacing: 1.2px; }
+  .panel-stat-value {
+    font-family: var(--display);
+    color: var(--cream);
+    font-size: 15px;
+  }
+  .panel-stat-value.burn { color: var(--burn); }
+  .panel-stat-value.gold { color: var(--gold); }
+  .panel-stat-value.pink { color: var(--pink); }
+
+  .crown-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px;
+    background: rgba(255, 216, 77, 0.08);
+    border: 1px solid rgba(255, 216, 77, 0.25);
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .crown-icon { font-size: 22px; }
+  .crown-info { flex: 1; }
+  .crown-name { font-family: var(--mono); font-size: 11px; color: var(--cream); }
+  .crown-sub { font-family: var(--hand); font-size: 12px; color: rgba(245, 232, 208, 0.5); }
+  .crown-amount { font-family: var(--display); font-size: 18px; color: var(--gold); }
+
+  /* ============ TABLE VIEW ============ */
+  .table-stage {
+    position: relative;
+    min-height: 100vh;
+    padding: 20px;
+    z-index: 3;
+  }
+  .table-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1100px) {
+    .table-grid { grid-template-columns: 1fr; }
+    .rail-left, .rail-right { order: 2; }
+    .table-center { order: 1; }
+  }
+
+  .rail {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* THE TABLE — heart */
+  .table-center {
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .table-frame {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    aspect-ratio: 1.7 / 1;
+    background:
+      radial-gradient(ellipse at center, var(--table-felt-light) 0%, var(--table-felt) 45%, var(--table-felt-dark) 80%),
+      radial-gradient(ellipse at center, transparent 75%, rgba(0,0,0,0.6) 100%);
+    border-radius: 50%;
+    border: 18px solid;
+    border-image: linear-gradient(135deg, var(--wood-light), var(--wood), var(--wood-mid), var(--wood)) 1;
+    box-shadow:
+      0 0 0 4px var(--brass),
+      0 0 60px rgba(232, 127, 196, 0.15),
+      inset 0 0 80px rgba(0,0,0,0.5),
+      0 30px 80px rgba(0,0,0,0.8);
+    overflow: visible;
+  }
+
+  /* The pendant lamp pool of light */
+  .table-frame::before {
+    content: '';
+    position: absolute; inset: -100px -50px -100px -50px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255, 240, 200, 0.15), transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Center logo + community cards area */
+  .table-inner {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+  }
+
+  .center-logo {
+    width: 110px; height: 110px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 6px;
+    position: relative;
+  }
+  .center-logo-placeholder {
+    width: 100%; height: 100%;
+    background:
+      radial-gradient(circle, rgba(232, 127, 196, 0.3), transparent 70%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display);
+    color: var(--cream);
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-align: center;
+    line-height: 1.1;
+    opacity: 0.55;
+    border: 2px dashed rgba(232, 127, 196, 0.5);
+    border-radius: 50%;
+  }
+  /* When real logo is supplied, just replace .center-logo-placeholder with <img> */
+
+  /* Community cards row */
+  .community {
+    display: flex; gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  /* Burn pile labels */
+  .pile-labels {
+    display: flex; gap: 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .pile-label { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .pile-label-value {
+    font-family: var(--display);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .pile-label .pile-label-value.winner { color: var(--gold); }
+  .pile-label .pile-label-value.burn   { color: var(--burn); }
+  .pile-label .pile-label-value.dev    { color: var(--molly); }
+  .pile-label-small {
+    font-size: 9px;
+    color: rgba(245, 232, 208, 0.5);
+    letter-spacing: 1.5px;
+  }
+
+  /* === CARD STYLING === */
+  .card {
+    width: 54px; height: 74px;
+    border-radius: 6px;
+    background: var(--cream);
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.5),
+      inset 0 0 0 1px rgba(0,0,0,0.15);
+    position: relative;
+    display: flex; flex-direction: column;
+    padding: 4px 5px;
+    font-family: var(--serif);
+    font-weight: 900;
+    color: var(--ink);
+  }
+  .card.red { color: var(--red-card); }
+  .card.back {
+    background:
+      radial-gradient(circle at 50% 50%, var(--pink-bright), var(--pink-deep)),
+      linear-gradient(135deg, var(--pink-deep), var(--pink-bright));
+    border: 2px solid var(--brass);
+    color: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card.back::after {
+    content: '🎀';
+    font-size: 22px;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+  }
+  .card .rank { font-size: 16px; line-height: 1; }
+  .card .suit { font-size: 14px; line-height: 1; margin-top: 2px; }
+  .card .center-suit {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 28px;
+  }
+  .card.empty {
+    background: rgba(0,0,0,0.3);
+    border: 1.5px dashed rgba(245, 232, 208, 0.2);
+    box-shadow: none;
+  }
+  .card.bigger { width: 64px; height: 88px; }
+  .card.bigger .rank { font-size: 20px; }
+  .card.bigger .suit { font-size: 16px; }
+  .card.bigger .center-suit { font-size: 34px; }
+
+  /* === SEATS === */
+  .seats {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .seat {
+    position: absolute;
+    width: 130px;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+  }
+  /* Six seat positions around the oval table */
+  .seat-1 { top: -8%; left: 22%; }    /* top left */
+  .seat-2 { top: -8%; left: 78%; }    /* top right */
+  .seat-3 { top: 50%; left: 102%; }   /* right */
+  .seat-4 { top: 108%; left: 78%; }   /* bottom right */
+  .seat-5 { top: 108%; left: 22%; }   /* bottom left */
+  .seat-6 { top: 50%; left: -2%; }    /* left */
+
+  .seat-box {
+    background: linear-gradient(160deg, rgba(20, 7, 15, 0.95), rgba(40, 14, 28, 0.95));
+    border: 2px solid var(--brass);
+    border-radius: 12px;
+    padding: 8px 10px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  .seat-box.active {
+    border-color: var(--pink-bright);
+    box-shadow: 0 0 20px rgba(232, 127, 196, 0.5), 0 6px 18px rgba(0,0,0,0.6);
+  }
+  .seat-box.folded { opacity: 0.45; filter: grayscale(80%); }
+  .seat-box.empty {
+    border: 2px dashed rgba(201, 169, 110, 0.3);
+    background: rgba(0,0,0,0.4);
+    color: rgba(245, 232, 208, 0.4);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    padding: 18px 8px;
+  }
+  .seat-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    margin: -22px auto 4px;
+    background: linear-gradient(135deg, var(--pink-bright), var(--molly));
+    border: 2px solid var(--brass);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+  }
+  .seat-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cream);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+  .seat-stack {
+    font-family: var(--display);
+    font-size: 14px;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .seat-stack small {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: rgba(255, 216, 77, 0.6);
+    letter-spacing: 1.2px;
+    display: block;
+    margin-top: 2px;
+  }
+  .seat-bet {
+    position: absolute;
+    top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--pink);
+    background: rgba(0,0,0,0.7);
+    padding: 3px 7px;
+    border-radius: 6px;
+    border: 1px solid rgba(232, 127, 196, 0.4);
+    white-space: nowrap;
+  }
+  .seat-tag {
+    position: absolute;
+    top: -10px; right: -8px;
+    font-family: var(--mono);
+    font-size: 8px;
+    background: var(--brass);
+    color: var(--ink);
+    padding: 2px 5px;
+    border-radius: 5px;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+  }
+  .seat-tag.ai { background: var(--molly); color: var(--cream); }
+  .seat-tag.you { background: var(--pink-bright); color: var(--ink); }
+  .seat-cards-mini {
+    display: flex; justify-content: center; gap: 3px;
+    margin-top: 6px;
+  }
+  .seat-cards-mini .card {
+    width: 24px; height: 32px; padding: 2px 3px;
+    border-radius: 3px;
+  }
+  .seat-cards-mini .card .rank { font-size: 9px; }
+  .seat-cards-mini .card .suit { font-size: 8px; }
+  .seat-cards-mini .card .center-suit { display: none; }
+
+  /* === DEALER BUBBLE === */
+  .dealer {
+    margin: 24px auto 0;
+    display: flex; align-items: flex-start; gap: 12px;
+    max-width: 500px;
+    padding: 0 24px;
+    position: relative;
+    z-index: 4;
+  }
+  .dealer-avatar {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, var(--pink), var(--pink-deep));
+    border: 2.5px solid var(--brass);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 0 16px rgba(232, 127, 196, 0.4);
+    flex-shrink: 0;
+  }
+  .dealer-bubble {
+    background: rgba(20, 7, 15, 0.85);
+    border: 1px solid rgba(201, 169, 110, 0.4);
+    padding: 11px 16px;
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    font-family: var(--script);
+    font-size: 19px;
+    color: var(--cream);
+    line-height: 1.3;
+    position: relative;
+  }
+  .dealer-bubble small {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    color: var(--brass);
+    margin-bottom: 4px;
+    font-style: normal;
+  }
+  .dealer-bubble em { color: var(--pink); font-style: italic; }
+
+  /* === ACTION BAR (your turn) === */
+  .you-strip {
+    margin: 16px auto 0;
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(20, 7, 15, 0.6), rgba(20, 7, 15, 0.95));
+    border: 1.5px solid rgba(232, 127, 196, 0.5);
+    border-radius: 16px;
+    box-shadow: 0 -10px 40px rgba(232, 127, 196, 0.15);
+  }
+  .your-cards {
+    display: flex; gap: 5px;
+  }
+  .actions {
+    display: flex; gap: 6px;
+    justify-content: center;
+  }
+  .act-btn {
+    font-family: var(--display);
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    padding: 11px 18px;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform 0.1s;
+    color: var(--ink);
+  }
+  .act-btn:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .act-check { background: var(--brass); }
+  .act-call  { background: var(--gold); }
+  .act-raise { background: var(--pink-bright); }
+  .act-fold  { background: #888; }
+
+  .candle {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+    min-width: 60px;
+  }
+  .candle-icon {
+    font-size: 28px;
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 200, 100, 0.6));
+    animation: flicker 0.7s infinite alternate;
+  }
+  @keyframes flicker { from{opacity:1; transform:rotate(-1deg)} to{opacity:.85; transform:rotate(1deg)} }
+  .candle-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 1.2px;
+  }
+
+  /* === HAND HEADER (above table) === */
+  .hand-header {
+    display: flex; justify-content: center; gap: 24px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .hand-stat {
+    text-align: center;
+  }
+  .hand-stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.8px;
+    color: rgba(245, 232, 208, 0.55);
+  }
+  .hand-stat-value {
+    font-family: var(--display);
+    font-size: 20px;
+    color: var(--cream);
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .hand-stat-value.pink { color: var(--pink); }
+  .hand-stat-value.gold { color: var(--gold); }
+  .hand-stat-value.burn { color: var(--burn); }
+
+  /* === RAILS === */
+  .rail-section-title {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--brass);
+    text-align: center;
+    margin: 0 0 12px;
+    letter-spacing: 1.2px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(201, 169, 110, 0.3);
+  }
+  .live-ticker {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(245, 232, 208, 0.7);
+    line-height: 1.6;
+  }
+  .live-ticker .row {
+    padding: 6px 0;
+    border-bottom: 1px dotted rgba(245, 232, 208, 0.08);
+    display: flex; justify-content: space-between; gap: 6px;
+  }
+  .live-ticker .row:last-child { border-bottom: none; }
+  .live-ticker .name { color: var(--pink); }
+  .live-ticker .amt { color: var(--gold); }
+
+  /* === BURN PILE CENTER VISUAL === */
+  .burn-pile-vis {
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 4px;
+    height: 38px;
+    margin: 6px 0 4px;
+  }
+  .chip-stack {
+    width: 26px;
+    border-radius: 4px 4px 1px 1px;
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .chip-stack::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 4px 4px 0 0;
+  }
+  .chip-gold {
+    background: linear-gradient(180deg, var(--gold), #b8950a);
+    height: 36px;
+  }
+  .chip-burn {
+    background: linear-gradient(180deg, var(--burn), #a8260a);
+    height: 14px;
+    position: relative;
+  }
+  .chip-burn::after {
+    content: '🔥';
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 14px;
+    filter: drop-shadow(0 0 6px rgba(255, 100, 50, 0.7));
+  }
+  .chip-dev {
+    background: linear-gradient(180deg, var(--molly), #6b3aa0);
+    height: 8px;
+  }
+
+  /* === FOOTER NOTE === */
+  .footer {
+    text-align: center;
+    padding: 40px 22px 30px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: rgba(245, 232, 208, 0.35);
+    letter-spacing: 2px;
+    position: relative; z-index: 3;
+  }
+
+  .ghost {
+    color: rgba(245, 232, 208, 0.4);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+  }
+
+  /* tab views */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* responsive tweaks */
+  @media (max-width: 800px) {
+    .topnav { padding: 12px 14px; flex-wrap: wrap; gap: 10px; }
+    .brand { font-size: 18px; }
+    .brand-mark { width: 30px; height: 30px; }
+    .tab { padding: 7px 14px; font-size: 10px; }
+    .hero-title { font-size: 36px; }
+    .lobby-grid { grid-template-columns: 1fr; }
+    .seat { width: 90px; }
+    .seat-1 { left: 18%; } .seat-2 { left: 82%; }
+    .seat-5 { left: 18%; } .seat-4 { left: 82%; }
+    .seat-3 { left: 100%; } .seat-6 { left: 0%; }
+    .card { width: 36px; height: 50px; padding: 3px 4px; }
+    .card .rank { font-size: 11px; }
+    .card .suit { font-size: 10px; }
+    .card .center-suit { font-size: 18px; }
+    .card.bigger { width: 46px; height: 64px; }
+    .card.bigger .rank { font-size: 14px; }
+    .card.bigger .suit { font-size: 12px; }
+    .card.bigger .center-suit { font-size: 24px; }
+    .center-logo { width: 70px; height: 70px; }
+    .pile-labels { font-size: 9px; gap: 8px; }
+    .pile-label-value { font-size: 13px; }
+    .you-strip { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
+    .actions { flex-wrap: wrap; }
+    .act-btn { flex: 1; padding: 10px 12px; font-size: 11px; min-width: 70px; }
+    .seat-box { padding: 6px 8px; }
+    .seat-box.empty { padding: 14px 6px; }
+    .seat-avatar { width: 30px; height: 30px; font-size: 14px; margin-top: -18px; }
+    .seat-name { font-size: 9px; }
+    .seat-stack { font-size: 12px; }
+    .seat-stack small { font-size: 7px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="smoke"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-mark">🎀</div>
+    <span>The Backroom</span>
+    <small>MOCKUP · v0</small>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-view="lobby">LOBBY</button>
+    <button class="tab" data-view="table">TABLE</button>
+  </div>
+  <a class="nav-cta" href="/">back to molly</a>
+</nav>
+
+
+<!-- ========== LOBBY VIEW ========== -->
+<div class="view active" id="view-lobby">
+
+  <div class="hero-header">
+    <div class="hero-eyebrow">PRIVATE MEMBERS ONLY</div>
+    <h1 class="hero-title">The Backroom</h1>
+    <div class="hero-sub">she's dealing tonight.</div>
+    <div class="hero-meta">
+      A skill game · 100K MOLLY buy-in · <span>70% winner</span> · <span style="color: var(--burn)">20% burned</span> · <span style="color: var(--molly)">10% house</span>
+    </div>
+  </div>
+
+  <section class="lobby">
+    <div class="lobby-grid">
+      <!-- TABLES LIST -->
+      <div class="tables-list">
+
+        <div class="table-card">
+          <div class="table-card-head">
+            <div class="table-card-name">
+              The Heads-Up Pit
+              <small>1-ON-1 · NO HIDING</small>
+            </div>
+            <div class="table-stakes">
+              <div class="stakes-amount">100K</div>
+              <div class="stakes-label">MOLLY BUY-IN</div>
+            </div>
+          </div>
+          <div class="table-card-body">
+            <div class="seats-row">
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot filled"></div>
+            </div>
+            <div class="pot-display">
+              <span class="pot-amount">142K</span>
+              POT
+            </div>
+            <button class="join-btn" disabled style="opacity:.5">FULL</button>
+          </div>
+          <div class="table-card-footer">
+            <span>2 / 2 seated · turn: 0xdef</span>
+            <span class="last-action">last hand · 0xabc won 200K · 18s ago</span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-head">
+            <div class="table-card-name">
+              The Main Floor
+              <small>6-MAX · STANDARD</small>
+            </div>
+            <div class="table-stakes">
+              <div class="stakes-amount">100K</div>
+              <div class="stakes-label">MOLLY BUY-IN</div>
+            </div>
+          </div>
+          <div class="table-card-body">
+            <div class="seats-row">
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot ai" title="AI player"></div>
+              <div class="seat-dot"></div>
+              <div class="seat-dot"></div>
+            </div>
+            <div class="pot-display">
+              <span class="pot-amount">485K</span>
+              POT
+            </div>
+            <button class="join-btn">TAKE A SEAT</button>
+          </div>
+          <div class="table-card-footer">
+            <span>3 humans · 1 AI · 2 open</span>
+            <span class="last-action">flop just dropped · 4s ago</span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-head">
+            <div class="table-card-name">
+              Molly's Den
+              <small>6-MAX · HIGH ROLLERS</small>
+            </div>
+            <div class="table-stakes">
+              <div class="stakes-amount" style="color: var(--pink-bright)">1M</div>
+              <div class="stakes-label">MOLLY BUY-IN</div>
+            </div>
+          </div>
+          <div class="table-card-body">
+            <div class="seats-row">
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot filled"></div>
+              <div class="seat-dot"></div>
+              <div class="seat-dot"></div>
+              <div class="seat-dot"></div>
+              <div class="seat-dot"></div>
+            </div>
+            <div class="pot-display">
+              <span class="pot-amount">3.2M</span>
+              POT
+            </div>
+            <button class="join-btn">TAKE A SEAT</button>
+          </div>
+          <div class="table-card-footer">
+            <span>2 / 6 seated · whales only</span>
+            <span class="last-action">biggest pot tonight · 8.4M earlier</span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-card-head">
+            <div class="table-card-name">
+              The Beginner's Cradle
+              <small>HEADS-UP · LOW STAKES</small>
+            </div>
+            <div class="table-stakes">
+              <div class="stakes-amount" style="color: var(--brass)">10K</div>
+              <div class="stakes-label">MOLLY BUY-IN</div>
+            </div>
+          </div>
+          <div class="table-card-body">
+            <div class="seats-row">
+              <div class="seat-dot"></div>
+              <div class="seat-dot ai" title="AI waiting"></div>
+            </div>
+            <div class="pot-display">
+              <span class="pot-amount">—</span>
+              EMPTY
+            </div>
+            <button class="join-btn">PLAY THE AI</button>
+          </div>
+          <div class="table-card-footer">
+            <span>ai always seated · learn the table</span>
+            <span class="last-action">try a hand on the house</span>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- SIDEBAR STATS -->
+      <aside class="sidebar">
+
+        <div class="panel">
+          <div class="panel-title">THE PILE</div>
+          <div class="panel-stat">
+            <span class="panel-stat-label">🔥 TOTAL BURNED</span>
+            <span class="panel-stat-value burn">2.4M</span>
+          </div>
+          <div class="panel-stat">
+            <span class="panel-stat-label">🏆 PAID TO WINNERS</span>
+            <span class="panel-stat-value gold">8.5M</span>
+          </div>
+          <div class="panel-stat">
+            <span class="panel-stat-label">💜 HOUSE TAKE</span>
+            <span class="panel-stat-value pink">1.2M</span>
+          </div>
+          <div class="panel-stat">
+            <span class="panel-stat-label">HANDS PLAYED</span>
+            <span class="panel-stat-value">847</span>
+          </div>
+          <div class="panel-stat">
+            <span class="panel-stat-label">BIGGEST POT</span>
+            <span class="panel-stat-value">8.4M</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">KING OF THE DEN</div>
+          <div class="crown-row">
+            <span class="crown-icon">👑</span>
+            <div class="crown-info">
+              <div class="crown-name">0xab…cb24</div>
+              <div class="crown-sub">14 wins this week</div>
+            </div>
+            <div class="crown-amount">+3.2M</div>
+          </div>
+          <div style="font-family: var(--mono); font-size: 9.5px; color: rgba(245,232,208,0.5); text-align: center; letter-spacing: 1.2px; margin-top: 8px;">
+            takes the title weekly · resets sunday
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">RECENT LEGENDS</div>
+          <div class="live-ticker">
+            <div class="row"><span class="name">0xab…cb24</span><span class="amt">+1.8M</span></div>
+            <div class="row"><span class="name">0xde…7a44</span><span class="amt">+520K</span></div>
+            <div class="row"><span class="name">0xff…0099</span><span class="amt">+860K</span></div>
+            <div class="row"><span class="name">0x12…ee01</span><span class="amt">+340K</span></div>
+            <div class="row"><span class="name">0x99…b3c2</span><span class="amt">+1.1M</span></div>
+          </div>
+        </div>
+
+        <div class="panel" style="background: linear-gradient(160deg, rgba(255, 90, 44, 0.12), rgba(20, 7, 15, 0.5)); border-color: rgba(255, 90, 44, 0.3);">
+          <div class="panel-title" style="color: var(--burn);">LIVE BURN FEED 🔥</div>
+          <div class="live-ticker">
+            <div class="row"><span>hand #847</span><span class="amt" style="color: var(--burn)">−97K</span></div>
+            <div class="row"><span>hand #846</span><span class="amt" style="color: var(--burn)">−24K</span></div>
+            <div class="row"><span>hand #845</span><span class="amt" style="color: var(--burn)">−108K</span></div>
+            <div class="row"><span>hand #844</span><span class="amt" style="color: var(--burn)">−40K</span></div>
+          </div>
+          <div style="font-family: var(--script); font-size: 15px; color: var(--burn); text-align: center; margin-top: 10px;">
+            every hand · a sacrifice.
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </section>
+
+  <div class="footer">
+    A SKILL GAME · NOT A WAGER · 18+ · BUILT WITH 🎀 ON MONAD
+  </div>
+</div>
+
+<!-- ========== TABLE VIEW ========== -->
+<div class="view" id="view-table">
+
+  <div class="hero-header">
+    <div class="hero-eyebrow">MAIN FLOOR · HAND #487</div>
+    <h1 class="hero-title" style="font-size: clamp(28px, 5vw, 44px);">THE BACKROOM</h1>
+  </div>
+
+  <!-- HAND STATS HEADER -->
+  <div class="hand-header">
+    <div class="hand-stat">
+      <div class="hand-stat-label">POT</div>
+      <div class="hand-stat-value gold">485,000</div>
+    </div>
+    <div class="hand-stat">
+      <div class="hand-stat-label">BLINDS</div>
+      <div class="hand-stat-value">1K / 2K</div>
+    </div>
+    <div class="hand-stat">
+      <div class="hand-stat-label">STREET</div>
+      <div class="hand-stat-value pink">FLOP</div>
+    </div>
+    <div class="hand-stat">
+      <div class="hand-stat-label">WILL BURN</div>
+      <div class="hand-stat-value burn">97,000</div>
+    </div>
+  </div>
+
+
+  <section class="table-stage">
+    <div class="table-grid">
+
+      <!-- LEFT RAIL -->
+      <aside class="rail rail-left">
+        <div class="panel">
+          <div class="rail-section-title">POT SPLIT</div>
+          <div class="burn-pile-vis">
+            <div class="chip-stack chip-gold" title="winner"></div>
+            <div class="chip-stack chip-burn" title="burn"></div>
+            <div class="chip-stack chip-dev" title="house"></div>
+          </div>
+          <div class="pile-labels" style="justify-content: space-around; margin-top: 6px;">
+            <div class="pile-label">
+              <span class="pile-label-value winner">339K</span>
+              <span class="pile-label-small">🏆 WINNER</span>
+            </div>
+            <div class="pile-label">
+              <span class="pile-label-value burn">97K</span>
+              <span class="pile-label-small">🔥 BURN</span>
+            </div>
+            <div class="pile-label">
+              <span class="pile-label-value dev">49K</span>
+              <span class="pile-label-small">💜 HOUSE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="rail-section-title">YOUR NIGHT</div>
+          <div class="panel-stat"><span class="panel-stat-label">HANDS</span><span class="panel-stat-value">14</span></div>
+          <div class="panel-stat"><span class="panel-stat-label">WON</span><span class="panel-stat-value gold">3</span></div>
+          <div class="panel-stat"><span class="panel-stat-label">P/L</span><span class="panel-stat-value pink">+85K</span></div>
+          <div class="panel-stat"><span class="panel-stat-label">BURNED VIA YOU</span><span class="panel-stat-value burn">42K</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="rail-section-title">TONIGHT'S BIG ONE</div>
+          <div style="text-align: center;">
+            <div style="font-family: var(--display); font-size: 28px; color: var(--gold); line-height: 1;">2.1M</div>
+            <div style="font-family: var(--hand); font-size: 13px; color: rgba(245,232,208,0.6); margin-top: 4px;">pot · hand #481</div>
+            <div style="font-family: var(--mono); font-size: 9.5px; color: var(--pink); margin-top: 6px; letter-spacing: 1.5px;">0xab…cb24 took it all</div>
+          </div>
+        </div>
+      </aside>
+
+
+      <!-- CENTER — THE TABLE -->
+      <div class="table-center">
+
+        <div class="table-frame">
+          <!-- Inner content -->
+          <div class="table-inner">
+            <div class="center-logo">
+              <div class="center-logo-placeholder">MOLLY<br><span style="font-size:8px">logo here</span></div>
+            </div>
+
+            <!-- Community cards -->
+            <div class="community">
+              <div class="card bigger">
+                <span class="rank">A</span>
+                <span class="suit">♠</span>
+                <span class="center-suit">♠</span>
+              </div>
+              <div class="card bigger red">
+                <span class="rank">7</span>
+                <span class="suit">♥</span>
+                <span class="center-suit">♥</span>
+              </div>
+              <div class="card bigger">
+                <span class="rank">10</span>
+                <span class="suit">♣</span>
+                <span class="center-suit">♣</span>
+              </div>
+              <div class="card bigger empty"></div>
+              <div class="card bigger empty"></div>
+            </div>
+
+            <div class="pile-labels">
+              <div class="pile-label">
+                <span class="pile-label-value winner">339K</span>
+                <span class="pile-label-small">🏆</span>
+              </div>
+              <div class="pile-label">
+                <span class="pile-label-value burn">97K</span>
+                <span class="pile-label-small">🔥</span>
+              </div>
+              <div class="pile-label">
+                <span class="pile-label-value dev">49K</span>
+                <span class="pile-label-small">💜</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEATS around the table -->
+          <div class="seats">
+
+            <div class="seat seat-1">
+              <div class="seat-box">
+                <span class="seat-tag">DEALER</span>
+                <div class="seat-avatar">🎀</div>
+                <div class="seat-name">0xab…cb24</div>
+                <div class="seat-stack">420K<small>MOLLY</small></div>
+                <div class="seat-cards-mini">
+                  <div class="card back"></div>
+                  <div class="card back"></div>
+                </div>
+              </div>
+              <div class="seat-bet">bet 24K</div>
+            </div>
+
+            <div class="seat seat-2">
+              <div class="seat-box active">
+                <div class="seat-avatar">😼</div>
+                <div class="seat-name">0xde…7a44</div>
+                <div class="seat-stack">310K<small>MOLLY</small></div>
+                <div class="seat-cards-mini">
+                  <div class="card back"></div>
+                  <div class="card back"></div>
+                </div>
+              </div>
+              <div class="seat-bet" style="color: var(--gold)">raising 50K…</div>
+            </div>
+
+            <div class="seat seat-3">
+              <div class="seat-box folded">
+                <div class="seat-avatar">🦊</div>
+                <div class="seat-name">0xff…0099</div>
+                <div class="seat-stack">85K<small>MOLLY</small></div>
+                <div class="seat-cards-mini">
+                  <div class="card empty"></div>
+                  <div class="card empty"></div>
+                </div>
+              </div>
+              <div class="seat-bet" style="color:#888">folded</div>
+            </div>
+
+            <div class="seat seat-4">
+              <div class="seat-box empty">
+                EMPTY<br>
+                <span style="font-size:9px; opacity:.7">seat open</span>
+              </div>
+            </div>
+
+            <div class="seat seat-5">
+              <div class="seat-box">
+                <span class="seat-tag you">YOU</span>
+                <div class="seat-avatar">👾</div>
+                <div class="seat-name">0x12…ee01</div>
+                <div class="seat-stack">385K<small>MOLLY</small></div>
+                <div class="seat-cards-mini">
+                  <div class="card red">
+                    <span class="rank">K</span>
+                    <span class="suit">♥</span>
+                  </div>
+                  <div class="card red">
+                    <span class="rank">K</span>
+                    <span class="suit">♦</span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-bet">bet 24K</div>
+            </div>
+
+            <div class="seat seat-6">
+              <div class="seat-box">
+                <span class="seat-tag ai">AI</span>
+                <div class="seat-avatar">🤖</div>
+                <div class="seat-name">Mongrod</div>
+                <div class="seat-stack">560K<small>MOLLY</small></div>
+                <div class="seat-cards-mini">
+                  <div class="card back"></div>
+                  <div class="card back"></div>
+                </div>
+              </div>
+              <div class="seat-bet">bet 24K</div>
+            </div>
+
+          </div>
+        </div>
+
+
+        <!-- DEALER SPEECH -->
+        <div class="dealer">
+          <div class="dealer-avatar">🎀</div>
+          <div class="dealer-bubble">
+            <small>MOLLY · DEALER</small>
+            kings on the flop. <em>brave bet.</em> 0xde is raising — does he have it or doesn't he?
+          </div>
+        </div>
+
+
+        <!-- YOUR ACTION STRIP -->
+        <div class="you-strip">
+          <div class="your-cards">
+            <div class="card bigger red">
+              <span class="rank">K</span>
+              <span class="suit">♥</span>
+              <span class="center-suit">♥</span>
+            </div>
+            <div class="card bigger red">
+              <span class="rank">K</span>
+              <span class="suit">♦</span>
+              <span class="center-suit">♦</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="act-btn act-check">CHECK</button>
+            <button class="act-btn act-call">CALL 50K</button>
+            <button class="act-btn act-raise">RAISE</button>
+            <button class="act-btn act-fold">FOLD</button>
+          </div>
+          <div class="candle">
+            <div class="candle-icon">🕯️</div>
+            <div class="candle-time">23s</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- RIGHT RAIL -->
+      <aside class="rail rail-right">
+        <div class="panel">
+          <div class="rail-section-title">AT THE TABLE</div>
+          <div class="live-ticker">
+            <div class="row"><span style="color: var(--gold)">👑 0xab…cb24</span><span>420K</span></div>
+            <div class="row"><span class="name">0xde…7a44 ⚡</span><span>310K</span></div>
+            <div class="row" style="opacity:.5"><span>0xff…0099</span><span>85K</span></div>
+            <div class="row" style="color: var(--pink)"><span>YOU · 0x12…ee01</span><span>385K</span></div>
+            <div class="row" style="color: var(--molly)"><span>🤖 Mongrod (AI)</span><span>560K</span></div>
+            <div class="row"><span class="ghost">[empty seat]</span><span class="ghost">—</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="rail-section-title">LAST 5 HANDS</div>
+          <div class="live-ticker">
+            <div class="row"><span>#486</span><span class="name">0xab…cb24</span><span class="amt">+95K</span></div>
+            <div class="row"><span>#485</span><span class="name">Mongrod AI</span><span class="amt">+180K</span></div>
+            <div class="row"><span>#484</span><span class="name">0xde…7a44</span><span class="amt">+62K</span></div>
+            <div class="row"><span>#483</span><span class="name">YOU</span><span class="amt" style="color: var(--pink-bright)">+118K</span></div>
+            <div class="row"><span>#482</span><span class="name">0xab…cb24</span><span class="amt">+44K</span></div>
+          </div>
+        </div>
+
+        <div class="panel" style="background: linear-gradient(160deg, rgba(255, 90, 44, 0.12), rgba(20, 7, 15, 0.5)); border-color: rgba(255, 90, 44, 0.3);">
+          <div class="rail-section-title" style="color: var(--burn);">BURNED TONIGHT</div>
+          <div style="text-align: center; padding: 10px 0;">
+            <div style="font-family: var(--display); font-size: 36px; color: var(--burn); line-height: 1; text-shadow: 0 0 16px rgba(255, 90, 44, 0.4);">128K</div>
+            <div style="font-family: var(--script); font-size: 16px; color: rgba(245,232,208,0.7); margin-top: 6px;">MOLLY to the flame</div>
+          </div>
+          <div style="font-family: var(--mono); font-size: 9px; color: rgba(245,232,208,0.4); text-align: center; letter-spacing: 1.5px;">
+            forever gone · supply ↓
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+
+  <div class="footer">
+    UI MOCKUP · NO REAL FUNDS AT RISK · BUILT FOR PREVIEW
+  </div>
+</div>
+
+
+<script>
+  // Tab switching only — no game logic, just UI preview
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-' + btn.dataset.view).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>
