@@ -1,0 +1,16 @@
+{
+  "network": "monad",
+  "chainId": 143,
+  "deployer": "0xB9d4B73bE18914c6d64Bee65a806648370be467f",
+  "burnAddr": "0x000000000000000000000000000000000000dEaD",
+  "devAddr": "0xa424c64aa051cf75749b6377bfc86f20f212cb24",
+  "mollyToken": "0xB72e6262DAE53cAF167F0966421a0B9782977777",
+  "wmon": "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+  "swapRouter": "0xfe31f71c1b106eac32f1a19239c9a9a72ddfb900",
+  "uniswapFactory": "0x204faca1764b154221e35c0d20abb3c525710498",
+  "timestamp": "2026-05-20T17:07:39.066Z",
+  "addresses": {
+    "MollyPoker": "0x61bE14a42E6a233120aaec95658b5187AE99b814"
+  },
+  "deployTx": "0x887f4e1ee373c29cacf266b039db7aaf739f3540b5826e95d244fea9e9c18f41"
+}
