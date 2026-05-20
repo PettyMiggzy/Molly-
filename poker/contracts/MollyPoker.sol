@@ -67,6 +67,13 @@ interface ISwapRouterV3 {
         external payable returns (uint256 amountOut);
 }
 
+interface IUniswapV3Factory {
+    // Used at createTable to confirm a non-MOLLY token has graduated to a real
+    // Uniswap V3 pool against WMON. Pre-graduation tokens (still on a bonding
+    // curve) would have no pool here and rake wouldn't be swappable.
+    function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
+}
+
 contract MollyPoker is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -144,6 +151,9 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     address public immutable DEV_ADDR;
     address public immutable MOLLY_TOKEN;
     address public immutable WMON;
+    /// Uniswap V3 Factory used for the graduation check at createTable.
+    /// Set to address(0) to skip the check (e.g. on testnets without V3 deployed).
+    address public immutable UNISWAP_FACTORY;
 
     /* ---------- mutable config ---------- */
     address public swapRouter;
@@ -174,7 +184,8 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         address _devAddr,
         address _mollyToken,
         address _wmon,
-        address _swapRouter
+        address _swapRouter,
+        address _uniswapFactory
     ) Ownable(msg.sender) {
         require(_burnAddr   != address(0), "burn=0");
         require(_devAddr    != address(0), "dev=0");
@@ -182,11 +193,12 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         require(_wmon       != address(0), "wmon=0");
         require(WINNER_BPS + BURN_BPS + DEV_BPS == BPS, "molly bps != 10000");
         require(WINNER_BPS + RAKE_BPS == BPS, "nonmolly bps != 10000");
-        BURN_ADDR   = _burnAddr;
-        DEV_ADDR    = _devAddr;
-        MOLLY_TOKEN = _mollyToken;
-        WMON        = _wmon;
-        swapRouter  = _swapRouter;
+        BURN_ADDR       = _burnAddr;
+        DEV_ADDR        = _devAddr;
+        MOLLY_TOKEN     = _mollyToken;
+        WMON            = _wmon;
+        swapRouter      = _swapRouter;
+        UNISWAP_FACTORY = _uniswapFactory; // address(0) disables the graduation check
     }
 
     /* ============================================================
@@ -234,6 +246,13 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         require(_maxPlayers >= 2 && _maxPlayers <= 9, "bad maxPlayers");
         require(_bigBlind > 0, "bb=0");
         require(_buyInAmount >= _bigBlind, "buyIn < bb");
+
+        // Audit P5: non-MOLLY tables must have a Uniswap V3 pool against WMON
+        // so the rake can actually swap. Otherwise dev wallet ends up holding
+        // un-graduated tokens that need MetaMask custom-token imports to see.
+        if (_token != MOLLY_TOKEN) {
+            require(_isGraduated(_token), "token not graduated");
+        }
         address[] memory empty;
         tables[totalTables] = Table({
             state: TableState.Inactive,
@@ -249,6 +268,20 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         });
         emit NewTableCreated(totalTables, msg.sender, _token, _buyInAmount, _bigBlind);
         totalTables += 1;
+    }
+
+    /// Returns true if `_token` has at least one Uniswap V3 pool against WMON
+    /// at any of the standard fee tiers (100, 500, 3000, 10000). If UNISWAP_FACTORY
+    /// is unset (address(0)), the check is bypassed. Internal — frontend can
+    /// query the factory directly for a public check.
+    function _isGraduated(address _token) internal view returns (bool) {
+        if (UNISWAP_FACTORY == address(0)) return true;
+        IUniswapV3Factory f = IUniswapV3Factory(UNISWAP_FACTORY);
+        uint24[4] memory tiers = [uint24(100), uint24(500), uint24(3000), uint24(10000)];
+        for (uint i = 0; i < 4; i++) {
+            if (f.getPool(_token, WMON, tiers[i]) != address(0)) return true;
+        }
+        return false;
     }
 
     function buyIn(uint _tableId, uint _amount) external nonReentrant {

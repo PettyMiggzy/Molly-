@@ -17,7 +17,7 @@ async function main() {
   const rec = JSON.parse(fs.readFileSync(file, "utf8"));
 
   const address = rec.addresses.MollyPoker;
-  const args = [rec.burnAddr, rec.devAddr, rec.mollyToken, rec.wmon, rec.swapRouter];
+  const args = [rec.burnAddr, rec.devAddr, rec.mollyToken, rec.wmon, rec.swapRouter, rec.uniswapFactory];
 
   console.log(`\nverifying MollyPoker @ ${address} on ${net}...\n`);
 

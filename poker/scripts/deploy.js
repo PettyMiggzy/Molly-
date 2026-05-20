@@ -23,9 +23,15 @@ const MOLLY_TOKEN_MAINNET = "0xB72e6262DAE53cAF167F0966421a0B9782977777";
 // WMON mainnet
 const WMON_MAINNET        = "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A";
 
-// Crust Finance V3 SwapRouter — set via setSwapRouter() post-deploy.
-// Leave as zero address for now; admin updates once the live address is in.
-const SWAP_ROUTER = ethers.ZeroAddress;
+// Uniswap V3 on Monad mainnet (deployed Nov 25 2025)
+// Set SwapRouter at deploy time so the contract is operational immediately.
+// The graduation check uses the factory at createTable for non-MOLLY tokens.
+const UNISWAP_V3_SWAP_ROUTER_MAINNET = "0xfe31f71c1b106eac32f1a19239c9a9a72ddfb900";
+const UNISWAP_V3_FACTORY_MAINNET     = "0x204faca1764b154221e35c0d20abb3c525710498";
+
+// Override via env vars on testnet (where V3 may not be deployed)
+const SWAP_ROUTER     = process.env.SWAP_ROUTER     || UNISWAP_V3_SWAP_ROUTER_MAINNET;
+const UNISWAP_FACTORY = process.env.UNISWAP_FACTORY || UNISWAP_V3_FACTORY_MAINNET;
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -44,13 +50,14 @@ async function main() {
 
   console.log("\n┌─────────────────────────────────────────────");
   console.log("│  MollyPoker v2 deploy");
-  console.log(`│  network: ${net.name} (chainId ${net.chainId})`);
+  console.log(`│  network:  ${net.name} (chainId ${net.chainId})`);
   console.log(`│  deployer: ${deployer.address}`);
   console.log(`│  burn:     ${BURN_ADDR}`);
   console.log(`│  dev:      ${DEV_ADDR}`);
   console.log(`│  molly:    ${mollyAddr}`);
   console.log(`│  wmon:     ${wmonAddr}`);
-  console.log(`│  router:   ${SWAP_ROUTER}  (set later via setSwapRouter)`);
+  console.log(`│  router:   ${SWAP_ROUTER}`);
+  console.log(`│  factory:  ${UNISWAP_FACTORY}`);
   console.log("└─────────────────────────────────────────────\n");
 
   const bal = await ethers.provider.getBalance(deployer.address);
@@ -70,7 +77,7 @@ async function main() {
 
   console.log("deploying MollyPoker...");
   const Factory = await ethers.getContractFactory("MollyPoker");
-  const mp = await Factory.deploy(BURN_ADDR, DEV_ADDR, mollyAddr, wmonAddr, SWAP_ROUTER);
+  const mp = await Factory.deploy(BURN_ADDR, DEV_ADDR, mollyAddr, wmonAddr, SWAP_ROUTER, UNISWAP_FACTORY);
   await mp.waitForDeployment();
   const addr = await mp.getAddress();
   const tx = mp.deploymentTransaction();
@@ -92,6 +99,7 @@ async function main() {
     mollyToken: mollyAddr,
     wmon: wmonAddr,
     swapRouter: SWAP_ROUTER,
+    uniswapFactory: UNISWAP_FACTORY,
     timestamp: new Date().toISOString(),
     addresses: { MollyPoker: addr },
     deployTx: tx.hash,
@@ -110,7 +118,7 @@ async function main() {
 
   console.log("\nnext steps:");
   console.log(`  1. npx hardhat run scripts/verify.js --network ${net.name}`);
-  console.log(`  2. Edit scripts/bootstrap.js with Crust router + whitelist projects`);
+  console.log(`  2. Edit scripts/bootstrap.js with whitelist projects + pool fees`);
   console.log(`  3. npx hardhat run scripts/bootstrap.js --network ${net.name}\n`);
   console.log(`address copy line for the frontend:`);
   console.log(`  MOLLY_POKER = "${addr}"\n`);

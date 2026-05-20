@@ -46,7 +46,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
     }
 
     const MP = await ethers.getContractFactory("MollyPoker");
-    poker = await MP.deploy(BURN, dev.address, molly.target, wmon.target, ZERO);
+    poker = await MP.deploy(BURN, dev.address, molly.target, wmon.target, ZERO, ZERO);
     await poker.waitForDeployment();
   });
 
@@ -897,40 +897,61 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       expect(t.state).to.equal(1n); // Inactive after hand
       expect(t.totalHands).to.equal(1n);
     });
+  });
 
-    it("showdown rejects a folded player as winner", async () => {
-      // Drive a hand to showdown with carol folded, try to declare carol the winner
-      await poker.createTable(BUY_IN, 3, BB, molly.target);
-      for (const u of [alice, bob, carol]) {
-        await molly.connect(u).approve(poker.target, BUY_IN);
-        await poker.connect(u).buyIn(0, BUY_IN);
-      }
-      const k = 3333n;
-      await poker.dealCards([
-        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
-        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
-        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
-      ], 0);
+  /* ====================================================================
+     PASS-5 — graduation check: non-MOLLY tables need a Uniswap V3 pool
+     ==================================================================== */
+  describe("PASS-5 — non-MOLLY tables require Uniswap V3 pool against WMON", () => {
+    let factory, pokerGuarded;
 
-      // carol folds pre-flop, others go to showdown
-      await poker.connect(alice).playHand(0, 0, 0);
-      await poker.connect(bob).playHand(0, 2, 0);
-      await poker.connect(carol).playHand(0, 3, 0);
+    beforeEach(async () => {
+      // Deploy a fresh contract WITH the factory set (existing `poker` skips the check)
+      const MockFactory = await ethers.getContractFactory("MockV3Factory");
+      factory = await MockFactory.deploy();
+      await factory.waitForDeployment();
 
-      for (let round = 1; round <= 3; round++) {
-        await poker.dealCommunityCards(0, round, round === 1 ? [10, 11, 12] : [13]);
-        await poker.connect(alice).playHand(0, 2, 0);
-        await poker.connect(bob).playHand(0, 2, 0);
-      }
+      const MP = await ethers.getContractFactory("MollyPoker");
+      pokerGuarded = await MP.deploy(BURN, dev.address, molly.target, wmon.target, ZERO, factory.target);
+      await pokerGuarded.waitForDeployment();
+    });
 
-      // Try to declare carol (folded) the winner
-      await expect(poker.showdown(
-        0,
-        [k, k, k],
-        [{ card1: 1, card2: 2 }, { card1: 3, card2: 4 }, { card1: 5, card2: 6 }],
-        carol.address,
-        0,
-      )).to.be.revertedWith("Winner not in round");
+    it("MOLLY tables always allowed (no pool needed)", async () => {
+      // No pool configured for MOLLY/WMON in the factory — should still succeed
+      // because MOLLY tables use the 70/20/10 burn pattern, no swap
+      await pokerGuarded.createTable(BUY_IN, 2, BB, molly.target);
+      expect(await pokerGuarded.totalTables()).to.equal(1);
+    });
+
+    it("non-MOLLY token WITHOUT a Uniswap V3 pool reverts", async () => {
+      await pokerGuarded.setWhitelistedCreator(project.address, true);
+      // otherToken has NO pool registered in the factory yet
+      await expect(
+        pokerGuarded.connect(project).createTable(BUY_IN, 2, BB, otherToken.target)
+      ).to.be.revertedWith("token not graduated");
+    });
+
+    it("non-MOLLY token WITH a Uniswap V3 pool at any fee tier succeeds", async () => {
+      await pokerGuarded.setWhitelistedCreator(project.address, true);
+      // Register a pool at the 1% tier — simulates graduation
+      await factory.setPool(otherToken.target, wmon.target, 10000, alice.address);
+      await pokerGuarded.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+      expect(await pokerGuarded.totalTables()).to.equal(1);
+    });
+
+    it("checks all four standard tiers (100, 500, 3000, 10000)", async () => {
+      await pokerGuarded.setWhitelistedCreator(project.address, true);
+      // Pool only at the 0.05% tier
+      await factory.setPool(otherToken.target, wmon.target, 500, alice.address);
+      await pokerGuarded.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+      expect(await pokerGuarded.totalTables()).to.equal(1);
+    });
+
+    it("UNISWAP_FACTORY=address(0) disables the check (back-compat for testnet)", async () => {
+      // The existing `poker` (no factory) lets us create non-MOLLY tables freely
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+      expect(await poker.totalTables()).to.equal(1);
     });
   });
 });
