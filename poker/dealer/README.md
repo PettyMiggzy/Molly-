@@ -4,23 +4,46 @@ WebSocket server that runs poker hands off-chain and submits the owner-only txs
 (`dealCards`, `dealCommunityCards`, `showdown`) to the deployed MollyPoker
 contract.
 
-**Phase A (current):** scaffolding — server boots, auth via wallet signature,
-table state reads from chain. Game logic stubbed out.
+## Status
 
-**Phase B (next):** join_table, action handling, deck shuffle + commit-reveal.
+| phase | status | what it adds |
+|:---|:---|:---|
+| A | ✅ shipped | scaffolding, auth, chain reads, boot gate |
+| B | ✅ shipped | deck + commit-reveal + table state machine + game flow handlers |
+| C | pending | persistence, frontend wiring, nginx/wss, dealer-wallet migration |
+| D | pending | turn timers, reconnection polish, AFK kick, observability |
 
-**Phase C:** showdown evaluation via pokersolver + tx submission.
+## Architecture
 
-**Phase D:** reconnect, turn timers, frontend wiring.
+The dealer is an **orchestrator** — not a relayer. Players submit their own
+`playHand` txs from the frontend (call/raise/check/fold). The dealer's
+owner-only job is dealCards / dealCommunityCards / showdown — the txs that
+involve secret card information.
+
+Flow per hand:
+
+1. Players `buyIn(tableId, amount)` from the frontend → chain emits `NewBuyIn`
+2. Players connect WS, send `{type: "auth_request"}` → sign challenge → `auth_ok`
+3. Players send `{type: "join_table", tableId}` to register their WS with the dealer
+4. When ≥2 seated AND all seated players have sent `{type: "ready"}`, dealer:
+   - Shuffles a deck (Fisher-Yates + crypto.randomBytes)
+   - Generates per-player 256-bit keys
+   - Hashes each card with `keccak256(abi.encodePacked(key, card))`
+   - Submits `dealCards(hashes, tableId)`
+   - Pushes each player's hole cards to ONLY their WS connection (private)
+5. Players send `playHand` txs from frontend → chain emits `ActionTaken`/`RoundOver`
+6. On `RoundOver(0)`, dealer submits `dealCommunityCards(tableId, 1, flop)`. Repeat for turn/river.
+7. On `ShowdownStarted`, dealer:
+   - Reads round 3 from chain (knows who folded)
+   - Evaluates each live hand with pokersolver
+   - Submits `showdown(tableId, keys, cards, winner)` (which reveals + verifies hashes)
+8. `PotDistributed` event closes the hand; runner resets for the next one.
 
 ## Prerequisites
 
-The dealer reads the contract ABI from `../artifacts/`. Make sure you've
-compiled the contract first:
-
 ```bash
 cd ..   # poker/
-npx hardhat compile
+npx hardhat compile     # produces the ABI dealer loads
 ```
 
 ## Setup
@@ -29,83 +52,46 @@ npx hardhat compile
 cd dealer
 npm install
 cp .env.example .env
-# edit .env — set MONAD_RPC, DEALER_PRIVATE_KEY (the owner key), MOLLY_POKER_ADDRESS
+# edit .env — set MONAD_RPC, DEALER_PRIVATE_KEY (must be contract owner), MOLLY_POKER_ADDRESS
 ```
 
 The dealer wallet **must be the contract owner** (currently
 `0xB9d4B73bE18914c6d64Bee65a806648370be467f`). Anything else and `dealCards`
 will revert.
 
-It must also have MON for tx gas. Keep at least 0.5 MON in there.
+Keep at least 0.5 MON in the dealer wallet for tx gas.
 
-## Run locally
+## Run
 
+Local:
 ```bash
 npm start
 ```
 
-You'll see boot info:
-
-```
-[2026-05-20T17:00:00Z] INFO  starting MollyPoker dealer node...
-[2026-05-20T17:00:00Z] INFO  contract: 0x61bE14a4...AE99b814
-[2026-05-20T17:00:01Z] INFO  chain:    monad (chainId 143)
-[2026-05-20T17:00:01Z] INFO  dealer:   0xB9d4B73b...370be467f
-[2026-05-20T17:00:01Z] INFO  balance:  70.25 MON
-[2026-05-20T17:00:01Z] INFO  owner:    0xB9d4B73b...370be467f
-[2026-05-20T17:00:01Z] INFO  ✓ dealer is owner, ready to deal
-[2026-05-20T17:00:01Z] INFO  WebSocket server listening on :4001
-```
-
-## Run under PM2 (production)
-
+PM2:
 ```bash
-cd /opt/molly/dealer    # or wherever you cloned it on the droplet
-npm install --production
 pm2 start src/index.js --name molly-poker-dealer
 pm2 save
 ```
 
-Logs:
+Default port 4001 (3001 = monpad-server, 3002 = molly-pfp).
 
-```bash
-pm2 logs molly-poker-dealer
-```
-
-## Smoke test the WebSocket
-
-Use `wscat` (`npm install -g wscat`) or any WS client:
-
-```bash
-wscat -c ws://localhost:4001
-
-> {"type":"list_tables"}
-< {"type":"tables","tables":[]}
-
-> {"type":"auth_request"}
-< {"type":"auth_challenge","nonce":"...","message":"MollyPoker login\n..."}
-
-# sign the message with your wallet, then:
-> {"type":"auth_submit","nonce":"...","signature":"0x..."}
-< {"type":"auth_ok","address":"0x..."}
-```
-
-## Protocol (current — phase A)
+## Protocol
 
 ### Client → server
 
-| type | payload | auth required |
-|:---|:---|:---:|
-| `auth_request` | — | no |
-| `auth_submit` | `{ nonce, signature }` | no |
-| `list_tables` | — | no |
-| `table_state` | `{ tableId: number }` | no |
-| `join_table` | (not implemented, phase B) | yes |
-| `leave_table` | (not implemented, phase B) | yes |
-| `action` | (not implemented, phase B) | yes |
-| `ready` | (not implemented, phase B) | yes |
+| type | payload | auth | rate-limit |
+|:---|:---|:---:|:---:|
+| `auth_request` | — | no | general |
+| `auth_submit` | `{ nonce, signature }` | no | general |
+| `list_tables` | — | no | general |
+| `table_state` | `{ tableId }` | no | general |
+| `join_table` | `{ tableId }` | yes | general |
+| `leave_table` | — | yes | general |
+| `ready` | — | yes | action (higher) |
+| `action` | `{}` (informational only) | yes | action (higher) |
 
-### Server → client
+### Server → client (broadcast events)
 
 | type | when |
 |:---|:---|
@@ -114,5 +100,31 @@ wscat -c ws://localhost:4001
 | `auth_ok` / `auth_fail` | reply to auth_submit |
 | `tables` | reply to list_tables |
 | `table_state` | reply to table_state |
-| `error` | on any error |
-| `player_left` | when someone disconnects from a table |
+| `joined_table` / `left_table` | reply to join_table / leave_table |
+| `ready_ack` / `action_ack` | reply to ready / action |
+| `ready_update` | broadcast when any seated player signals ready |
+| `buy_in` / `left_table` (broadcast) | chain events |
+| `cards_dealt` | dealCards tx mined |
+| `your_cards` | **private — only sent to that player's WS** |
+| `action_taken` | ActionTaken event broadcast |
+| `round_over` | RoundOver event broadcast |
+| `community_cards` | CommunityCardsDealt event |
+| `showdown_started` | ShowdownStarted event |
+| `hand_complete` | PotDistributed event |
+| `emergency_refund` | EmergencyRefund event |
+| `deal_failed` / `showdown_failed` | dealer tx reverted |
+| `error` | per-message errors |
+
+## Rate limits
+
+- **General queries**: 10 messages / 10 sec per connection
+- **Action messages** (`ready`, `action`): 60 / 10 sec per connection (higher — poker needs sub-second betting)
+- **Connection cap**: 20 connections per IP
+- **Message size**: 16 KB max
+
+## Security notes
+
+- v1: dealer key = deployer key = contract owner. **Migrate before mass adoption** — create dedicated dealer wallet, fund with ops MON only, `transferOwnership` to it.
+- Auth: SIWE-style. Nonce bound to issuing WS session (no replay across connections).
+- Private cards delivered only to the seated player's connection(s). Other players see only hashes until showdown.
+- `setSwapRouter` / `setWhitelistedCreator` / etc. remain owner-callable — the dealer holds those keys until v2 splits roles.

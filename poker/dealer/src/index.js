@@ -3,7 +3,7 @@
 */
 import { config, log } from './config.js';
 import { bootInfo, detachAll } from './chain.js';
-import { startServer } from './server.js';
+import { startServer, stopAllRunners } from './server.js';
 import { stopAuthCleanup } from './auth.js';
 
 async function main() {
@@ -47,7 +47,9 @@ async function main() {
   async function shutdown(sig) {
     log.info(`${sig} — closing ${wss.clients.size} ws clients`);
     wss.clients.forEach(ws => ws.close(1001, 'server shutting down'));
-    // L5 — detach contract event listeners on shutdown (no-op in phase A, important for B/C)
+    // Stop per-table runners (each unsubscribes its event listeners)
+    try { await stopAllRunners(); } catch (e) { log.warn('stopAllRunners failed:', e.message); }
+    // L5 — detach any remaining contract event listeners
     try { await detachAll(); } catch (e) { log.warn('detachAll failed:', e.message); }
     stopAuthCleanup();
     wss.close(() => {

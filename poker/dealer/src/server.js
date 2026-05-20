@@ -1,9 +1,10 @@
 /*
    WebSocket server for the dealer.
 
-   Phase A: connection lifecycle, auth, basic routing, table-info reads.
-   Phase B will add: join_table, action handling, deck commit-reveal.
-   Phase C will add: showdown evaluation + tx submission.
+   Phase A: connection lifecycle, auth, table-info reads.
+   Phase B: join_table/leave_table/ready/action handlers, per-table broadcast,
+            private card delivery, integration with TableRunner registry.
+   Phase C will add: nginx/wss, reconnection, per-table teardown.
 */
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
@@ -12,19 +13,26 @@ import { config, log } from './config.js';
 import {
   newNonce, challengeMessage, verifyAndBind, getSession, clearSession,
 } from './auth.js';
-import { getTable, getTablePlayers, getRound, getCommunityCards, getTotalTables } from './chain.js';
+import {
+  getTable, getTablePlayers, getRound, getCommunityCards, getTotalTables,
+} from './chain.js';
+import {
+  initTables, getRunner, shutdownAllTables, listRunners,
+} from './tables.js';
 
-const clients = new Map(); // wsId -> { ws, address?, joinedTableId?, ip, rate }
+const clients = new Map(); // wsId -> { ws, address?, joinedTableId?, ip, rate, actionRate }
 
 // M5 — per-IP connection cap
 const MAX_CONNS_PER_IP = 20;
 const ipCounts = new Map(); // ip -> count
 
-// M3 — per-connection token bucket: 10 requests / 10 seconds
+// M3 — token bucket: 10 requests / 10 seconds for general queries
 const RATE_LIMIT = { max: 10, windowMs: 10_000 };
+// Higher rate for authenticated action messages (poker needs sub-second betting).
+// Distinct bucket so heavy query traffic can't starve action throughput.
+const ACTION_RATE_LIMIT = { max: 60, windowMs: 10_000 };
 
 // L8 — only trust x-forwarded-for when behind a known proxy.
-// Set DEALER_TRUST_PROXY=1 in env once nginx (or similar) is in front.
 const TRUST_PROXY = process.env.DEALER_TRUST_PROXY === '1';
 
 function clientIp(req) {
@@ -41,7 +49,6 @@ function send(ws, type, payload = {}) {
   try {
     frame = JSON.stringify({ type, ...payload });
   } catch (e) {
-    // M2 / H2 — JSON.stringify can throw on BigInt; log + send generic error
     log.error(`stringify failed for type=${type}:`, e.message);
     try { ws.send(JSON.stringify({ type: 'error', message: 'internal serialization error' })); }
     catch { /* socket dying */ }
@@ -51,36 +58,55 @@ function send(ws, type, payload = {}) {
   catch (e) { log.warn('send failed:', e.message); }
 }
 
-// M2 — never leak ethers/RPC error messages to the client
 function sendInternalError(ws, e) {
   log.error('internal error:', e?.stack || e?.message || e);
   send(ws, 'error', { message: 'internal error' });
 }
 
-function broadcastTable(tableId, type, payload, exceptWsId = null) {
-  for (const [wsId, c] of clients.entries()) {
-    if (c.joinedTableId === tableId && wsId !== exceptWsId) {
+/* ---------- broadcast helpers for TableRunner ---------- */
+
+function broadcastTable(tableId, type, payload) {
+  let count = 0;
+  for (const c of clients.values()) {
+    if (c.joinedTableId === tableId) {
       send(c.ws, type, payload);
+      count++;
     }
   }
+  log.debug(`broadcast t${tableId} ${type} → ${count} ws`);
 }
 
-// M3 — token-bucket rate limit per connection
-function checkRate(wsId) {
+// Address → WS lookup for private card delivery. A given address may have
+// multiple connections (e.g. mobile + desktop); send to all of them.
+function sendPrivate(address, type, payload) {
+  const lower = address.toLowerCase();
+  let count = 0;
+  for (const c of clients.values()) {
+    if (c.address && c.address.toLowerCase() === lower) {
+      send(c.ws, type, payload);
+      count++;
+    }
+  }
+  log.debug(`sendPrivate ${address.slice(0,8)} ${type} → ${count} ws`);
+}
+
+initTables({ broadcastTable, sendPrivate });
+
+/* ---------- rate limiting + validation ---------- */
+
+function checkRate(wsId, limit = RATE_LIMIT, bucketKey = 'rate') {
   const c = clients.get(wsId);
   if (!c) return false;
   const now = Date.now();
-  if (!c.rate || now - c.rate.start > RATE_LIMIT.windowMs) {
-    c.rate = { start: now, count: 1 };
+  const bucket = c[bucketKey];
+  if (!bucket || now - bucket.start > limit.windowMs) {
+    c[bucketKey] = { start: now, count: 1 };
     return true;
   }
-  c.rate.count += 1;
-  return c.rate.count <= RATE_LIMIT.max;
+  bucket.count += 1;
+  return bucket.count <= limit.max;
 }
 
-// N2 — cache totalTables() for 1 second to spare RPC on every table_state.
-// At 10 req/sec * 20 conn/IP * many IPs this adds up. Phase B will invalidate
-// proactively on the NewTableCreated event.
 let _totalCache = { value: 0, ts: 0 };
 async function cachedTotalTables() {
   if (Date.now() - _totalCache.ts < 1000) return _totalCache.value;
@@ -89,18 +115,25 @@ async function cachedTotalTables() {
 }
 export function invalidateTotalTablesCache() { _totalCache = { value: 0, ts: 0 }; }
 
-// M4 — strict tableId validation
 async function validateTableId(tableId) {
   if (!Number.isInteger(tableId) || tableId < 0) return false;
   const total = await cachedTotalTables();
   return tableId < total;
 }
 
-async function handleMessage(wsId, ws, raw) {
-  if (!checkRate(wsId)) {
-    return send(ws, 'error', { message: 'rate limited' });
+function requireAuth(wsId, ws) {
+  const s = getSession(wsId);
+  if (!s) {
+    send(ws, 'error', { message: 'auth required' });
+    return null;
   }
+  return s;
+}
 
+/* ---------- message router ---------- */
+
+async function handleMessage(wsId, ws, raw) {
+  // Per-type rate limiting: actions use a higher bucket.
   let msg;
   try { msg = JSON.parse(raw); }
   catch { return send(ws, 'error', { message: 'invalid json' }); }
@@ -108,16 +141,18 @@ async function handleMessage(wsId, ws, raw) {
     return send(ws, 'error', { message: 'missing type' });
   }
 
+  const isActionMessage = (msg.type === 'action' || msg.type === 'ready');
+  const limitOk = isActionMessage
+    ? checkRate(wsId, ACTION_RATE_LIMIT, 'actionRate')
+    : checkRate(wsId, RATE_LIMIT, 'rate');
+  if (!limitOk) return send(ws, 'error', { message: 'rate limited' });
+
   log.debug(`← ${wsId.slice(0,8)} ${msg.type}`);
 
   switch (msg.type) {
     case 'auth_request': {
-      // H3 — bind the nonce to this wsId
       const nonce = newNonce(wsId);
-      return send(ws, 'auth_challenge', {
-        nonce,
-        message: challengeMessage(nonce),
-      });
+      return send(ws, 'auth_challenge', { nonce, message: challengeMessage(nonce) });
     }
 
     case 'auth_submit': {
@@ -165,7 +200,7 @@ async function handleMessage(wsId, ws, raw) {
       const community = await getCommunityCards(tableId);
       let round = null;
       if (t.state === 0) {
-        round = await getRound(tableId, t.currentRound); // BigInts already stringified by chain.js
+        round = await getRound(tableId, t.currentRound);
       }
       return send(ws, 'table_state', {
         tableId,
@@ -184,11 +219,81 @@ async function handleMessage(wsId, ws, raw) {
       });
     }
 
-    case 'join_table':
-    case 'leave_table':
-    case 'action':
-    case 'ready':
-      return send(ws, 'error', { message: `${msg.type} not yet implemented (phase B)` });
+    case 'join_table': {
+      const session = requireAuth(wsId, ws);
+      if (!session) return;
+      const { tableId } = msg;
+      if (!(await validateTableId(tableId))) {
+        return send(ws, 'error', { message: 'invalid tableId' });
+      }
+      // Verify they're actually seated on-chain at this table
+      const players = await getTablePlayers(tableId);
+      const isSeated = players.map(p => p.toLowerCase()).includes(session.address.toLowerCase());
+      if (!isSeated) {
+        return send(ws, 'error', { message: 'not seated on this table; call buyIn first' });
+      }
+
+      const c = clients.get(wsId);
+      if (!c) return;
+      // If they were already at another table, remove them from that runner
+      if (c.joinedTableId !== null && c.joinedTableId !== undefined && c.joinedTableId !== tableId) {
+        const old = getRunner(c.joinedTableId);
+        old.removePlayer(session.address);
+      }
+      c.joinedTableId = tableId;
+      const runner = getRunner(tableId);
+      runner.addPlayer(session.address);
+
+      return send(ws, 'joined_table', {
+        tableId,
+        message: 'joined; send {type:"ready"} when you want the next hand to start',
+      });
+    }
+
+    case 'leave_table': {
+      const session = requireAuth(wsId, ws);
+      if (!session) return;
+      const c = clients.get(wsId);
+      if (!c || c.joinedTableId === null || c.joinedTableId === undefined) {
+        return send(ws, 'error', { message: 'not joined to any table' });
+      }
+      const tid = c.joinedTableId;
+      const runner = getRunner(tid);
+      runner.removePlayer(session.address);
+      c.joinedTableId = null;
+      // Note: on-chain leaveTable is a separate frontend call — this just
+      // disconnects them from the dealer's awareness.
+      return send(ws, 'left_table', { tableId: tid });
+    }
+
+    case 'ready': {
+      const session = requireAuth(wsId, ws);
+      if (!session) return;
+      const c = clients.get(wsId);
+      if (!c || c.joinedTableId === null || c.joinedTableId === undefined) {
+        return send(ws, 'error', { message: 'join a table first' });
+      }
+      const runner = getRunner(c.joinedTableId);
+      await runner.setReady(session.address);
+      return send(ws, 'ready_ack', { tableId: c.joinedTableId });
+    }
+
+    case 'action': {
+      // Players submit their playHand tx directly from the frontend.
+      // This handler is informational only — we just ack so the UI can
+      // show a "submitting" state. The authoritative state update comes
+      // from the ActionTaken event broadcast by the TableRunner.
+      const session = requireAuth(wsId, ws);
+      if (!session) return;
+      const c = clients.get(wsId);
+      if (!c || c.joinedTableId === null || c.joinedTableId === undefined) {
+        return send(ws, 'error', { message: 'join a table first' });
+      }
+      return send(ws, 'action_ack', {
+        tableId: c.joinedTableId,
+        message: 'submit your playHand tx on-chain; we will broadcast the result',
+      });
+    }
 
     default:
       return send(ws, 'error', { message: `unknown type: ${msg.type}` });
@@ -198,12 +303,9 @@ async function handleMessage(wsId, ws, raw) {
 export function startServer() {
   const wss = new WebSocketServer({
     port: config.port,
-    maxPayload: 16 * 1024, // M1 — 16 KB cap, no phase-A message exceeds ~1 KB
+    maxPayload: 16 * 1024,
   });
 
-  // N1 — surface server-level errors (port-in-use, underlying HTTP errors).
-  // uncaughtException only logs (doesn't exit), so without this the process
-  // would happily run with a broken/never-bound server. Hard-exit; PM2 restarts.
   wss.on('error', (e) => {
     log.error('WebSocketServer error (fatal):', e);
     process.exit(1);
@@ -217,7 +319,6 @@ export function startServer() {
     const wsId = randomUUID();
     const ip = clientIp(req);
 
-    // M5 — enforce per-IP connection cap
     const ipCount = ipCounts.get(ip) || 0;
     if (ipCount >= MAX_CONNS_PER_IP) {
       log.warn(`reject ${ip}: too many connections (${ipCount})`);
@@ -226,10 +327,12 @@ export function startServer() {
     }
     ipCounts.set(ip, ipCount + 1);
 
-    clients.set(wsId, { ws, address: null, joinedTableId: null, ip, rate: null });
+    clients.set(wsId, {
+      ws, address: null, joinedTableId: null, ip,
+      rate: null, actionRate: null,
+    });
     log.info(`+ connect ${wsId.slice(0,8)} from ${ip} (${clients.size} total)`);
 
-    // L9 — don't echo wsId back to the client; it's an internal handle
     send(ws, 'hello', {
       contract: config.contractAddress,
       message: 'send {type:"auth_request"} to begin',
@@ -237,16 +340,15 @@ export function startServer() {
 
     ws.on('message', async (raw) => {
       try { await handleMessage(wsId, ws, raw.toString()); }
-      catch (e) {
-        sendInternalError(ws, e);  // M2 — sanitized
-      }
+      catch (e) { sendInternalError(ws, e); }
     });
 
     const cleanup = () => {
       const c = clients.get(wsId);
       if (!c) return;
-      if (c.joinedTableId !== null && c.joinedTableId !== undefined) {
-        broadcastTable(c.joinedTableId, 'player_left', { address: c.address }, wsId);
+      if (c.joinedTableId !== null && c.joinedTableId !== undefined && c.address) {
+        const runner = getRunner(c.joinedTableId);
+        runner.removePlayer(c.address);
       }
       clearSession(wsId);
       clients.delete(wsId);
@@ -259,9 +361,17 @@ export function startServer() {
     ws.on('close', cleanup);
     ws.on('error', (e) => {
       log.warn(`ws error ${wsId.slice(0,8)}:`, e.message);
-      cleanup(); // L4-adjacent — ensure map cleanup even if close doesn't fire
+      cleanup();
     });
   });
 
   return wss;
+}
+
+export async function stopAllRunners() {
+  await shutdownAllTables();
+}
+
+export function activeRunnerIds() {
+  return listRunners();
 }

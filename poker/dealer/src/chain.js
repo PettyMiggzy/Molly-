@@ -146,6 +146,62 @@ export function onEvent(name, handler) {
   log.debug(`subscribed to event: ${name}`);
 }
 
+/**
+ * Subscribe to all per-table events for a single table.
+ * Handlers are object keyed by event name; each receives the indexed/named
+ * args ethers v6 passes for that event, followed by the EventLog object.
+ *
+ *   subscribeToTable(7, {
+ *     onBuyIn:           (player, amount, received, ev) => ...,
+ *     onLeftTable:       (player, ev) => ...,
+ *     onActionTaken:     (roundId, player, action, amount, ev) => ...,
+ *     onRoundOver:       (roundId, ev) => ...,
+ *     onShowdownStarted: (handNum, ev) => ...,
+ *     onPotDistributed:  (handNum, winner, tableToken, winnerAmt, burnAmt, devAmt, ev) => ...,
+ *     onCardsDealt:      (handNum, cardHashes, ev) => ...,
+ *   })
+ *
+ * Returns an unsubscribe function that detaches all the listeners it added.
+ */
+export function subscribeToTable(tableId, handlers) {
+  const filters = [];
+  const map = [
+    ['NewBuyIn',          handlers.onBuyIn],
+    ['LeftTable',         handlers.onLeftTable],
+    ['ActionTaken',       handlers.onActionTaken],
+    ['RoundOver',         handlers.onRoundOver],
+    ['ShowdownStarted',   handlers.onShowdownStarted],
+    ['PotDistributed',    handlers.onPotDistributed],
+    ['CardsDealt',        handlers.onCardsDealt],
+    ['CommunityCardsDealt', handlers.onCommunityCardsDealt],
+    ['EmergencyRefund',   handlers.onEmergencyRefund],
+  ];
+  for (const [name, h] of map) {
+    if (!h) continue;
+    // tableId is the indexed first arg on all these events
+    const filter = contract.filters[name](tableId);
+    contract.on(filter, h);
+    filters.push({ filter, h });
+  }
+  log.debug(`subscribed to ${filters.length} events for table ${tableId}`);
+  return async function unsubscribe() {
+    for (const { filter, h } of filters) {
+      await contract.off(filter, h);
+    }
+    log.debug(`unsubscribed ${filters.length} events for table ${tableId}`);
+  };
+}
+
+/**
+ * Global subscription to NewTableCreated — fires whenever any new table is
+ * created on-chain. Returns an unsubscribe function.
+ */
+export function onNewTableCreated(handler) {
+  const filter = contract.filters.NewTableCreated();
+  contract.on(filter, handler);
+  return async () => { await contract.off(filter, handler); };
+}
+
 export async function detachAll() {
   await contract.removeAllListeners();
 }
