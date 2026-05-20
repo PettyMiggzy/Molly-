@@ -768,7 +768,7 @@ const MOLLY_POKER_ABI = [
   'function tables(uint256) view returns (uint8 state, uint8 currentRound, address token, address creator, uint256 totalHands, uint256 pot, uint256 buyInAmount, uint256 bigBlind, uint8 maxPlayers)',
   'function getTablePlayers(uint256) view returns (address[])',
   'function getCommunityCards(uint256) view returns (uint8[])',
-  'function getRound(uint256, uint256) view returns (tuple(address[] players, uint256[] chips, bool[] folded, uint256 lastActionTime))',
+  'function getRound(uint256, uint256) view returns (bool state, uint256 turn, address[] players, uint256 highestChip, uint256[] roundChips, bool[] folded, uint256 actsSinceReset)',
   'function chips(address, uint256) view returns (uint256)',
   'function buyIn(uint256 tableId, uint256 amount)',
   'function playHand(uint256 tableId, uint8 action, uint256 raiseAmount)',
@@ -817,7 +817,13 @@ function log(msg, kind = '') {
   const ts = new Date().toLocaleTimeString();
   const div = document.createElement('div');
   div.className = `entry ${kind}`;
-  div.innerHTML = `<span class="ts">${ts}</span> ${msg}`;
+  // M2 — use text nodes, never innerHTML. Even though current callers only
+  // pass server-derived hex/numeric/enum strings, this pattern would become
+  // a stored-XSS vector the moment any user-controlled field flows through.
+  const tsSpan = document.createElement('span');
+  tsSpan.className = 'ts';
+  tsSpan.textContent = ts;
+  div.append(tsSpan, document.createTextNode(' ' + msg));
   logBox.appendChild(div);
   logBox.scrollTop = logBox.scrollHeight;
 }
@@ -919,9 +925,31 @@ async function connectWallet() {
     log('wallet connected: ' + shortAddr(State.address), 'good');
     toast('Connected', 'success');
 
-    // React to account changes
-    window.ethereum.on('accountsChanged', () => location.reload());
-    window.ethereum.on('chainChanged', () => location.reload());
+    // React to account/chain changes — soft-disconnect to lobby rather than
+    // hard-reloading mid-hand (which loses my-cards state)
+    window.ethereum.on('accountsChanged', (accs) => {
+      if (!accs.length) {
+        toast('Wallet disconnected', 'error');
+        location.href = '/poker-live.html';
+        return;
+      }
+      if (accs[0].toLowerCase() !== State.address?.toLowerCase()) {
+        toast('Account switched — returning to lobby', 'error');
+        if (State.currentTableId !== null) {
+          // Don't auto-leaveTable on chain (would burn gas); just disconnect locally
+          State.currentTableId = null;
+          State.myCards = null;
+          $('lobby').style.display = 'block';
+          $('room').classList.remove('active');
+        }
+        // Reload to reinit signer + balance for new account
+        location.reload();
+      }
+    });
+    window.ethereum.on('chainChanged', () => {
+      toast('Chain changed — reloading', 'error');
+      location.reload();
+    });
   } catch (e) {
     console.error(e);
     toast('Connection failed: ' + (e.shortMessage || e.message), 'error');
@@ -933,12 +961,24 @@ async function refreshWalletInfo() {
 }
 
 function renderWalletBar() {
-  $('walletBar').innerHTML = `
-    <div class="wallet-info">
-      <span class="wallet-addr" onclick="navigator.clipboard.writeText('${State.address}').then(()=>toast('address copied','success'))">${shortAddr(State.address)}</span>
-      <span class="wallet-balance">${fmtMolly(State.mollyBalance)} MOLLY</span>
-    </div>
-  `;
+  const bar = $('walletBar');
+  bar.innerHTML = '';
+  const info = document.createElement('div');
+  info.className = 'wallet-info';
+
+  const addr = document.createElement('span');
+  addr.className = 'wallet-addr';
+  addr.textContent = shortAddr(State.address);
+  addr.addEventListener('click', () => {
+    navigator.clipboard.writeText(State.address).then(() => toast('address copied','success'));
+  });
+
+  const bal = document.createElement('span');
+  bal.className = 'wallet-balance';
+  bal.textContent = fmtMolly(State.mollyBalance) + ' MOLLY';
+
+  info.append(addr, bal);
+  bar.appendChild(info);
 }
 
 /* ===== DEALER WEBSOCKET ===== */
@@ -1181,8 +1221,12 @@ async function loadTablesFromChain() {
 
 function renderTableList() {
   const body = $('lobbyBody');
+  body.innerHTML = '';
   if (State.tablesCache.length === 0) {
-    body.innerHTML = `<div class="info-panel">No tables exist yet. <strong>Be the first</strong> — table creation coming soon.</div>`;
+    const panel = document.createElement('div');
+    panel.className = 'info-panel';
+    panel.textContent = 'No tables exist yet. Be the first — table creation coming soon.';
+    body.appendChild(panel);
     return;
   }
   const grid = document.createElement('div');
@@ -1190,23 +1234,44 @@ function renderTableList() {
   for (const t of State.tablesCache) {
     const card = document.createElement('div');
     card.className = 'table-card';
-    const stateClass = t.state.toLowerCase();
+    const stateClass = String(t.state).toLowerCase();
     const isMolly = t.token.toLowerCase() === MOLLY_ADDRESS.toLowerCase();
-    card.innerHTML = `
-      <div class="felt"></div>
-      <div class="state-badge ${stateClass}">${t.state}</div>
-      <div class="label">TABLE</div>
-      <div class="title">#${t.tableId}</div>
-      <div class="row"><span>Buy-in</span><span class="v ${isMolly ? 'molly' : 'pink'}">${fmtMolly(t.buyIn)} ${isMolly ? 'MOLLY' : 'tkn'}</span></div>
-      <div class="row"><span>Big blind</span><span class="v">${fmtMolly(t.bigBlind)}</span></div>
-      <div class="row"><span>Seats</span><span class="v">${t.seated}/${t.maxPlayers}</span></div>
-      <div class="row"><span>Hands played</span><span class="v gold">${t.totalHands}</span></div>
-      <div class="row"><span>Pot</span><span class="v gold">${fmtMolly(t.pot)}</span></div>
-      <button class="btn btn-primary cta" onclick="sitDown(${t.tableId})">SIT DOWN</button>
-    `;
+
+    // M2 — every interpolated value is server/contract-derived but we still
+    // build via createElement + textContent to keep the pattern safe.
+    const felt = document.createElement('div'); felt.className = 'felt'; card.appendChild(felt);
+
+    const badge = document.createElement('div');
+    badge.className = `state-badge ${stateClass}`;
+    badge.textContent = t.state;
+    card.appendChild(badge);
+
+    const label = document.createElement('div');
+    label.className = 'label'; label.textContent = 'TABLE'; card.appendChild(label);
+
+    const title = document.createElement('div');
+    title.className = 'title'; title.textContent = '#' + t.tableId; card.appendChild(title);
+
+    const mkRow = (k, v, cls = '') => {
+      const row = document.createElement('div'); row.className = 'row';
+      const left = document.createElement('span'); left.textContent = k;
+      const right = document.createElement('span'); right.className = 'v ' + cls; right.textContent = v;
+      row.append(left, right); return row;
+    };
+    card.appendChild(mkRow('Buy-in', fmtMolly(t.buyIn) + (isMolly ? ' MOLLY' : ' tkn'), isMolly ? 'molly' : 'pink'));
+    card.appendChild(mkRow('Big blind', fmtMolly(t.bigBlind)));
+    card.appendChild(mkRow('Seats', t.seated + '/' + t.maxPlayers));
+    card.appendChild(mkRow('Hands played', String(t.totalHands), 'gold'));
+    card.appendChild(mkRow('Pot', fmtMolly(t.pot), 'gold'));
+
+    const cta = document.createElement('button');
+    cta.className = 'btn btn-primary cta';
+    cta.textContent = 'SIT DOWN';
+    cta.addEventListener('click', () => sitDown(t.tableId));
+    card.appendChild(cta);
+
     grid.appendChild(card);
   }
-  body.innerHTML = '';
   body.appendChild(grid);
 }
 
@@ -1332,10 +1397,11 @@ function renderRoom(state) {
     seat.className = 'seat';
     if (isYou) seat.classList.add('you');
     if (round && round.folded && round.folded[i]) seat.classList.add('folded');
-    const chips = round && round.chips ? round.chips[i] : 0n;
+    // Server normalizes BigInts → strings; field name is roundChips (matches contract)
+    const chipsRaw = round && round.roundChips ? round.roundChips[i] : '0';
     seat.innerHTML = `
       <div class="name">${isYou ? 'YOU' : shortAddr(addr)}</div>
-      <div class="chips">${fmtMolly(chips)}</div>
+      <div class="chips">${fmtMolly(chipsRaw)}</div>
       <div class="status">${round && round.folded && round.folded[i] ? 'folded' : ''}</div>
     `;
     seatsEl.appendChild(seat);
@@ -1453,6 +1519,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose globally for inline onclicks
 window.sitDown = sitDown;
 window.toast = toast;
+
+// M10 — periodic lobby refresh so pot/seat counts stay reasonably fresh
+// without depending on dealer push events for every table change.
+setInterval(() => {
+  if (State.currentTableId === null && State.ws && State.ws.readyState === WebSocket.OPEN) {
+    loadTables();
+  }
+}, 15_000);
 </script>
 
 </body>

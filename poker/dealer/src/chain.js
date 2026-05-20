@@ -45,25 +45,105 @@ if (!ABI) {
 log.debug(`ABI loaded from ${abiLoadedFrom}`);
 
 export const provider = new ethers.JsonRpcProvider(config.rpc);
-// Wallet kept module-internal. External callers go through the helpers below
-// (dealCards/dealCommunityCards/showdown/bootInfo) rather than touching the
-// signer directly — keeps the dealer key reachable only from this file.
 const wallet = new ethers.Wallet(getDealerKey(), provider);
 export const contract = new ethers.Contract(config.contractAddress, ABI, wallet);
 
-// Separate provider for event subscriptions. WSS gives sub-second event
-// delivery vs ~2-12s for HTTP polling. Falls back to the HTTP contract if
-// MONAD_RPC_WSS isn't set.
-let eventContract;
-let eventProvider;
-if (config.rpcWss) {
-  eventProvider = new ethers.WebSocketProvider(config.rpcWss);
-  eventContract = new ethers.Contract(config.contractAddress, ABI, eventProvider);
-  log.info(`event subscriptions via WSS: ${config.rpcWss.replace(/\/\/[^@]*@/, '//<key>@')}`);
-} else {
-  eventContract = contract;
-  log.info(`event subscriptions via HTTP polling (set MONAD_RPC_WSS for real-time)`);
+/* ---------- WSS event-subscription manager ----------
+   ethers v6 WebSocketProvider has no built-in reconnect — if QuickNode drops
+   the socket, all subscriptions silently die. We wrap it with a heartbeat
+   watchdog: every HEARTBEAT_MS we ping the provider; on consecutive failures
+   we destroy + rebuild and re-install all known subscriptions.
+*/
+const HEARTBEAT_MS = 30_000;
+const HEARTBEAT_FAILS_BEFORE_REBUILD = 2;
+
+let eventProvider = null;     // WebSocketProvider or null when HTTP fallback
+let eventContract = null;     // Contract bound to the active event provider
+let heartbeatTimer = null;
+let heartbeatFails = 0;
+let _rebuildInProgress = false;
+
+// Registry of active subscriptions so we can replay them after a rebuild.
+// Each entry: { name: 'NewBuyIn', args: [tableId], handler: fn }
+const _subs = new Set();
+
+function _safeWssUrlLog() {
+  try {
+    const u = new URL(config.rpcWss);
+    return `${u.protocol}//${u.host} (path hidden)`;
+  } catch { return '(redacted)'; }
 }
+
+function _buildEventStack() {
+  if (config.rpcWss) {
+    eventProvider = new ethers.WebSocketProvider(config.rpcWss);
+    eventContract = new ethers.Contract(config.contractAddress, ABI, eventProvider);
+    log.info(`event subscriptions via WSS: ${_safeWssUrlLog()}`);
+  } else {
+    eventProvider = null;
+    eventContract = contract; // share the HTTP-backed contract
+    log.info(`event subscriptions via HTTP polling (set MONAD_RPC_WSS for real-time)`);
+  }
+}
+
+async function _rebuildAndResubscribe() {
+  if (_rebuildInProgress) return;
+  _rebuildInProgress = true;
+  try {
+    log.warn(`WSS connection unhealthy — rebuilding (${_subs.size} subs to replay)`);
+    // Best-effort tear-down of the old provider
+    if (eventProvider && typeof eventProvider.destroy === 'function') {
+      try { await eventProvider.destroy(); } catch (e) { log.debug(`old WSS destroy: ${e.message}`); }
+    }
+    _buildEventStack();
+    // Replay every recorded sub against the new eventContract
+    for (const sub of _subs) {
+      try {
+        const filter = sub.args && sub.args.length
+          ? eventContract.filters[sub.name](...sub.args)
+          : eventContract.filters[sub.name]();
+        eventContract.on(filter, sub.handler);
+      } catch (e) {
+        log.error(`replay sub ${sub.name}(${sub.args.join(',')}) failed: ${e.message}`);
+      }
+    }
+    heartbeatFails = 0;
+    log.info(`WSS rebuild complete — ${_subs.size} subs reinstalled`);
+  } catch (e) {
+    log.error(`WSS rebuild failed: ${e.message}`);
+  } finally {
+    _rebuildInProgress = false;
+  }
+}
+
+function _startHeartbeat() {
+  if (!config.rpcWss || heartbeatTimer) return;
+  heartbeatTimer = setInterval(async () => {
+    try {
+      // Cheap call — if WSS is dead this rejects fast
+      await eventProvider.getBlockNumber();
+      if (heartbeatFails > 0) log.debug(`WSS heartbeat ok (recovered)`);
+      heartbeatFails = 0;
+    } catch (e) {
+      heartbeatFails++;
+      log.warn(`WSS heartbeat fail ${heartbeatFails}/${HEARTBEAT_FAILS_BEFORE_REBUILD}: ${e.message}`);
+      if (heartbeatFails >= HEARTBEAT_FAILS_BEFORE_REBUILD) {
+        _rebuildAndResubscribe().catch(err => log.error(`rebuild threw: ${err.message}`));
+      }
+    }
+  }, HEARTBEAT_MS);
+  heartbeatTimer.unref();
+}
+
+function _stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+_buildEventStack();
+_startHeartbeat();
 
 // Exported deliberately as a getter so the address can be inspected/logged but
 // the wallet object itself isn't passed around.
@@ -153,6 +233,18 @@ export async function showdown(tableId, keys, cards, winner) {
   return rcpt;
 }
 
+// C5 — used when the dealer detects a tie at showdown. The current contract
+// only accepts a single winner; calling emergencyRefund returns all players'
+// chips and resets the table, which is the only fund-safe path until the
+// contract gains split-pot support.
+export async function emergencyRefund(tableId) {
+  log.warn(`tx emergencyRefund table=${tableId} (likely tie-induced)`);
+  const tx = await contract.emergencyRefund(tableId);
+  const rcpt = await tx.wait();
+  log.info(`✓ emergencyRefund tx=${tx.hash}`);
+  return rcpt;
+}
+
 /* ---------- event listeners ---------- */
 
 export function onEvent(name, handler) {
@@ -176,7 +268,7 @@ export function onEvent(name, handler) {
  *   })
  */
 export function subscribeToTable(tableId, handlers) {
-  const filters = [];
+  const subs = [];
   const map = [
     ['NewBuyIn',          handlers.onBuyIn],
     ['LeftTable',         handlers.onLeftTable],
@@ -192,25 +284,43 @@ export function subscribeToTable(tableId, handlers) {
     if (!h) continue;
     const filter = eventContract.filters[name](tableId);
     eventContract.on(filter, h);
-    filters.push({ filter, h });
+    const sub = { name, args: [tableId], handler: h };
+    _subs.add(sub);
+    subs.push(sub);
   }
-  log.debug(`subscribed to ${filters.length} events for table ${tableId}`);
+  log.debug(`subscribed to ${subs.length} events for table ${tableId}`);
   return async function unsubscribe() {
-    for (const { filter, h } of filters) {
-      await eventContract.off(filter, h);
+    for (const sub of subs) {
+      try {
+        const filter = eventContract.filters[sub.name](...sub.args);
+        await eventContract.off(filter, sub.handler);
+      } catch (e) { log.debug(`unsub ${sub.name} failed: ${e.message}`); }
+      _subs.delete(sub);
     }
-    log.debug(`unsubscribed ${filters.length} events for table ${tableId}`);
+    log.debug(`unsubscribed ${subs.length} events for table ${tableId}`);
   };
 }
 
 export function onNewTableCreated(handler) {
   const filter = eventContract.filters.NewTableCreated();
   eventContract.on(filter, handler);
-  return async () => { await eventContract.off(filter, handler); };
+  const sub = { name: 'NewTableCreated', args: [], handler };
+  _subs.add(sub);
+  return async () => {
+    try {
+      const f = eventContract.filters.NewTableCreated();
+      await eventContract.off(f, handler);
+    } catch (e) { log.debug(`unsub NewTableCreated failed: ${e.message}`); }
+    _subs.delete(sub);
+  };
 }
 
 export async function detachAll() {
-  await eventContract.removeAllListeners();
+  _stopHeartbeat();
+  _subs.clear();
+  if (eventContract) {
+    try { await eventContract.removeAllListeners(); } catch {}
+  }
   if (eventProvider && typeof eventProvider.destroy === 'function') {
     try { await eventProvider.destroy(); }
     catch (e) { log.warn('WSS provider destroy failed:', e.message); }

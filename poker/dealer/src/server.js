@@ -35,8 +35,19 @@ const ACTION_RATE_LIMIT = { max: 60, windowMs: 10_000 };
 // L8 — only trust x-forwarded-for when behind a known proxy.
 const TRUST_PROXY = process.env.DEALER_TRUST_PROXY === '1';
 
+function isLoopback(addr) {
+  // Covers IPv4 (127.x), IPv6 (::1), and IPv4-mapped-IPv6 (::ffff:127.x)
+  return addr === '127.0.0.1'
+      || addr === '::1'
+      || (addr && (addr.startsWith('::ffff:127.') || addr.startsWith('127.')));
+}
+
 function clientIp(req) {
-  if (TRUST_PROXY) {
+  // M4 — only honor XFF when the immediate peer is loopback (i.e. nginx
+  // running on the same host). Without this guard, anyone with a direct
+  // route to :4001 could spoof their IP by sending an x-forwarded-for
+  // header, bypassing per-IP rate limits and connection caps.
+  if (TRUST_PROXY && isLoopback(req.socket.remoteAddress)) {
     const fwd = req.headers['x-forwarded-for'];
     if (fwd) return String(fwd).split(',')[0].trim();
   }
@@ -324,6 +335,21 @@ export function startServer() {
     log.info(`WebSocket server listening on :${config.port}`);
   });
 
+  // M3 — periodic ping reaper. Sockets that didn't pong in the last
+  // 30s are terminated (the cleanup handler runs via 'close').
+  const heartbeat = setInterval(() => {
+    wss.clients.forEach(ws => {
+      if (ws.isAlive === false) {
+        try { ws.terminate(); } catch {}
+        return;
+      }
+      ws.isAlive = false;
+      try { ws.ping(); } catch {}
+    });
+  }, 30_000);
+  heartbeat.unref();
+  wss.on('close', () => clearInterval(heartbeat));
+
   wss.on('connection', (ws, req) => {
     const wsId = randomUUID();
     const ip = clientIp(req);
@@ -335,6 +361,11 @@ export function startServer() {
       return;
     }
     ipCounts.set(ip, ipCount + 1);
+
+    // M3 — heartbeat. Mark socket alive on each pong; reaper terminates
+    // any that miss a round-trip.
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
 
     clients.set(wsId, {
       ws, address: null, joinedTableId: null, ip,

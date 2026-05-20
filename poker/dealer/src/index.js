@@ -2,8 +2,8 @@
    Entry point. Validates chain connection + ownership, then starts WS server.
 */
 import { config, log } from './config.js';
-import { bootInfo, detachAll } from './chain.js';
-import { startServer, stopAllRunners } from './server.js';
+import { bootInfo, detachAll, onNewTableCreated } from './chain.js';
+import { startServer, stopAllRunners, invalidateTotalTablesCache } from './server.js';
 import { stopAuthCleanup } from './auth.js';
 import { listSavedTables } from './persistence.js';
 import { getRunner } from './tables.js';
@@ -54,6 +54,17 @@ async function main() {
       catch (e) { log.warn(`failed to restore runner for table ${tid}: ${e.message}`); }
     }
   }
+
+  // H6 — subscribe to NewTableCreated globally so events stop being dropped
+  // for the window between table creation and first WS join. Also pre-warms
+  // a runner for the new table (which subscribes to its per-table events).
+  onNewTableCreated((tableId) => {
+    const tid = Number(tableId);
+    log.info(`event NewTableCreated: tableId=${tid} — pre-warming runner`);
+    invalidateTotalTablesCache();
+    try { getRunner(tid); }
+    catch (e) { log.warn(`pre-warm runner failed for table ${tid}: ${e.message}`); }
+  });
 
   const wss = startServer();
 

@@ -22,8 +22,8 @@ const { Hand } = pokersolver;
 
 import { log, metrics } from './config.js';
 import {
-  getTablePlayers, getTable, getRound,
-  dealCards, dealCommunityCards, showdown,
+  getTablePlayers, getTable, getRound, getCommunityCards,
+  dealCards, dealCommunityCards, showdown, emergencyRefund,
   subscribeToTable,
 } from './chain.js';
 import { shuffleDeck, commitPlayerCards, cardToString, cardToPokersolver } from './deck.js';
@@ -96,6 +96,33 @@ export class TableRunner {
     this.keys = new Map(Object.entries(saved.keys || {}));
     this.communityCards = saved.communityCards || [];
     log.info(`[t${this.tableId}] restored: ${this.seatOrder.length} seats, state=${this.localState}, deck=${this.deck ? 'present' : 'none'}`);
+
+    // C3 — reconcile pending tx by reading chain state. If the tx mined,
+    // chain has the new state and we proceed. If it didn't mine, we discard
+    // the optimistic local state (community cards rollback already happens
+    // in the helper that wrote them).
+    if (saved._pendingTx) {
+      log.warn(`[t${this.tableId}] restore: pending ${saved._pendingTx.kind} tx — reconciling against chain`);
+      try {
+        const t = await getTable(this.tableId);
+        const chainCommunity = await getCommunityCards(this.tableId);
+        // If chain has more community cards than we recorded as committed,
+        // the dealCommunity tx mined — keep deck/keys, advance local state.
+        if (chainCommunity.length > (saved.communityCards || []).length) {
+          this.communityCards = chainCommunity.map(c => Number(c));
+          log.info(`[t${this.tableId}] reconcile: chain has ${chainCommunity.length} community cards, accepted`);
+        }
+        // If chain is at hand N+1 from what we expected, the showdown completed
+        // before we recorded it — drop the in-memory hand entirely.
+        if (Number(t.state) !== 0 && this.localState !== 'IDLE') {
+          log.warn(`[t${this.tableId}] reconcile: chain not Active, resetting hand`);
+          await this._resetHand();
+          return;
+        }
+      } catch (e) {
+        log.error(`[t${this.tableId}] reconcile failed: ${e.message} — caution advised`);
+      }
+    }
   }
 
   async _persist() {
@@ -107,6 +134,7 @@ export class TableRunner {
       keys: Object.fromEntries(this.keys),
       holeCards: Object.fromEntries(this.holeCards),
       communityCards: this.communityCards,
+      _pendingTx: this._pendingTx || null,
     });
   }
 
@@ -140,6 +168,20 @@ export class TableRunner {
           log.info(`[t${this.tableId}] re-delivered cards to ${address.slice(0,8)} on reconnect`);
         } catch (e) {
           log.warn(`[t${this.tableId}] re-deliver failed: ${e.message}`);
+        }
+      }
+      // H3 — also re-broadcast the in-flight turn countdown so the
+      // reconnecting client sees the same deadline everyone else does
+      if (this.turnDeadline && this.turnDeadline > Date.now()) {
+        try {
+          this.sendPrivate(address, 'turn_started', {
+            tableId: this.tableId,
+            deadline: this.turnDeadline,
+            timeoutMs: Math.max(0, this.turnDeadline - Date.now()),
+            reconnected: true,
+          });
+        } catch (e) {
+          log.warn(`[t${this.tableId}] re-send turn_started failed: ${e.message}`);
         }
       }
     }
@@ -213,6 +255,14 @@ export class TableRunner {
 
     log.info(`[t${this.tableId}] starting hand for ${chainPlayers.length} players`);
     metrics.inc('handsStarted');
+
+    // C3 — persist deck/keys BEFORE submitting the dealCards tx. If we crash
+    // between tx-submit and tx-confirm, the deck is still on disk and we can
+    // reconcile against chain state on restart.
+    this._pendingTx = { kind: 'dealCards', startedAt: Date.now() };
+    try { await this._persist(); }
+    catch (e) { log.warn(`[t${this.tableId}] pre-tx persist failed: ${e.message}`); }
+
     try {
       await dealCards(this.tableId, hashes);
       metrics.inc('dealCardsTx');
@@ -220,10 +270,13 @@ export class TableRunner {
       metrics.inc('txErrors');
       log.error(`[t${this.tableId}] dealCards failed:`, e.shortMessage || e.message);
       this.broadcast('deal_failed', { tableId: this.tableId, reason: 'dealCards tx reverted' });
-      this._resetHand();
+      this._pendingTx = null;
+      await this._resetHand();
       return;
     }
-    await this._persist(); // C2 — save deck/keys/holeCards in case of restart
+    // Tx confirmed — clear pending marker, repersist with committed state
+    this._pendingTx = null;
+    await this._persist();
 
     // Privately notify each seated player of their own cards.
     // Note: only players currently connected via WS will see this. If a player
@@ -319,6 +372,8 @@ export class TableRunner {
   }
 
   async _onRoundOver(roundId) {
+    // H4 — round is over; whoever was on the clock no longer is.
+    this._clearTurnTimer();
     this.broadcast('round_over', { tableId: this.tableId, roundId });
 
     // Deal community cards for the next round, unless we've finished round 3.
@@ -354,6 +409,17 @@ export class TableRunner {
     }
 
     this.localState = STATE.ADVANCING;
+    // C3 — persist the upcoming community cards before tx submission so a
+    // crash mid-tx can be reconciled on restart.
+    const proposedCommunity = [...this.communityCards, ...nextCards];
+    this._pendingTx = { kind: 'dealCommunity', round: nextRound, cards: nextCards, startedAt: Date.now() };
+    const prevCommunity = this.communityCards;
+    this.communityCards = proposedCommunity;
+    try { await this._persist(); }
+    catch (e) { log.warn(`[t${this.tableId}] pre-tx persist failed: ${e.message}`); }
+    // Roll back the local state until tx confirms — the chain truth is what matters
+    this.communityCards = prevCommunity;
+
     try {
       await dealCommunityCards(this.tableId, nextRound, nextCards);
       metrics.inc('dealCommunityTx');
@@ -362,8 +428,11 @@ export class TableRunner {
       metrics.inc('txErrors');
       log.error(`[t${this.tableId}] dealCommunityCards(round=${nextRound}) failed:`, e.shortMessage || e.message);
       this.broadcast('deal_failed', { tableId: this.tableId, reason: `dealCommunityCards round ${nextRound} reverted` });
+      this._pendingTx = null;
       return;
     }
+    this._pendingTx = null;
+    await this._persist();
     this.localState = STATE.ACTIVE;
     await this._persist(); // C2 — update on-disk community cards
   }
@@ -375,9 +444,14 @@ export class TableRunner {
       cards,
       cardStrs: cards.map(cardToString),
     });
+    // H2 — new betting round just started on chain. First player of this
+    // round is on the clock now.
+    this._startTurnTimer();
   }
 
   async _onShowdownStarted(handNum) {
+    // H4 — no further turns this hand
+    this._clearTurnTimer();
     if (!this.deck || this.seatOrder.length === 0) {
       log.warn(`[t${this.tableId}] ShowdownStarted but no deck (dealer restart?)`);
       return;
@@ -386,8 +460,19 @@ export class TableRunner {
 
     this.broadcast('showdown_started', { tableId: this.tableId, handNum });
 
-    // Read round 3 from chain to know who's still in
-    const lastRound = await getRound(this.tableId, 3);
+    // H5 — Read currentRound from the chain rather than hardcoding round 3.
+    // A pre-river fold-win still emits ShowdownStarted; reading round 3 in
+    // that case gives stale/empty folded[] data.
+    let lastRound;
+    try {
+      const t = await getTable(this.tableId);
+      const roundId = Number(t.currentRound);
+      lastRound = await getRound(this.tableId, roundId);
+      log.debug(`[t${this.tableId}] showdown reading round ${roundId}`);
+    } catch (e) {
+      log.error(`[t${this.tableId}] showdown could not read round state: ${e.message}`);
+      return;
+    }
 
     // Evaluate hands for non-folded seats in seatOrder
     const liveHands = [];
@@ -406,8 +491,37 @@ export class TableRunner {
       return;
     }
 
-    // pokersolver returns winners as an array (ties possible). v1 picks first.
+    // pokersolver returns winners as an array. Multiple = tie.
     const winners = Hand.winners(liveHands.map(h => h.hand));
+
+    // C5 — tie handling. The current contract only accepts a single winner,
+    // so awarding the entire pot to one tied player would silently transfer
+    // funds from the other tied player(s). Until the contract supports split
+    // pots, the only fund-safe path is emergencyRefund: returns every
+    // player's chips, resets the table.
+    if (winners.length > 1) {
+      const tiedAddrs = liveHands
+        .filter(h => winners.includes(h.hand))
+        .map(h => h.addr);
+      log.warn(`[t${this.tableId}] TIE detected (${tiedAddrs.length}-way: ${tiedAddrs.map(a => a.slice(0,8)).join(', ')}). Triggering emergencyRefund — no winner takes the pot.`);
+      this.broadcast('tie_refund', {
+        tableId: this.tableId,
+        tiedPlayers: tiedAddrs,
+        handDescription: winners[0].descr,
+        message: 'Tied hand — pot refunded to all players. Contract split-pot support coming in v2.',
+      });
+      this.localState = STATE.SHOWDOWN;
+      try {
+        await emergencyRefund(this.tableId);
+      } catch (e) {
+        metrics.inc('txErrors');
+        log.error(`[t${this.tableId}] emergencyRefund tx failed: ${e.shortMessage || e.message}`);
+        this.broadcast('showdown_failed', { tableId: this.tableId, reason: 'emergencyRefund tx reverted — please contact support' });
+        this.localState = STATE.IDLE;
+      }
+      return;
+    }
+
     const winner = liveHands.find(h => winners.includes(h.hand)).addr;
     log.info(`[t${this.tableId}] showdown winner: ${winner} (${winners[0].descr})`);
 
@@ -432,7 +546,7 @@ export class TableRunner {
     }
   }
 
-  _onPotDistributed(handNum, winner, winnerAmt, burnAmt, devAmt) {
+  async _onPotDistributed(handNum, winner, winnerAmt, burnAmt, devAmt) {
     metrics.inc('handsCompleted');
     this.broadcast('hand_complete', {
       tableId: this.tableId,
@@ -443,20 +557,20 @@ export class TableRunner {
       devAmount: devAmt,
     });
     log.info(`[t${this.tableId}] hand ${handNum} complete, winner ${winner.slice(0,8)}, winnings ${winnerAmt}`);
-    this._resetHand();
+    await this._resetHand();
   }
 
-  _onEmergencyRefund(player, amount) {
+  async _onEmergencyRefund(player, amount) {
     metrics.inc('emergencyRefunds');
     this.broadcast('emergency_refund', {
       tableId: this.tableId,
       player,
       amount,
     });
-    this._resetHand();
+    await this._resetHand();
   }
 
-  _resetHand() {
+  async _resetHand() {
     this.localState = STATE.IDLE;
     this.deck = null;
     this.holeCards.clear();
@@ -465,8 +579,10 @@ export class TableRunner {
     this.seatOrder = [];
     this.readyPlayers.clear();
     this._clearTurnTimer();
-    // C2 — drop the persisted file so a restart doesn't try to resume a
-    // hand that's already complete
-    clearTable(this.tableId).catch(e => log.warn(`clearTable failed: ${e.message}`));
+    this._pendingTx = null;
+    // M7 — await this so a fast back-to-back hand can't have its _persist
+    // raced by a stale unlink. Errors are tolerable (file may not exist).
+    try { await clearTable(this.tableId); }
+    catch (e) { log.warn(`clearTable failed: ${e.message}`); }
   }
 }

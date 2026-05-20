@@ -66,6 +66,9 @@ export async function saveTable(state) {
     await fs.rename(tmp, path);
   } catch (e) {
     log.warn(`persistence save failed for t${state.tableId}: ${e.message}`);
+    // M5 — clean up the orphaned .tmp file so disk doesn't fill on repeated
+    // rename failures (common on Windows/AV scanning the new file)
+    fs.unlink(tmp).catch(() => {});
   }
 }
 
@@ -77,8 +80,14 @@ export async function loadTable(tableId) {
   ensureDir();
   const path = pathFor(tableId);
   if (!existsSync(path)) return null;
+  let raw;
   try {
-    const raw = await fs.readFile(path, 'utf8');
+    raw = await fs.readFile(path, 'utf8');
+  } catch (e) {
+    log.warn(`failed to read state for t${tableId}: ${e.message}`);
+    return null;
+  }
+  try {
     const parsed = JSON.parse(raw);
     if (parsed.keys) {
       parsed.keys = Object.fromEntries(
@@ -90,7 +99,12 @@ export async function loadTable(tableId) {
     log.info(`[t${tableId}] restored state from ${path} (savedAt=${parsed.savedAt})`);
     return parsed;
   } catch (e) {
-    log.warn(`failed to load state for t${tableId}: ${e.message}`);
+    // M6 — corrupt JSON. Don't silently return null; quarantine the file
+    // so an operator can see what went wrong, and continue without restore.
+    const broken = `${path}.broken-${Date.now()}`;
+    log.error(`[t${tableId}] state file corrupt (${e.message}); quarantined to ${broken}`);
+    try { await fs.rename(path, broken); }
+    catch (renameErr) { log.warn(`quarantine rename failed: ${renameErr.message}`); }
     return null;
   }
 }
