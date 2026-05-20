@@ -5,3 +5,4 @@ artifacts/
 typechain-types/
 deployments/*-1*.json
 deployments/*-2*.json
+deployments/hardhat-*.json
