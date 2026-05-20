@@ -431,27 +431,35 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       const winExpected  = pot - burnExpected - devExpected; // 70%
 
       const burnBefore = await molly.balanceOf(BURN);
-      const devBefore  = await molly.balanceOf(dev.address);
+      const devOwedBefore = await poker.devOwed(molly.target);
 
       // alice declared winner
       await poker.showdown(
         0,
         [k, k],                              // keys
         [{ card1: 11, card2: 12 }, { card1: 13, card2: 14 }],  // cards
-        alice.address,
-        0  // no swap needed for MOLLY table
+        alice.address
       );
 
       const burnAfter = await molly.balanceOf(BURN);
-      const devAfter  = await molly.balanceOf(dev.address);
+      const devOwedAfter = await poker.devOwed(molly.target);
 
+      // Burn still happens atomically on every MOLLY-table showdown
       expect(burnAfter - burnBefore).to.equal(burnExpected);
-      expect(devAfter - devBefore).to.equal(devExpected);
+      // Dev rake accumulates in devOwed[MOLLY] instead of going to dev wallet directly
+      expect(devOwedAfter - devOwedBefore).to.equal(devExpected);
 
       // Winner (alice) gets 70% added to her chips. She started with BUY_IN, lost BB (blind),
       // so net: BUY_IN - BB + winExpected
       const aliceChipsExpected = BUY_IN - BB + winExpected;
       expect(await poker.chips(alice.address, 0)).to.equal(aliceChipsExpected);
+
+      // Now anyone can claim the dev rake to push it to DEV_ADDR
+      const devBalanceBefore = await molly.balanceOf(dev.address);
+      await poker.claimDev(molly.target);
+      const devBalanceAfter = await molly.balanceOf(dev.address);
+      expect(devBalanceAfter - devBalanceBefore).to.equal(devExpected);
+      expect(await poker.devOwed(molly.target)).to.equal(0n);
 
       // Table is back to Inactive, hand counter incremented
       const t = await poker.tables(0);
@@ -478,6 +486,8 @@ describe("MollyPoker v2 (audit-fixed)", function () {
         { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
       ], 0);
 
+      const burnBefore = await molly.balanceOf(BURN);
+
       // turn=0 is alice (BB), she folds
       await poker.connect(alice).playHand(0, 3 /*Fold*/, 0);
 
@@ -488,6 +498,10 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       const winExpected  = pot - burnExpected - devExpected;
 
       expect(await poker.chips(bob.address, 0)).to.equal(BUY_IN - BB / 2n + winExpected);
+      // Burn still atomic on fold-win for MOLLY tables
+      expect(await molly.balanceOf(BURN) - burnBefore).to.equal(burnExpected);
+      // Dev rake accumulates
+      expect(await poker.devOwed(molly.target)).to.equal(devExpected);
       const t = await poker.tables(0);
       expect(t.state).to.equal(1n); // Inactive
     });
@@ -524,12 +538,11 @@ describe("MollyPoker v2 (audit-fixed)", function () {
   /* ====================================================================
      PASS-2 AUDIT M1 — fold-win on non-MOLLY table does NOT call the swap
      ==================================================================== */
-  describe("PASS-2 M1 — fold-win skips swap (no minOut=0 sandwich vector)", () => {
-    it("non-MOLLY fold-win raw-transfers rake to dev, never touches router", async () => {
+  describe("PULL-RAKE (P6) — dev claims accumulated rake, no swap during showdown", () => {
+    it("non-MOLLY fold-win: devOwed accumulates in table token, router untouched", async () => {
       const MockRouter = await ethers.getContractFactory("MockV3Router");
       const router = await MockRouter.deploy();
       await router.waitForDeployment();
-      // Mint WMON to the router so it has something to give back if it were called
       await wmon.mint(router.target, ethers.parseEther("1000"));
 
       await poker.setSwapRouter(router.target);
@@ -547,27 +560,24 @@ describe("MollyPoker v2 (audit-fixed)", function () {
         { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
       ], 0);
 
-      const devBefore = await otherToken.balanceOf(dev.address);
-
-      // alice (turn=0, BB) folds pre-flop. Bob wins by fold. Fold-win path fires.
+      // alice folds → bob wins by fold → fold-win path
       await poker.connect(alice).playHand(0, 3 /*Fold*/, 0);
 
-      // CRITICAL: the router must NOT have been called
+      // No swap during showdown anymore (pull-based)
       expect(await router.callCount()).to.equal(0);
-
-      // Dev should have received the rake in the table token (otherToken), not WMON
-      const pot = BB + BB / 2n; // 1500
-      const rake = (pot * 3000n) / 10000n; // 30%
-      const devAfter = await otherToken.balanceOf(dev.address);
-      expect(devAfter - devBefore).to.equal(rake);
+      // Dev wallet untouched
+      expect(await otherToken.balanceOf(dev.address)).to.equal(0);
+      // Rake accumulates in devOwed
+      const pot = BB + BB / 2n;
+      const rake = (pot * 3000n) / 10000n;
+      expect(await poker.devOwed(otherToken.target)).to.equal(rake);
     });
 
-    it("showdown win on non-MOLLY DOES call the swap with minOut > 0", async () => {
+    it("non-MOLLY showdown: also accumulates, no swap fired", async () => {
       const MockRouter = await ethers.getContractFactory("MockV3Router");
       const router = await MockRouter.deploy();
       await router.waitForDeployment();
       await wmon.mint(router.target, ethers.parseEther("1000"));
-      await router.setRateOut(ethers.parseEther("0.5")); // arbitrary, just must be >= minOut
 
       await poker.setSwapRouter(router.target);
       await poker.setWhitelistedCreator(project.address, true);
@@ -583,7 +593,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
         { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
         { card1Hash: commitCard(k, 7), card2Hash: commitCard(k, 8) },
       ], 0);
-      // Play to showdown — all checks (alice already at BB as BB seat, bob calls SB→BB)
+      // Play to showdown — all checks
       await poker.connect(alice).playHand(0, 2, 0);
       await poker.connect(bob).playHand(0, 0, 0);
       await poker.dealCommunityCards(0, 1, [1, 2, 3]);
@@ -596,21 +606,104 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       await poker.connect(alice).playHand(0, 2, 0);
       await poker.connect(bob).playHand(0, 2, 0);
 
-      // Showdown — alice wins, pass minOut=0.1e18
-      const minOut = ethers.parseEther("0.1");
+      // Showdown — alice wins. No more _swapMinOut param.
       await poker.showdown(
         0, [k, k],
         [{ card1: 5, card2: 6 }, { card1: 7, card2: 8 }],
-        alice.address,
-        minOut,
+        alice.address
       );
 
-      // Router WAS called, and with the minOut we passed
+      // Router NEVER called during showdown — pull-based
+      expect(await router.callCount()).to.equal(0);
+      // Dev wallet untouched
+      expect(await otherToken.balanceOf(dev.address)).to.equal(0);
+      // Rake accumulates
+      const pot = BB * 2n;
+      const rake = (pot * 3000n) / 10000n;
+      expect(await poker.devOwed(otherToken.target)).to.equal(rake);
+    });
+
+    it("claimDev sweeps token to DEV_ADDR (permissionless)", async () => {
+      // Use the prior setup: drive a fold-win to accumulate devOwed
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+      for (const u of [alice, bob]) {
+        await otherToken.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 1234n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+      ], 0);
+      await poker.connect(alice).playHand(0, 3, 0); // fold
+
+      const rake = ((BB + BB / 2n) * 3000n) / 10000n;
+      expect(await poker.devOwed(otherToken.target)).to.equal(rake);
+
+      // Permissionless: alice (a random) can call, but funds still go to dev
+      await poker.connect(alice).claimDev(otherToken.target);
+      expect(await otherToken.balanceOf(dev.address)).to.equal(rake);
+      expect(await poker.devOwed(otherToken.target)).to.equal(0);
+
+      // Second claim reverts since balance is already 0
+      await expect(poker.claimDev(otherToken.target))
+        .to.be.revertedWith("nothing owed");
+    });
+
+    it("claimDevAsWMON swaps via router → WMON to dev (with sandwich-protection)", async () => {
+      const MockRouter = await ethers.getContractFactory("MockV3Router");
+      const router = await MockRouter.deploy();
+      await router.waitForDeployment();
+      await wmon.mint(router.target, ethers.parseEther("1000"));
+      await router.setRateOut(ethers.parseEther("0.5"));
+
+      await poker.setSwapRouter(router.target);
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+      for (const u of [alice, bob]) {
+        await otherToken.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 5151n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+      ], 0);
+      await poker.connect(alice).playHand(0, 3, 0); // fold
+
+      const minOut = ethers.parseEther("0.1");
+      const devWmonBefore = await wmon.balanceOf(dev.address);
+
+      await poker.claimDevAsWMON(otherToken.target, minOut);
+
+      // Swap was called with our minOut
       expect(await router.callCount()).to.equal(1);
       const rec = await router.recorded(0);
       expect(rec.amountOutMinimum).to.equal(minOut);
       expect(rec.tokenIn).to.equal(otherToken.target);
       expect(rec.tokenOut).to.equal(wmon.target);
+
+      // Dev got WMON (the rate the router pays)
+      const devWmonAfter = await wmon.balanceOf(dev.address);
+      expect(devWmonAfter - devWmonBefore).to.equal(ethers.parseEther("0.5"));
+      expect(await poker.devOwed(otherToken.target)).to.equal(0);
+    });
+
+    it("claimDevAsWMON rejects minOut=0 (sandwich protection)", async () => {
+      const MockRouter = await ethers.getContractFactory("MockV3Router");
+      const router = await MockRouter.deploy();
+      await router.waitForDeployment();
+      await poker.setSwapRouter(router.target);
+      // devOwed[someToken] = 0, but the require checks minOut > 0 first
+      await expect(poker.claimDevAsWMON(otherToken.target, 0))
+        .to.be.revertedWith("minOut=0");
+    });
+
+    it("claimDevAsWMON rejects MOLLY (use claimDev instead)", async () => {
+      await poker.setSwapRouter(molly.target); // any contract passes the type check
+      await expect(poker.claimDevAsWMON(molly.target, 1))
+        .to.be.revertedWith("use claimDev for MOLLY");
     });
   });
 
@@ -890,8 +983,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
         0,
         [k, k, k],
         [{ card1: 1, card2: 2 }, { card1: 3, card2: 4 }, { card1: 99, card2: 99 }], // carol's cards can be garbage
-        alice.address,
-        0,
+        alice.address
       );
       t = await poker.tables(0);
       expect(t.state).to.equal(1n); // Inactive after hand

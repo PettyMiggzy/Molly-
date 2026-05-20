@@ -126,15 +126,15 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         address tableToken,
         uint winnerAmount,
         uint burnAmount,
-        uint devAmount,
-        uint wmonRakeOut
+        uint devAmount
     );
+    event DevClaimed(address indexed token, uint amount);
+    event DevClaimedAsWMON(address indexed token, uint amountIn, uint wmonOut);
     event EmergencyRefund(uint indexed tableId, address indexed player, uint amount);
     event WhitelistedCreatorUpdated(address indexed creator, bool whitelisted);
     event MollyHoldRequiredUpdated(uint oldValue, uint newValue);
     event SwapRouterUpdated(address indexed oldRouter, address indexed newRouter);
     event PoolFeeUpdated(address indexed token, uint24 fee);
-    event RakeSwapFailed(uint indexed tableId, address indexed token, uint amount, string reason);
 
     /* ---------- constants ---------- */
     uint16 public constant WINNER_BPS = 7000;
@@ -171,6 +171,10 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
     // C3 — prevents one wallet from taking multiple seats at a table
     mapping(uint => mapping(address => bool)) public seated;
+
+    // Pull-based dev rake: accumulated per-token, claimable via claimDev / claimDevAsWMON.
+    // Burn stays push-based (atomic transfer to BURN_ADDR on every MOLLY-table showdown).
+    mapping(address => uint) public devOwed;
 
     /* ---------- modifiers ---------- */
     modifier onlyWhitelistedOrOwner() {
@@ -333,6 +337,33 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         emit WithdrawnAsWMON(_tableId, msg.sender, address(table.token), _amount, wmonOut);
     }
 
+    /// Pull dev rake in the original token. Permissionless — destination is always
+    /// DEV_ADDR, so anyone calling just pays gas to push funds to dev. Sweeps the
+    /// full devOwed[token] balance.
+    function claimDev(address _token) external nonReentrant {
+        uint amt = devOwed[_token];
+        require(amt > 0, "nothing owed");
+        devOwed[_token] = 0;
+        IERC20(_token).safeTransfer(DEV_ADDR, amt);
+        emit DevClaimed(_token, amt);
+    }
+
+    /// Pull dev rake as WMON (swap via Uniswap V3). Permissionless. Requires a
+    /// non-zero swapRouter and minOut > 0 (sandwich protection). Rejects MOLLY
+    /// since claimDev handles that natively.
+    function claimDevAsWMON(address _token, uint _minOut) external nonReentrant {
+        require(_token != MOLLY_TOKEN, "use claimDev for MOLLY");
+        require(swapRouter != address(0), "no router");
+        require(_minOut > 0, "minOut=0");
+        uint amt = devOwed[_token];
+        require(amt > 0, "nothing owed");
+        devOwed[_token] = 0;
+
+        uint wmonOut = _swapToWMON(_token, amt, _minOut);
+        IERC20(WMON).safeTransfer(DEV_ADDR, wmonOut);
+        emit DevClaimedAsWMON(_token, amt, wmonOut);
+    }
+
     /// C4 — voluntary exit (only between hands)
     function leaveTable(uint _tableId) external nonReentrant {
         Table storage table = tables[_tableId];
@@ -486,8 +517,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         uint _tableId,
         uint[] memory _keys,
         PlayerCards[] memory _cards,
-        address _winner,
-        uint _swapMinOut
+        address _winner
     ) external onlyOwner nonReentrant {
         Table storage table = tables[_tableId];
         require(table.state == TableState.Showdown, "not in showdown");
@@ -516,17 +546,9 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         }
         require(winnerValid, "Winner not in round");
 
-        // H2 — sanity check minOut > 0 for non-MOLLY rake swap if there's something to swap
-        if (address(table.token) != MOLLY_TOKEN) {
-            uint rake = (table.pot * RAKE_BPS) / BPS;
-            if (rake > 0 && swapRouter != address(0)) {
-                require(_swapMinOut > 0, "minOut=0 (sandwich risk)");
-            }
-        }
-
         emit CardsRevealed(_tableId, table.totalHands, round.players, _cards, communityCards[_tableId], round.folded);
 
-        _distributePot(table, _tableId, _winner, _swapMinOut, true);
+        _distributePot(table, _tableId, _winner);
     }
 
     /* ============================================================
@@ -546,10 +568,8 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         }
 
         if (activeCount == 1) {
-            // win by fold — Audit M1 (pass 2): always raw-transfer rake on this path
-            //   (no opportunity for the dealer to compute swap slippage off-chain
-            //   since fold-wins happen synchronously inside playHand).
-            _distributePot(_table, _tableId, lastActive, 0, false);
+            // win by fold
+            _distributePot(_table, _tableId, lastActive);
             return;
         }
 
@@ -617,9 +637,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     function _distributePot(
         Table storage _table,
         uint _tableId,
-        address _winner,
-        uint _swapMinOut,
-        bool _trySwap
+        address _winner
     ) internal {
         uint pot = _table.pot;
         uint handNum = _table.totalHands;
@@ -637,45 +655,23 @@ contract MollyPoker is Ownable, ReentrancyGuard {
             uint winnerAmt = pot - burnAmt - devAmt;
 
             chips[_winner][_tableId] += winnerAmt;
+            // Burn stays push-based — atomic real burn to dead address every hand
             if (burnAmt > 0) _table.token.safeTransfer(BURN_ADDR, burnAmt);
-            if (devAmt  > 0) _table.token.safeTransfer(DEV_ADDR,  devAmt);
+            // Dev rake accumulates in devOwed for later claim
+            if (devAmt > 0) devOwed[MOLLY_TOKEN] += devAmt;
 
-            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, burnAmt, devAmt, 0);
+            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, burnAmt, devAmt);
         } else {
             uint rakeAmt = (pot * RAKE_BPS) / BPS;
             uint winnerAmt = pot - rakeAmt;
 
             chips[_winner][_tableId] += winnerAmt;
+            // Dev rake (in the table token) accumulates for later claim
+            if (rakeAmt > 0) devOwed[tableToken] += rakeAmt;
 
-            uint wmonOut = 0;
-            if (rakeAmt > 0) {
-                // Audit M1 (pass 2): only swap when caller (showdown) explicitly opts in.
-                // Fold-win path enters with _trySwap=false because there's no opportunity
-                // to compute slippage off-chain — defaults to raw token transfer.
-                if (_trySwap && swapRouter != address(0)) {
-                    try this._performSwap(tableToken, rakeAmt, _swapMinOut) returns (uint out) {
-                        wmonOut = out;
-                        IERC20(WMON).safeTransfer(DEV_ADDR, wmonOut);
-                    } catch Error(string memory reason) {
-                        emit RakeSwapFailed(_tableId, tableToken, rakeAmt, reason);
-                        _table.token.safeTransfer(DEV_ADDR, rakeAmt);
-                    } catch {
-                        emit RakeSwapFailed(_tableId, tableToken, rakeAmt, "unknown");
-                        _table.token.safeTransfer(DEV_ADDR, rakeAmt);
-                    }
-                } else {
-                    // Either router unset OR caller chose raw transfer (fold-win)
-                    _table.token.safeTransfer(DEV_ADDR, rakeAmt);
-                }
-            }
-            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, 0, rakeAmt, wmonOut);
+            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, 0, rakeAmt);
         }
         _reInitiateTable(_table, _tableId);
-    }
-
-    function _performSwap(address _token, uint _amountIn, uint _minOut) external returns (uint) {
-        require(msg.sender == address(this), "self only");
-        return _swapToWMON(_token, _amountIn, _minOut);
     }
 
     function _swapToWMON(address _token, uint _amountIn, uint _minOut) internal returns (uint amountOut) {
