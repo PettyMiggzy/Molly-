@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import { config, log } from './config.js';
+import { config, log, getDealerKey } from './config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,8 +45,15 @@ if (!ABI) {
 log.debug(`ABI loaded from ${abiLoadedFrom}`);
 
 export const provider = new ethers.JsonRpcProvider(config.rpc);
-export const wallet = new ethers.Wallet(config.dealerKey, provider);
+// Wallet kept module-internal. External callers go through the helpers below
+// (dealCards/dealCommunityCards/showdown/bootInfo) rather than touching the
+// signer directly — keeps the dealer key reachable only from this file.
+const wallet = new ethers.Wallet(getDealerKey(), provider);
 export const contract = new ethers.Contract(config.contractAddress, ABI, wallet);
+
+// Exported deliberately as a getter so the address can be inspected/logged but
+// the wallet object itself isn't passed around.
+export function dealerAddress() { return wallet.address; }
 
 /* ---------- read helpers ---------- */
 

@@ -78,10 +78,21 @@ function checkRate(wsId) {
   return c.rate.count <= RATE_LIMIT.max;
 }
 
+// N2 — cache totalTables() for 1 second to spare RPC on every table_state.
+// At 10 req/sec * 20 conn/IP * many IPs this adds up. Phase B will invalidate
+// proactively on the NewTableCreated event.
+let _totalCache = { value: 0, ts: 0 };
+async function cachedTotalTables() {
+  if (Date.now() - _totalCache.ts < 1000) return _totalCache.value;
+  _totalCache = { value: await getTotalTables(), ts: Date.now() };
+  return _totalCache.value;
+}
+export function invalidateTotalTablesCache() { _totalCache = { value: 0, ts: 0 }; }
+
 // M4 — strict tableId validation
 async function validateTableId(tableId) {
   if (!Number.isInteger(tableId) || tableId < 0) return false;
-  const total = await getTotalTables();
+  const total = await cachedTotalTables();
   return tableId < total;
 }
 
@@ -123,7 +134,7 @@ async function handleMessage(wsId, ws, raw) {
     }
 
     case 'list_tables': {
-      const total = await getTotalTables();
+      const total = await cachedTotalTables();
       const out = [];
       for (let i = 0; i < total; i++) {
         const t = await getTable(i);
@@ -189,7 +200,18 @@ export function startServer() {
     port: config.port,
     maxPayload: 16 * 1024, // M1 — 16 KB cap, no phase-A message exceeds ~1 KB
   });
-  log.info(`WebSocket server listening on :${config.port}`);
+
+  // N1 — surface server-level errors (port-in-use, underlying HTTP errors).
+  // uncaughtException only logs (doesn't exit), so without this the process
+  // would happily run with a broken/never-bound server. Hard-exit; PM2 restarts.
+  wss.on('error', (e) => {
+    log.error('WebSocketServer error (fatal):', e);
+    process.exit(1);
+  });
+
+  wss.on('listening', () => {
+    log.info(`WebSocket server listening on :${config.port}`);
+  });
 
   wss.on('connection', (ws, req) => {
     const wsId = randomUUID();

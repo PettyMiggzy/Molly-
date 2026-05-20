@@ -57,11 +57,24 @@ try {
 
 export const config = {
   rpc,
-  dealerKey,
+  // dealerKey intentionally NOT exposed here — access via getDealerKey() which
+  // is consumed once by chain.js and not stashed in a shared object.
   contractAddress: contractAddressChecksum,
   port,
   logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase(),
 };
+
+// Scoped accessor — only chain.js should call this. Principle of least access:
+// anything that needs to sign should go through the wallet exported from chain.js,
+// not pluck the raw key off of `config`.
+let _dealerKeyConsumed = false;
+export function getDealerKey() {
+  if (_dealerKeyConsumed) {
+    throw new Error('dealer key already consumed; use the wallet from chain.js');
+  }
+  _dealerKeyConsumed = true;
+  return dealerKey;
+}
 
 const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 const minLevel = LEVELS[config.logLevel] ?? 1;

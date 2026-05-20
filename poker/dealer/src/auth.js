@@ -47,11 +47,12 @@ export function verifyAndBind(wsId, nonce, signature) {
   nonces.delete(nonce);
 
   if (Date.now() - entry.issuedAt > NONCE_TTL_MS) {
-    return { ok: false, reason: 'nonce expired' };
+    return { ok: false, reason: 'bad signature' };
   }
-  // H3 — nonce must be consumed by the same connection that requested it
+  // H3 — nonce must be consumed by the same connection that requested it.
+  // Generic error to avoid leaking nonce-existence to a probing attacker.
   if (entry.wsId !== wsId) {
-    return { ok: false, reason: 'wrong session' };
+    return { ok: false, reason: 'bad signature' };
   }
 
   let recovered;
