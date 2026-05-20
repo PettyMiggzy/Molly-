@@ -500,6 +500,31 @@
     width: 140px;
   }
 
+  /* D2 — turn countdown */
+  .turn-timer {
+    text-align: center;
+    margin: 12px 0;
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    padding: 8px 16px;
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    background: rgba(255, 216, 77, 0.1);
+    color: var(--gold);
+    display: none;
+  }
+  .turn-timer.urgent {
+    border-color: var(--burn);
+    background: rgba(255, 90, 44, 0.15);
+    color: var(--burn);
+    animation: pulse-urgent 1s infinite;
+  }
+  @keyframes pulse-urgent {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
   /* ===== MODAL ===== */
   .modal-overlay {
     position: fixed;
@@ -695,6 +720,8 @@
       <input class="raise-input" type="number" placeholder="raise amt" id="raiseInput" min="1">
       <button class="btn btn-primary" data-action="1" id="actRaise">RAISE</button>
     </div>
+
+    <div class="turn-timer" id="turnTimer"></div>
 
     <div class="game-log" id="gameLog"></div>
   </section>
@@ -1037,11 +1064,13 @@ async function handleDealerMessage(msg) {
 
     case 'action_taken':
       log(`${shortAddr(msg.player)} ${msg.actionName} ${msg.amount !== '0' ? fmtMolly(msg.amount) : ''}`, 'event');
+      stopTurnCountdown();
       refreshTableState();
       break;
 
     case 'round_over':
       log(`round ${msg.roundId} over`, 'event');
+      stopTurnCountdown();
       refreshTableState();
       break;
 
@@ -1084,6 +1113,16 @@ async function handleDealerMessage(msg) {
 
     case 'ready_ack':
       toast('Ready — waiting for others', 'success');
+      break;
+
+    case 'turn_started':
+      // D2 — start countdown
+      startTurnCountdown(msg.deadline, msg.timeoutMs);
+      break;
+
+    case 'turn_warning':
+      log('⚠ ' + msg.message, 'bad');
+      toast('Turn timeout — your move!', 'error');
       break;
 
     case 'deal_failed':
@@ -1319,6 +1358,39 @@ function renderMyCards() {
   row.innerHTML = '';
   row.appendChild(cardEl(State.myCards.card1));
   row.appendChild(cardEl(State.myCards.card2));
+}
+
+/* ===== TURN COUNTDOWN ===== */
+let turnInterval = null;
+
+function startTurnCountdown(deadline, timeoutMs) {
+  if (turnInterval) clearInterval(turnInterval);
+  const el = $('turnTimer');
+  el.style.display = 'block';
+  const tick = () => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      el.textContent = '⚠ TURN TIMED OUT';
+      el.classList.add('urgent');
+      clearInterval(turnInterval);
+      turnInterval = null;
+      return;
+    }
+    const sec = Math.ceil(remaining / 1000);
+    el.textContent = `⏱ ${sec}s to act`;
+    if (sec <= 10) el.classList.add('urgent');
+    else el.classList.remove('urgent');
+  };
+  tick();
+  turnInterval = setInterval(tick, 250);
+}
+
+function stopTurnCountdown() {
+  if (turnInterval) clearInterval(turnInterval);
+  turnInterval = null;
+  const el = $('turnTimer');
+  el.style.display = 'none';
+  el.classList.remove('urgent');
 }
 
 /* ===== ACTIONS ===== */

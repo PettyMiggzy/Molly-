@@ -100,9 +100,63 @@ function ts() {
   return new Date().toISOString();
 }
 
+// D3 — optional file logging. Set DEALER_LOG_FILE to enable. PM2 rotation
+// applies; file output is additive to stdout (PM2 still captures stdout).
+import { createWriteStream, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+
+const logFile = process.env.DEALER_LOG_FILE || null;
+let logStream = null;
+if (logFile) {
+  try {
+    mkdirSync(dirname(logFile), { recursive: true });
+    logStream = createWriteStream(logFile, { flags: 'a' });
+    console.log(`[boot] file logging → ${logFile}`);
+  } catch (e) {
+    console.warn(`[boot] could not open log file '${logFile}':`, e.message);
+  }
+}
+
+function emit(label, color, args) {
+  const line = `[${ts()}] ${label}`;
+  const consoleFn = (label.startsWith('ERROR') ? console.error
+                    : label.startsWith('WARN') ? console.warn : console.log);
+  consoleFn(line, ...args);
+  if (logStream) {
+    const text = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    try { logStream.write(`${line} ${text}\n`); } catch {}
+  }
+}
+
 export const log = {
-  debug: (...a) => LEVELS.debug >= minLevel && console.log(`[${ts()}] DEBUG`, ...a),
-  info:  (...a) => LEVELS.info  >= minLevel && console.log(`[${ts()}] INFO `, ...a),
-  warn:  (...a) => LEVELS.warn  >= minLevel && console.warn(`[${ts()}] WARN `, ...a),
-  error: (...a) => LEVELS.error >= minLevel && console.error(`[${ts()}] ERROR`, ...a),
+  debug: (...a) => { if (LEVELS.debug >= minLevel) emit('DEBUG', null, a); },
+  info:  (...a) => { if (LEVELS.info  >= minLevel) emit('INFO ', null, a); },
+  warn:  (...a) => { if (LEVELS.warn  >= minLevel) emit('WARN ', null, a); },
+  error: (...a) => { if (LEVELS.error >= minLevel) emit('ERROR', null, a); },
+};
+
+/* ---------- D3 — basic metrics counters ---------- */
+const _metrics = {
+  startedAt: Date.now(),
+  handsStarted: 0,
+  handsCompleted: 0,
+  dealCardsTx: 0,
+  dealCommunityTx: 0,
+  showdownTx: 0,
+  txErrors: 0,
+  emergencyRefunds: 0,
+  authOk: 0,
+  authFail: 0,
+};
+
+export const metrics = {
+  inc(key) {
+    if (key in _metrics) _metrics[key]++;
+  },
+  snapshot() {
+    return {
+      ..._metrics,
+      uptimeMs: Date.now() - _metrics.startedAt,
+    };
+  },
 };

@@ -20,7 +20,7 @@
 import pokersolver from 'pokersolver';
 const { Hand } = pokersolver;
 
-import { log } from './config.js';
+import { log, metrics } from './config.js';
 import {
   getTablePlayers, getTable, getRound,
   dealCards, dealCommunityCards, showdown,
@@ -54,6 +54,15 @@ export class TableRunner {
     this.communityCards = [];           // accumulating
     this.seatOrder = [];                // address[] in chain seating order at deal time
     this.unsubscribe = null;            // detach chain events on stop()
+
+    // D2 — turn timer state. Frontend countdown is informational; the
+    // contract doesn't enforce timeouts. If a player goes AFK the hand
+    // stalls until they (or someone, via cashOutBusted on a short stack)
+    // moves it along. v2 contract change can add a public timeoutFold.
+    this.turnDeadline = null;     // ms timestamp
+    this.turnPlayer = null;       // address whose turn it is
+    this.turnTimer = null;        // setTimeout handle
+    this.TURN_TIMEOUT_MS = 60_000; // 60s soft warning
   }
 
   start() {
@@ -114,6 +123,26 @@ export class TableRunner {
   addPlayer(address) {
     this.seatedWs.add(address);
     log.debug(`[t${this.tableId}] +ws ${address.slice(0,8)} (${this.seatedWs.size} connected)`);
+    // D1 — reconnection: if a hand is in progress AND we have cards stored
+    // for this address (from before the disconnect), re-deliver them.
+    if (this.localState === STATE.ACTIVE || this.localState === STATE.ADVANCING) {
+      const cards = this.holeCards.get(address);
+      if (cards) {
+        try {
+          this.sendPrivate(address, 'your_cards', {
+            tableId: this.tableId,
+            card1: cards.card1,
+            card2: cards.card2,
+            card1Str: cardToString(cards.card1),
+            card2Str: cardToString(cards.card2),
+            reconnected: true,
+          });
+          log.info(`[t${this.tableId}] re-delivered cards to ${address.slice(0,8)} on reconnect`);
+        } catch (e) {
+          log.warn(`[t${this.tableId}] re-deliver failed: ${e.message}`);
+        }
+      }
+    }
   }
 
   removePlayer(address) {
@@ -183,9 +212,12 @@ export class TableRunner {
     }
 
     log.info(`[t${this.tableId}] starting hand for ${chainPlayers.length} players`);
+    metrics.inc('handsStarted');
     try {
       await dealCards(this.tableId, hashes);
+      metrics.inc('dealCardsTx');
     } catch (e) {
+      metrics.inc('txErrors');
       log.error(`[t${this.tableId}] dealCards failed:`, e.shortMessage || e.message);
       this.broadcast('deal_failed', { tableId: this.tableId, reason: 'dealCards tx reverted' });
       this._resetHand();
@@ -233,6 +265,8 @@ export class TableRunner {
     this.localState = STATE.ACTIVE;
     this.broadcast('cards_dealt', { tableId: this.tableId, handNum });
     log.info(`[t${this.tableId}] hand ${handNum} dealt, now ACTIVE`);
+    // D2 — first turn of the hand begins now
+    this._startTurnTimer();
   }
 
   _onActionTaken(roundId, player, action, amount) {
@@ -245,6 +279,43 @@ export class TableRunner {
       actionName: actionNames[action] || `Unknown(${action})`,
       amount: amount.toString(),
     });
+    // D2 — after an action, the next non-folded player is up. We don't know
+    // who that is server-side without re-reading the round; broadcast a
+    // generic "turn_advance" with a deadline so the frontend can show a
+    // countdown for whoever the contract designates as next.
+    this._startTurnTimer();
+  }
+
+  /**
+   * D2 — turn timer. Clear any prior timer, set a new deadline, broadcast.
+   * The contract has no concept of turn timeouts; this is UX only. The
+   * frontend can warn the active player they're about to stall the table.
+   */
+  _startTurnTimer() {
+    this._clearTurnTimer();
+    if (this.localState !== STATE.ACTIVE) return;
+    this.turnDeadline = Date.now() + this.TURN_TIMEOUT_MS;
+    this.broadcast('turn_started', {
+      tableId: this.tableId,
+      deadline: this.turnDeadline,
+      timeoutMs: this.TURN_TIMEOUT_MS,
+    });
+    this.turnTimer = setTimeout(() => {
+      this.broadcast('turn_warning', {
+        tableId: this.tableId,
+        message: 'turn timeout reached — table is stalled until the current player acts',
+      });
+      log.warn(`[t${this.tableId}] turn timeout — table stalled`);
+    }, this.TURN_TIMEOUT_MS);
+    this.turnTimer.unref();
+  }
+
+  _clearTurnTimer() {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
+    }
+    this.turnDeadline = null;
   }
 
   async _onRoundOver(roundId) {
@@ -285,8 +356,10 @@ export class TableRunner {
     this.localState = STATE.ADVANCING;
     try {
       await dealCommunityCards(this.tableId, nextRound, nextCards);
+      metrics.inc('dealCommunityTx');
       this.communityCards.push(...nextCards);
     } catch (e) {
+      metrics.inc('txErrors');
       log.error(`[t${this.tableId}] dealCommunityCards(round=${nextRound}) failed:`, e.shortMessage || e.message);
       this.broadcast('deal_failed', { tableId: this.tableId, reason: `dealCommunityCards round ${nextRound} reverted` });
       return;
@@ -349,7 +422,9 @@ export class TableRunner {
     this.localState = STATE.SHOWDOWN;
     try {
       await showdown(this.tableId, keys, cards, winner);
+      metrics.inc('showdownTx');
     } catch (e) {
+      metrics.inc('txErrors');
       log.error(`[t${this.tableId}] showdown tx failed:`, e.shortMessage || e.message);
       this.broadcast('showdown_failed', { tableId: this.tableId, reason: 'showdown tx reverted' });
       this.localState = STATE.IDLE;
@@ -358,6 +433,7 @@ export class TableRunner {
   }
 
   _onPotDistributed(handNum, winner, winnerAmt, burnAmt, devAmt) {
+    metrics.inc('handsCompleted');
     this.broadcast('hand_complete', {
       tableId: this.tableId,
       handNum,
@@ -371,6 +447,7 @@ export class TableRunner {
   }
 
   _onEmergencyRefund(player, amount) {
+    metrics.inc('emergencyRefunds');
     this.broadcast('emergency_refund', {
       tableId: this.tableId,
       player,
@@ -387,6 +464,7 @@ export class TableRunner {
     this.communityCards = [];
     this.seatOrder = [];
     this.readyPlayers.clear();
+    this._clearTurnTimer();
     // C2 — drop the persisted file so a restart doesn't try to resume a
     // hand that's already complete
     clearTable(this.tableId).catch(e => log.warn(`clearTable failed: ${e.message}`));

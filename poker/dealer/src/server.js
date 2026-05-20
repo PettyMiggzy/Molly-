@@ -9,7 +9,7 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
 
-import { config, log } from './config.js';
+import { config, log, metrics } from './config.js';
 import {
   newNonce, challengeMessage, verifyAndBind, getSession, clearSession,
 } from './auth.js';
@@ -161,11 +161,20 @@ async function handleMessage(wsId, ws, raw) {
         return send(ws, 'auth_fail', { reason: 'missing nonce or signature' });
       }
       const result = verifyAndBind(wsId, nonce, signature);
-      if (!result.ok) return send(ws, 'auth_fail', { reason: result.reason });
+      if (!result.ok) {
+        metrics.inc('authFail');
+        return send(ws, 'auth_fail', { reason: result.reason });
+      }
+      metrics.inc('authOk');
       const c = clients.get(wsId);
       if (c) c.address = result.address;
       log.info(`auth ok ${wsId.slice(0,8)} → ${result.address}`);
       return send(ws, 'auth_ok', { address: result.address });
+    }
+
+    case 'metrics': {
+      // D3 — debug/health endpoint. Anyone can read; no sensitive data.
+      return send(ws, 'metrics', { ...metrics.snapshot(), clients: clients.size });
     }
 
     case 'list_tables': {
