@@ -795,6 +795,8 @@ const MOLLY_POKER_ABI = [
   'function getCommunityCards(uint256) view returns (uint8[])',
   'function getRound(uint256, uint256) view returns (bool state, uint256 turn, address[] players, uint256 highestChip, uint256[] roundChips, bool[] folded, uint256 actsSinceReset)',
   'function chips(address, uint256) view returns (uint256)',
+  'function whitelistedCreator(address) view returns (bool)',
+  'function owner() view returns (address)',
   'function createTable(uint256 _buyInAmount, uint256 _maxPlayers, uint256 _bigBlind, address _token)',
   'function buyIn(uint256 tableId, uint256 amount)',
   'function playHand(uint256 tableId, uint8 action, uint256 raiseAmount)',
@@ -972,7 +974,7 @@ async function connectWallet() {
 
     await refreshWalletInfo();
     renderWalletBar();
-    $('createTableBtn').disabled = false;
+    await refreshCreateAuthState();
     await openDealer();
     await loadTables();
 
@@ -1422,6 +1424,30 @@ async function getTokenInfo(addr) {
 }
 
 /* ===== CREATE TABLE ===== */
+async function refreshCreateAuthState() {
+  const btn = $('createTableBtn');
+  if (!State.contract || !State.address) {
+    btn.disabled = true;
+    btn.title = 'connect wallet first';
+    return;
+  }
+  try {
+    const [owner, whitelisted] = await Promise.all([
+      State.contract.owner(),
+      State.contract.whitelistedCreator(State.address),
+    ]);
+    const isOwner = owner.toLowerCase() === State.address.toLowerCase();
+    const canCreate = isOwner || whitelisted;
+    btn.disabled = !canCreate;
+    btn.title = canCreate
+      ? (isOwner ? 'you are owner — create freely' : 'whitelisted creator')
+      : 'not whitelisted — ask King to add your address via setWhitelistedCreator';
+  } catch (e) {
+    btn.disabled = true;
+    btn.title = 'could not check whitelist: ' + (e.shortMessage || e.message);
+  }
+}
+
 function openCreateTableModal() {
   if (!State.contract) { toast('connect wallet first', 'bad'); return; }
   $('ctToken').value = MOLLY_ADDRESS;
