@@ -57,6 +57,17 @@ async function main() {
   console.log(`deployer balance: ${ethers.formatEther(bal)} MON\n`);
   if (bal === 0n) throw new Error("deployer has no MON — fund the wallet first");
 
+  // Production confirmation gate
+  if (Number(net.chainId) === 143) {
+    console.log("⚠️  MAINNET DEPLOY ⚠️");
+    console.log("    Press Ctrl+C now to abort. Deploying in 10s...\n");
+    for (let i = 10; i > 0; i--) {
+      process.stdout.write(`\r    deploying in ${i}s... `);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    console.log("\n");
+  }
+
   console.log("deploying MollyPoker...");
   const Factory = await ethers.getContractFactory("MollyPoker");
   const mp = await Factory.deploy(BURN_ADDR, DEV_ADDR, mollyAddr, wmonAddr, SWAP_ROUTER);
@@ -66,6 +77,11 @@ async function main() {
 
   console.log(`\n✅ MollyPoker deployed at ${addr}`);
   console.log(`   tx: ${tx.hash}`);
+  if (net.chainId === 143n) {
+    console.log(`   explorer: https://monadscan.com/address/${addr}`);
+  } else if (net.chainId === 10143n) {
+    console.log(`   explorer: https://testnet.monadscan.com/address/${addr}`);
+  }
 
   const record = {
     network: net.name,
@@ -94,9 +110,10 @@ async function main() {
 
   console.log("\nnext steps:");
   console.log(`  1. npx hardhat run scripts/verify.js --network ${net.name}`);
-  console.log(`  2. setSwapRouter(<crust V3 router address>)`);
-  console.log(`  3. setWhitelistedCreator(<project address>, true) for each project`);
-  console.log(`  4. setPoolFee(<token>, 10000) for each project token (1% V3 tier)\n`);
+  console.log(`  2. Edit scripts/bootstrap.js with Crust router + whitelist projects`);
+  console.log(`  3. npx hardhat run scripts/bootstrap.js --network ${net.name}\n`);
+  console.log(`address copy line for the frontend:`);
+  console.log(`  MOLLY_POKER = "${addr}"\n`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
