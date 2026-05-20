@@ -131,6 +131,26 @@
     font-weight: 700;
   }
   .nav-stake:hover { color: var(--cream) !important; }
+  .nav-backroom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--orange) !important;
+    font-weight: 700;
+  }
+  .nav-backroom:hover { color: var(--cream) !important; }
+  .nav-backroom-spade { font-size: 0.95em; transform: translateY(-1px); }
+  .nav-beta {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1.2px;
+    background: var(--orange);
+    color: var(--ink);
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-weight: 700;
+    animation: navNewPulse 1.6s infinite;
+  }
   .nav-new {
     font-family: var(--mono);
     font-size: 9px;
@@ -1451,13 +1471,14 @@
 
   /* === MOBILE === */
   @media (max-width: 800px) {
-    .nav-links li:not(.nav-stake-li) { display: none; }
+    .nav-links li:not(.nav-stake-li):not(.nav-backroom-li) { display: none; }
     .nav-links {
       display: flex !important;
       gap: 0.5rem;
     }
     .nav-stake { font-size: 0.85rem; padding: 4px 0; }
-    .nav-new { font-size: 8px; padding: 1px 5px; }
+    .nav-backroom { font-size: 0.85rem; padding: 4px 0; }
+    .nav-new, .nav-beta { font-size: 8px; padding: 1px 5px; }
     .hero-bubble {
       top: -10px;
       right: -5px;
@@ -1856,6 +1877,7 @@
     <li><a href="#family">Family</a></li>
     <li><a href="#chart">Chart</a></li>
     <li class="nav-stake-li"><a href="/stake.html" class="nav-stake">Stake <span class="nav-new">NEW</span></a></li>
+    <li class="nav-backroom-li"><a href="/poker.html" class="nav-backroom"><span class="nav-backroom-spade">♠</span> Backroom <span class="nav-beta">BETA</span></a></li>
     <li><a href="#swap">Buy</a></li>
   </ul>
   <a href="#swap" class="nav-buy">BUY $MOLLY</a>
