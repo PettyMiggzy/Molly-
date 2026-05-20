@@ -512,4 +512,214 @@ describe("MollyPoker v2 (audit-fixed)", function () {
         .to.be.revertedWithCustomError(poker, "OwnableUnauthorizedAccount");
     });
   });
+
+  /* ====================================================================
+     PASS-2 AUDIT M1 — fold-win on non-MOLLY table does NOT call the swap
+     ==================================================================== */
+  describe("PASS-2 M1 — fold-win skips swap (no minOut=0 sandwich vector)", () => {
+    it("non-MOLLY fold-win raw-transfers rake to dev, never touches router", async () => {
+      const MockRouter = await ethers.getContractFactory("MockV3Router");
+      const router = await MockRouter.deploy();
+      await router.waitForDeployment();
+      // Mint WMON to the router so it has something to give back if it were called
+      await wmon.mint(router.target, ethers.parseEther("1000"));
+
+      await poker.setSwapRouter(router.target);
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+
+      for (const u of [alice, bob]) {
+        await otherToken.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+
+      const k = 8888n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+      ], 0);
+
+      const devBefore = await otherToken.balanceOf(dev.address);
+
+      // alice (turn=0, BB) folds pre-flop. Bob wins by fold. Fold-win path fires.
+      await poker.connect(alice).playHand(0, 3 /*Fold*/, 0);
+
+      // CRITICAL: the router must NOT have been called
+      expect(await router.callCount()).to.equal(0);
+
+      // Dev should have received the rake in the table token (otherToken), not WMON
+      const pot = BB + BB / 2n; // 1500
+      const rake = (pot * 3000n) / 10000n; // 30%
+      const devAfter = await otherToken.balanceOf(dev.address);
+      expect(devAfter - devBefore).to.equal(rake);
+    });
+
+    it("showdown win on non-MOLLY DOES call the swap with minOut > 0", async () => {
+      const MockRouter = await ethers.getContractFactory("MockV3Router");
+      const router = await MockRouter.deploy();
+      await router.waitForDeployment();
+      await wmon.mint(router.target, ethers.parseEther("1000"));
+      await router.setRateOut(ethers.parseEther("0.5")); // arbitrary, just must be >= minOut
+
+      await poker.setSwapRouter(router.target);
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
+
+      for (const u of [alice, bob]) {
+        await otherToken.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+
+      const k = 7777n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
+        { card1Hash: commitCard(k, 7), card2Hash: commitCard(k, 8) },
+      ], 0);
+      // Play to showdown — all checks (alice already at BB as BB seat, bob calls SB→BB)
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 0, 0);
+      await poker.dealCommunityCards(0, 1, [1, 2, 3]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      await poker.dealCommunityCards(0, 2, [4]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      await poker.dealCommunityCards(0, 3, [5]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+
+      // Showdown — alice wins, pass minOut=0.1e18
+      const minOut = ethers.parseEther("0.1");
+      await poker.showdown(
+        0, [k, k],
+        [{ card1: 5, card2: 6 }, { card1: 7, card2: 8 }],
+        alice.address,
+        minOut,
+      );
+
+      // Router WAS called, and with the minOut we passed
+      expect(await router.callCount()).to.equal(1);
+      const rec = await router.recorded(0);
+      expect(rec.amountOutMinimum).to.equal(minOut);
+      expect(rec.tokenIn).to.equal(otherToken.target);
+      expect(rec.tokenOut).to.equal(wmon.target);
+    });
+  });
+
+  /* ====================================================================
+     PASS-2 AUDIT M2 — emergencyRefund mid-hand doesn't leak the pot
+     ==================================================================== */
+  describe("PASS-2 M2 — emergencyRefund drains in-flight pot", () => {
+    it("mid-hand refund leaves zero residual token balance attributable to the table", async () => {
+      await poker.createTable(BUY_IN, 3, BB, molly.target);
+      for (const u of [alice, bob, carol]) {
+        await molly.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+
+      const k = 4321n;
+      const cards = [
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
+      ];
+      await poker.dealCards(cards, 0);
+
+      // Pre-flop: alice (BTN) calls BB (1000). Pot now BB+BB/2+BB = 2500.
+      await poker.connect(alice).playHand(0, 0 /*Call*/, 0);
+
+      const tableBefore = await poker.tables(0);
+      expect(tableBefore.pot).to.equal(BB + BB / 2n + BB); // 2500
+
+      // Contract holds: 3 * BUY_IN = 750_000 (all in molly token)
+      const ctrBefore = await molly.balanceOf(poker.target);
+      expect(ctrBefore).to.equal(BUY_IN * 3n);
+
+      // Snapshot player balances
+      const balsBefore = await Promise.all([alice, bob, carol].map(u => molly.balanceOf(u.address)));
+
+      // Emergency refund all 3
+      await poker.emergencyRefund(0, [alice.address, bob.address, carol.address]);
+
+      // ASSERTION: contract balance should be 0 (every token accounted for)
+      const ctrAfter = await molly.balanceOf(poker.target);
+      expect(ctrAfter).to.equal(0); // pre-fix: would be 2500 (the leaked pot)
+
+      // Each player whole = (started with) + their pot-share
+      // alice: BUY_IN - BB (call) + share, bob: BUY_IN - BB (BB), carol: BUY_IN - BB/2 (SB)
+      // After refund: alice gets back (BUY_IN - BB) chips, bob gets (BUY_IN - BB), carol gets (BUY_IN - BB/2)
+      // Plus everyone gets pot/3 = 2500/3 = 833 (with 1 dust to alice).
+      const balsAfter = await Promise.all([alice, bob, carol].map(u => molly.balanceOf(u.address)));
+      const totalRefunded = balsAfter.reduce((s, b, i) => s + (b - balsBefore[i]), 0n);
+      expect(totalRefunded).to.equal(BUY_IN * 3n); // conservation
+
+      // Table state reset
+      const tableAfter = await poker.tables(0);
+      expect(tableAfter.pot).to.equal(0);
+      expect(tableAfter.state).to.equal(1n); // Inactive
+    });
+  });
+
+  /* ====================================================================
+     PASS-2 NEW LOW — createTable rejects bigBlind=0
+     ==================================================================== */
+  describe("PASS-2 LOW — createTable rejects bigBlind=0", () => {
+    it("reverts with bb=0", async () => {
+      await expect(poker.createTable(BUY_IN, 2, 0, molly.target))
+        .to.be.revertedWith("bb=0");
+    });
+  });
+
+  /* ====================================================================
+     PASS-2 AUDIT — fee-on-transfer protection (real test with FoT mock)
+     ==================================================================== */
+  describe("PASS-2 H3 — fee-on-transfer real coverage", () => {
+    let fot;
+    beforeEach(async () => {
+      const FoT = await ethers.getContractFactory("MockFoTERC20");
+      fot = await FoT.deploy("FoT", "FoT");
+      await fot.waitForDeployment();
+      for (const u of [alice, bob]) {
+        await fot.mint(u.address, ethers.parseEther("10000000"));
+      }
+    });
+
+    it("buyIn REVERTS when token deducts a fee and received < buyInAmount", async () => {
+      // 1% fee active by default in MockFoTERC20
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, fot.target);
+
+      await fot.connect(alice).approve(poker.target, BUY_IN);
+      // Sending exactly BUY_IN means contract receives BUY_IN * 0.99 < BUY_IN → revert
+      await expect(poker.connect(alice).buyIn(0, BUY_IN))
+        .to.be.revertedWith("transfer short (fee-on-transfer?)");
+    });
+
+    it("buyIn SUCCEEDS when caller pads enough to cover the fee", async () => {
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, fot.target);
+
+      // To receive BUY_IN net, send BUY_IN / 0.99 ≈ BUY_IN * 10000 / 9900
+      const padded = (BUY_IN * 10000n) / 9900n + 1n; // +1 to round up
+      await fot.connect(alice).approve(poker.target, padded);
+      await poker.connect(alice).buyIn(0, padded);
+
+      // Chips credited should be the REAL received amount, not the gross input
+      const chips = await poker.chips(alice.address, 0);
+      expect(chips).to.be.gte(BUY_IN); // floor enforced by the require
+      // And should equal exactly what was received (padded * 0.99)
+      const expectedReceived = padded - (padded * 100n) / 10000n;
+      expect(chips).to.equal(expectedReceived);
+    });
+
+    it("buyIn passes through cleanly when fee is set to 0", async () => {
+      await fot.setFeeBps(0);
+      await poker.setWhitelistedCreator(project.address, true);
+      await poker.connect(project).createTable(BUY_IN, 2, BB, fot.target);
+
+      await fot.connect(alice).approve(poker.target, BUY_IN);
+      await poker.connect(alice).buyIn(0, BUY_IN);
+      expect(await poker.chips(alice.address, 0)).to.equal(BUY_IN);
+    });
+  });
 });

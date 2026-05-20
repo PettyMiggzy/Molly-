@@ -228,6 +228,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     ) external onlyWhitelistedOrOwner {
         require(_token != address(0), "token=0");
         require(_maxPlayers >= 2 && _maxPlayers <= 9, "bad maxPlayers");
+        require(_bigBlind > 0, "bb=0");
         require(_buyInAmount >= _bigBlind, "buyIn < bb");
         address[] memory empty;
         tables[totalTables] = Table({
@@ -488,7 +489,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
         emit CardsRevealed(_tableId, table.totalHands, round.players, _cards, communityCards[_tableId], round.folded);
 
-        _distributePot(table, _tableId, _winner, _swapMinOut);
+        _distributePot(table, _tableId, _winner, _swapMinOut, true);
     }
 
     /* ============================================================
@@ -508,8 +509,10 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         }
 
         if (activeCount == 1) {
-            // win by fold
-            _distributePot(_table, _tableId, lastActive, 0);
+            // win by fold — Audit M1 (pass 2): always raw-transfer rake on this path
+            //   (no opportunity for the dealer to compute swap slippage off-chain
+            //   since fold-wins happen synchronously inside playHand).
+            _distributePot(_table, _tableId, lastActive, 0, false);
             return;
         }
 
@@ -578,7 +581,8 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         Table storage _table,
         uint _tableId,
         address _winner,
-        uint _swapMinOut
+        uint _swapMinOut,
+        bool _trySwap
     ) internal {
         uint pot = _table.pot;
         uint handNum = _table.totalHands;
@@ -608,7 +612,10 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
             uint wmonOut = 0;
             if (rakeAmt > 0) {
-                if (swapRouter != address(0)) {
+                // Audit M1 (pass 2): only swap when caller (showdown) explicitly opts in.
+                // Fold-win path enters with _trySwap=false because there's no opportunity
+                // to compute slippage off-chain — defaults to raw token transfer.
+                if (_trySwap && swapRouter != address(0)) {
                     try this._performSwap(tableToken, rakeAmt, _swapMinOut) returns (uint out) {
                         wmonOut = out;
                         IERC20(WMON).safeTransfer(DEV_ADDR, wmonOut);
@@ -620,6 +627,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
                         _table.token.safeTransfer(DEV_ADDR, rakeAmt);
                     }
                 } else {
+                    // Either router unset OR caller chose raw transfer (fold-win)
                     _table.token.safeTransfer(DEV_ADDR, rakeAmt);
                 }
             }
@@ -673,20 +681,57 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     {
         Table storage table = tables[_tableId];
         require(table.state != TableState.Showdown, "in showdown");
+
+        // Audit M2 (pass 2): refund pot-contributions too so emergencyRefund
+        // can't leak table.pot tokens into the contract permanently.
+        // Track which players were actually touched so we know who shares the residual.
+        address[] memory eligible = new address[](_players.length);
+        uint eligibleCount = 0;
+
         for (uint i = 0; i < _players.length; i++) {
             address p = _players[i];
+            bool touched = false;
+
             uint amt = chips[p][_tableId];
             if (amt > 0) {
                 chips[p][_tableId] = 0;
                 table.token.safeTransfer(p, amt);
                 emit EmergencyRefund(_tableId, p, amt);
+                touched = true;
             }
             if (seated[_tableId][p]) {
                 seated[_tableId][p] = false;
                 _removeFromPlayers(table.players, p);
+                touched = true;
+            }
+            if (touched) {
+                eligible[eligibleCount] = p;
+                eligibleCount++;
             }
         }
-        // M4 — if table is now empty, reset state
+
+        // Audit M2 — split the in-flight pot equally among the touched players
+        // (imperfect: doesn't account for individual contributions, but no funds
+        //  are stranded and the alternative requires per-round bookkeeping).
+        if (table.pot > 0 && eligibleCount > 0) {
+            uint per = table.pot / eligibleCount;
+            uint distributed = 0;
+            if (per > 0) {
+                for (uint i = 0; i < eligibleCount; i++) {
+                    table.token.safeTransfer(eligible[i], per);
+                    emit EmergencyRefund(_tableId, eligible[i], per);
+                    distributed += per;
+                }
+            }
+            uint dust = table.pot - distributed;
+            if (dust > 0) {
+                table.token.safeTransfer(eligible[0], dust);
+                emit EmergencyRefund(_tableId, eligible[0], dust);
+            }
+            table.pot = 0;
+        }
+
+        // If table is now empty, reset state
         if (table.players.length == 0) {
             table.state = TableState.Inactive;
             table.pot = 0;
