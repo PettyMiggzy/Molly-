@@ -5,8 +5,8 @@
    recovers the address from the signature. From then on, every
    message from that WS connection is attributed to that address.
 
-   The nonce prevents replay across sessions. The contract address
-   in the message prevents reuse against other dapps.
+   Nonce is bound to the issuing WS session (H3 from pass-A audit):
+   a signature obtained on one connection can't be replayed on another.
 */
 import { ethers } from 'ethers';
 import { randomBytes } from 'node:crypto';
@@ -16,14 +16,15 @@ import { config } from './config.js';
 const NONCE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// nonce -> { address?, issuedAt }
+// nonce -> { wsId, issuedAt }
 const nonces = new Map();
 // wsId -> { address, sessionExpiresAt }
 const sessions = new Map();
 
-export function newNonce() {
+export function newNonce(wsId) {
+  // H3 — bind nonce to issuing wsId at creation time
   const nonce = randomBytes(16).toString('hex');
-  nonces.set(nonce, { issuedAt: Date.now() });
+  nonces.set(nonce, { wsId, issuedAt: Date.now() });
   return nonce;
 }
 
@@ -40,24 +41,34 @@ export function challengeMessage(nonce) {
 export function verifyAndBind(wsId, nonce, signature) {
   const entry = nonces.get(nonce);
   if (!entry) return { ok: false, reason: 'unknown nonce' };
+
+  // L2 — consume the nonce up-front. Even a bad-signature attempt
+  // burns it, removing any state between attempts.
+  nonces.delete(nonce);
+
   if (Date.now() - entry.issuedAt > NONCE_TTL_MS) {
-    nonces.delete(nonce);
     return { ok: false, reason: 'nonce expired' };
   }
+  // H3 — nonce must be consumed by the same connection that requested it
+  if (entry.wsId !== wsId) {
+    return { ok: false, reason: 'wrong session' };
+  }
+
   let recovered;
   try {
     recovered = ethers.verifyMessage(challengeMessage(nonce), signature);
   } catch (e) {
     return { ok: false, reason: 'bad signature' };
   }
-  if (!recovered) return { ok: false, reason: 'bad signature' };
-  nonces.delete(nonce); // consume
+  // L3 — `ethers.verifyMessage` always returns a checksummed string or
+  // throws, so the truthy check is unreachable in practice. Removed.
 
+  const checksummed = ethers.getAddress(recovered);
   sessions.set(wsId, {
-    address: ethers.getAddress(recovered),
+    address: checksummed,
     sessionExpiresAt: Date.now() + SESSION_TTL_MS,
   });
-  return { ok: true, address: ethers.getAddress(recovered) };
+  return { ok: true, address: checksummed };
 }
 
 export function getSession(wsId) {
@@ -74,8 +85,9 @@ export function clearSession(wsId) {
   sessions.delete(wsId);
 }
 
-// periodic cleanup so the maps don't grow unbounded
-setInterval(() => {
+// L1 — `.unref()` so this timer doesn't keep the event loop alive on its own.
+// Also expose a handle so shutdown can stop it cleanly if needed.
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of nonces.entries()) {
     if (now - v.issuedAt > NONCE_TTL_MS) nonces.delete(k);
@@ -84,3 +96,6 @@ setInterval(() => {
     if (now > v.sessionExpiresAt) sessions.delete(k);
   }
 }, 60 * 1000);
+cleanupTimer.unref();
+
+export function stopAuthCleanup() { clearInterval(cleanupTimer); }

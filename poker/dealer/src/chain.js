@@ -16,16 +16,33 @@ import { dirname, resolve } from 'node:path';
 import { config, log } from './config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ARTIFACT_PATH = resolve(__dirname, '../../artifacts/contracts/MollyPoker.sol/MollyPoker.json');
+
+// Defensive: try both `dealer/src/chain.js` and `dealer/chain.js` layouts
+// in case someone flattens the folder. The contract is always compiled into
+// `poker/artifacts/contracts/MollyPoker.sol/MollyPoker.json` relative to the
+// hardhat root.
+const ARTIFACT_CANDIDATES = [
+  resolve(__dirname, '../../artifacts/contracts/MollyPoker.sol/MollyPoker.json'), // dealer/src/
+  resolve(__dirname, '../artifacts/contracts/MollyPoker.sol/MollyPoker.json'),    // dealer/ (flat)
+  resolve(__dirname, './artifacts/contracts/MollyPoker.sol/MollyPoker.json'),     // run-in-place
+];
 
 let ABI;
-try {
-  ABI = JSON.parse(readFileSync(ARTIFACT_PATH, 'utf8')).abi;
-} catch (e) {
-  log.error(`could not load contract ABI from ${ARTIFACT_PATH}`);
+let abiLoadedFrom;
+for (const path of ARTIFACT_CANDIDATES) {
+  try {
+    ABI = JSON.parse(readFileSync(path, 'utf8')).abi;
+    abiLoadedFrom = path;
+    break;
+  } catch { /* try next */ }
+}
+if (!ABI) {
+  log.error(`could not load contract ABI from any of:`);
+  ARTIFACT_CANDIDATES.forEach(p => log.error(`  ${p}`));
   log.error(`run 'npx hardhat compile' in poker/ first`);
   process.exit(1);
 }
+log.debug(`ABI loaded from ${abiLoadedFrom}`);
 
 export const provider = new ethers.JsonRpcProvider(config.rpc);
 export const wallet = new ethers.Wallet(config.dealerKey, provider);
@@ -58,8 +75,8 @@ export async function getRound(tableId, roundId) {
     state:          r.state,
     turn:           Number(r.turn),
     players:        r.players,
-    highestChip:    r.highestChip,
-    roundChips:     r.roundChips,
+    highestChip:    r.highestChip.toString(),                  // H2 — BigInt → string
+    roundChips:     r.roundChips.map(c => c.toString()),       // H2
     folded:         r.folded,
     actsSinceReset: Number(r.actsSinceReset),
   };
@@ -71,7 +88,7 @@ export async function getCommunityCards(tableId) {
 }
 
 export async function getChips(playerAddr, tableId) {
-  return await contract.chips(playerAddr, tableId);
+  return (await contract.chips(playerAddr, tableId)).toString();  // H2
 }
 
 export async function getTotalTables() {
@@ -79,7 +96,7 @@ export async function getTotalTables() {
 }
 
 export async function getDevOwed(token) {
-  return await contract.devOwed(token);
+  return (await contract.devOwed(token)).toString();              // H2
 }
 
 export async function getOwner() {

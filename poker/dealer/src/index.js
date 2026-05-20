@@ -2,12 +2,18 @@
    Entry point. Validates chain connection + ownership, then starts WS server.
 */
 import { config, log } from './config.js';
-import { bootInfo } from './chain.js';
+import { bootInfo, detachAll } from './chain.js';
 import { startServer } from './server.js';
+import { stopAuthCleanup } from './auth.js';
 
 async function main() {
   log.info('starting MollyPoker dealer node...');
   log.info(`contract: ${config.contractAddress}`);
+
+  // L4 — uncaught/unhandled handlers registered FIRST so anything thrown
+  // during boot or in async chains is captured.
+  process.on('uncaughtException', (e) => log.error('uncaught:', e));
+  process.on('unhandledRejection', (e) => log.error('unhandled rejection:', e));
 
   let boot;
   try {
@@ -38,9 +44,12 @@ async function main() {
 
   const wss = startServer();
 
-  function shutdown(sig) {
+  async function shutdown(sig) {
     log.info(`${sig} — closing ${wss.clients.size} ws clients`);
     wss.clients.forEach(ws => ws.close(1001, 'server shutting down'));
+    // L5 — detach contract event listeners on shutdown (no-op in phase A, important for B/C)
+    try { await detachAll(); } catch (e) { log.warn('detachAll failed:', e.message); }
+    stopAuthCleanup();
     wss.close(() => {
       log.info('clean exit');
       process.exit(0);
@@ -52,9 +61,10 @@ async function main() {
   }
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT',  () => shutdown('SIGINT'));
-
-  process.on('uncaughtException', (e) => log.error('uncaught:', e));
-  process.on('unhandledRejection', (e) => log.error('unhandled rejection:', e));
 }
 
-main();
+// L4 — top-level catch in case main() throws before its own handlers fire
+main().catch((e) => {
+  log.error('fatal:', e);
+  process.exit(1);
+});

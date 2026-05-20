@@ -1,23 +1,65 @@
 /*
    Centralized config + logger. Validates env at boot so we fail fast
-   on missing keys instead of cryptic runtime errors.
+   on missing or malformed values instead of cryptic runtime errors.
 */
 import 'dotenv/config';
+import { ethers } from 'ethers';
+
+// L6 — broader placeholder pattern set
+const PLACEHOLDER_PATTERNS = [
+  /^<.*>$/,        // <your-key>
+  /^your-/i,       // your-something
+  /^xxx+$/i,       // xxx, XXXX
+  /^todo$/i,
+  /^changeme$/i,
+  /^placeholder$/i,
+];
 
 function required(name) {
   const v = process.env[name];
-  if (!v || v.includes('<') || v.startsWith('your-')) {
+  if (!v) {
     console.error(`✗ missing env: ${name}`);
+    process.exit(1);
+  }
+  if (PLACEHOLDER_PATTERNS.some(rx => rx.test(v.trim()))) {
+    console.error(`✗ env ${name} looks like a placeholder: '${v}'`);
     process.exit(1);
   }
   return v;
 }
 
+const rpc = required('MONAD_RPC');
+const dealerKey = required('DEALER_PRIVATE_KEY');
+const contractAddress = required('MOLLY_POKER_ADDRESS');
+
+// M7 — validate PORT is a real port number
+const portRaw = process.env.PORT || '4001';
+const port = parseInt(portRaw, 10);
+if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  console.error(`✗ invalid PORT: '${portRaw}' (must be 1-65535)`);
+  process.exit(1);
+}
+
+// L7 — fail fast on malformed address or RPC URL
+let contractAddressChecksum;
+try {
+  contractAddressChecksum = ethers.getAddress(contractAddress);
+} catch {
+  console.error(`✗ MOLLY_POKER_ADDRESS is not a valid address: '${contractAddress}'`);
+  process.exit(1);
+}
+try {
+  new URL(rpc);
+} catch {
+  console.error(`✗ MONAD_RPC is not a valid URL: '${rpc}'`);
+  process.exit(1);
+}
+
 export const config = {
-  rpc: required('MONAD_RPC'),
-  dealerKey: required('DEALER_PRIVATE_KEY'),
-  contractAddress: required('MOLLY_POKER_ADDRESS'),
-  port: parseInt(process.env.PORT || '4001', 10),
+  rpc,
+  dealerKey,
+  contractAddress: contractAddressChecksum,
+  port,
   logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase(),
 };
 
