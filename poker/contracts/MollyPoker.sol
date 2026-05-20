@@ -8,46 +8,52 @@ pragma solidity 0.8.24;
 /_/  /_/\_,_/\_,_/\_, /   /_/   \___/_/\_\\__/_/
                  /___/
 
-  Semi-decentralized Texas Hold'em on Monad. Pot split 70/20/10
-  (winner / burn / dev). Trusted-dealer architecture: the dealer
-  node (a server we run) handles randomness, commit-reveal of
-  hole cards, and computes the winner off-chain. The chain
-  enforces the money: who's in the table, what they bet, where
-  the pot goes.
+  Semi-decentralized Texas Hold'em on Monad.
 
-  WHY OFF-CHAIN EVALUATION?
-    The reference fork (dxganta/poker-solidity) shipped a 21-contract
-    on-chain 7-card hand evaluator using ~600KB of lookup tables.
-    Most of those contracts exceed EIP-170's 24KB cap and can't be
-    deployed. Even if we split them up, every showdown would cost
-    serious gas to run a deterministic computation that anyone with
-    a JS hand evaluator can verify off-chain in microseconds.
+  MOLLY is the universal access pass: every player must hold at least
+  100K MOLLY in their wallet to buy in to ANY table (MOLLY or otherwise).
+  This makes MOLLY the entry-pass token for a multi-project poker network.
 
-  TRUST MODEL:
-    The dealer is already trusted to (a) deal random cards fairly
-    and (b) reveal them honestly at showdown. The contract makes
-    cheating detectable post-hoc: it logs every card the dealer
-    reveals, so the community can independently verify the winner
-    using any open-source poker evaluator. If the dealer ever picks
-    the wrong winner, it shows up immediately in the event log.
-    Same trust radius, fraction of the complexity.
+  Each table runs in ONE token. Whitelisted projects can create tables
+  in their own token. The 30% rake routing differs:
 
-  FORKED FROM: dxganta/poker-solidity (MIT)
+    - MOLLY tables:   20% burned (→ 0xdead), 10% to dev wallet (MOLLY)
+    - Other tables:   30% auto-swapped to WMON via Crust V3 router,
+                      WMON sent to dev wallet (admin burns manually later)
 
-  CHANGES vs upstream:
-    - 70/20/10 pot split (was 100% winner)
-    - Dealer-declared winner with sanity checks (was on-chain Evaluator7)
-    - Fix dealCards bug (chips array now properly sized before access)
-    - SafeERC20 transfers + ReentrancyGuard
-    - emergencyRefund (owner can refund chip balances if dealer crashes)
-    - Cards revealed as events so community can independently verify
-    - Solidity 0.8.24, all math checked, optimizer 200 runs
+  Winners' 70% pot goes to their chips at the table (in the table's
+  token). Winners pay their own gas to withdraw — `withdrawChips` is
+  the claim button. Optionally, winners can call `withdrawAsWMON` to
+  swap their chips to WMON in the same tx.
+
+  Forked from dxganta/poker-solidity (MIT) with simplified architecture:
+  - No on-chain hand evaluator (dealer node computes off-chain)
+  - 70/30 split with token-aware rake routing
+  - 100K MOLLY hold gate
+  - Whitelisted creators
+  - Configurable swap router for non-MOLLY rake auto-conversion
 */
 
 import {IERC20}           from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20}        from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable}          from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard}  from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+/// Minimal interface for Uniswap V3-style swap router (Crust Finance on Monad)
+interface ISwapRouterV3 {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24  fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+    function exactInputSingle(ExactInputSingleParams calldata params)
+        external payable returns (uint256 amountOut);
+}
 
 contract MollyPoker is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -67,6 +73,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         uint pot;
         uint bigBlind;
         IERC20 token;
+        address creator; // tracks who created the table (for accountability)
     }
     struct Round {
         bool state;
@@ -80,70 +87,124 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
     /* ---------- events ---------- */
 
-    event NewTableCreated(uint indexed tableId, address indexed token, uint buyIn, uint bigBlind);
+    event NewTableCreated(uint indexed tableId, address indexed creator, address indexed token, uint buyIn, uint bigBlind);
     event NewBuyIn(uint indexed tableId, address indexed player, uint amount);
-    event Withdrawn(uint indexed tableId, address indexed player, uint amount);
+    event Withdrawn(uint indexed tableId, address indexed player, address indexed token, uint amount);
+    event WithdrawnAsWMON(uint indexed tableId, address indexed player, address tokenIn, uint amountIn, uint wmonOut);
     event CardsDealt(uint indexed tableId, uint handNum, PlayerCardHashes[] cardHashes);
-    event ActionTaken(
-        uint indexed tableId,
-        uint roundId,
-        address indexed player,
-        PlayerAction action,
-        uint amount
-    );
+    event ActionTaken(uint indexed tableId, uint roundId, address indexed player, PlayerAction action, uint amount);
     event RoundOver(uint indexed tableId, uint roundId);
     event CommunityCardsDealt(uint indexed tableId, uint roundId, uint8[] cards);
     event ShowdownStarted(uint indexed tableId, uint handNum);
-
-    /// Logged so the community can independently verify the winner
-    /// using any open-source 7-card evaluator. If the dealer ever
-    /// picks the wrong winner, it's immediately obvious from this log.
-    event CardsRevealed(
-        uint indexed tableId,
-        uint indexed handNum,
-        address[] players,
-        PlayerCards[] cards,
-        uint8[] community
-    );
-
+    event CardsRevealed(uint indexed tableId, uint indexed handNum, address[] players, PlayerCards[] cards, uint8[] community);
     event PotDistributed(
         uint indexed tableId,
         uint indexed handNum,
         address indexed winner,
+        address tableToken,
         uint winnerAmount,
         uint burnAmount,
-        uint devAmount
+        uint devAmount,
+        uint wmonRakeOut
     );
     event EmergencyRefund(uint indexed tableId, address indexed player, uint amount);
+    event WhitelistedCreatorUpdated(address indexed creator, bool whitelisted);
+    event MollyHoldRequiredUpdated(uint oldValue, uint newValue);
+    event SwapRouterUpdated(address indexed oldRouter, address indexed newRouter);
+    event PoolFeeUpdated(address indexed token, uint24 fee);
+    event RakeSwapFailed(uint indexed tableId, address indexed token, uint amount, string reason);
 
     /* ---------- constants ---------- */
 
-    /// 70 / 20 / 10 split in basis points. Sums to 10000 = 100%.
+    /// MOLLY table split: 70% winner / 20% burn / 10% dev (in BPS)
     uint16 public constant WINNER_BPS = 7000;
     uint16 public constant BURN_BPS   = 2000;
     uint16 public constant DEV_BPS    = 1000;
+    /// Non-MOLLY table split: 70% winner / 30% dev (in WMON)
+    uint16 public constant RAKE_BPS   = 3000;
     uint16 public constant BPS        = 10_000;
 
-    /* ---------- config (immutable) ---------- */
+    uint24  public constant DEFAULT_POOL_FEE = 10_000; // 1% tier (most memecoin pools)
+    uint256 public constant SWAP_DEADLINE   = 300;     // 5 min
 
-    address public immutable BURN_ADDR; // 0x000...dEaD typically
-    address public immutable DEV_ADDR;  // Molly team wallet (penalty + rake)
+    /* ---------- immutable ---------- */
 
-    /* ---------- state ---------- */
+    address public immutable BURN_ADDR;     // 0x...dEaD
+    address public immutable DEV_ADDR;      // 0xa424c64aa051cf75749b6377bfc86f20f212cb24
+    address public immutable MOLLY_TOKEN;   // entry-pass token
+    address public immutable WMON;          // wrapped MON
+
+    /* ---------- mutable config ---------- */
+
+    address public swapRouter;                              // Crust V3 router (settable post-deploy)
+    uint    public mollyHoldRequired = 100_000 ether;       // 100K MOLLY
+    mapping(address => bool)   public whitelistedCreator;   // projects approved to spin up tables
+    mapping(address => uint24) public poolFee;              // per-token V3 pool fee override
+
+    /* ---------- table state ---------- */
 
     uint public totalTables;
     mapping(uint => Table) public tables;
-    mapping(address => mapping(uint => uint)) public chips; // player => tableId => chips
+    mapping(address => mapping(uint => uint)) public chips;
     mapping(address => mapping(uint => mapping(uint => PlayerCardHashes))) public playerHashes;
-    mapping(uint => mapping(uint => Round)) public rounds;  // tableId => roundId => Round
-    mapping(uint => uint8[]) public communityCards;         // tableId => community cards
+    mapping(uint => mapping(uint => Round)) public rounds;
+    mapping(uint => uint8[]) public communityCards;
 
-    constructor(address _burnAddr, address _devAddr) Ownable(msg.sender) {
-        require(_burnAddr != address(0), "burn=0");
-        require(_devAddr  != address(0), "dev=0");
-        require(WINNER_BPS + BURN_BPS + DEV_BPS == BPS, "bps != 10000");
-        BURN_ADDR = _burnAddr;
-        DEV_ADDR  = _devAddr;
+    /* ---------- modifiers ---------- */
+
+    modifier onlyWhitelistedOrOwner() {
+        require(whitelistedCreator[msg.sender] || msg.sender == owner(), "not authorized");
+        _;
+    }
+
+    /* ---------- constructor ---------- */
+
+    constructor(
+        address _burnAddr,
+        address _devAddr,
+        address _mollyToken,
+        address _wmon,
+        address _swapRouter // can be 0 initially, set later
+    ) Ownable(msg.sender) {
+        require(_burnAddr   != address(0), "burn=0");
+        require(_devAddr    != address(0), "dev=0");
+        require(_mollyToken != address(0), "molly=0");
+        require(_wmon       != address(0), "wmon=0");
+        require(WINNER_BPS + BURN_BPS + DEV_BPS == BPS, "molly bps != 10000");
+        require(WINNER_BPS + RAKE_BPS == BPS, "nonmolly bps != 10000");
+        BURN_ADDR   = _burnAddr;
+        DEV_ADDR    = _devAddr;
+        MOLLY_TOKEN = _mollyToken;
+        WMON        = _wmon;
+        swapRouter  = _swapRouter;
+    }
+
+    /* ============================================================
+       ADMIN / CONFIG
+       ============================================================ */
+
+    function setWhitelistedCreator(address _creator, bool _whitelisted) external onlyOwner {
+        whitelistedCreator[_creator] = _whitelisted;
+        emit WhitelistedCreatorUpdated(_creator, _whitelisted);
+    }
+
+    function setMollyHoldRequired(uint _amount) external onlyOwner {
+        uint old = mollyHoldRequired;
+        mollyHoldRequired = _amount;
+        emit MollyHoldRequiredUpdated(old, _amount);
+    }
+
+    function setSwapRouter(address _router) external onlyOwner {
+        address old = swapRouter;
+        swapRouter = _router;
+        emit SwapRouterUpdated(old, _router);
+    }
+
+    function setPoolFee(address _token, uint24 _fee) external onlyOwner {
+        // Valid Uniswap V3 fee tiers: 100, 500, 3000, 10000
+        require(_fee == 100 || _fee == 500 || _fee == 3000 || _fee == 10000, "bad fee");
+        poolFee[_token] = _fee;
+        emit PoolFeeUpdated(_token, _fee);
     }
 
     /* ============================================================
@@ -155,7 +216,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         uint _maxPlayers,
         uint _bigBlind,
         address _token
-    ) external {
+    ) external onlyWhitelistedOrOwner {
         require(_token != address(0), "token=0");
         require(_maxPlayers >= 2 && _maxPlayers <= 9, "bad maxPlayers");
         require(_buyInAmount >= _bigBlind, "buyIn < bb");
@@ -170,16 +231,22 @@ contract MollyPoker is Ownable, ReentrancyGuard {
             players: empty,
             pot: 0,
             bigBlind: _bigBlind,
-            token: IERC20(_token)
+            token: IERC20(_token),
+            creator: msg.sender
         });
 
-        emit NewTableCreated(totalTables, _token, _buyInAmount, _bigBlind);
+        emit NewTableCreated(totalTables, msg.sender, _token, _buyInAmount, _bigBlind);
         totalTables += 1;
     }
 
     function buyIn(uint _tableId, uint _amount) external nonReentrant {
-        Table storage table = tables[_tableId];
+        // Universal MOLLY hold gate
+        require(
+            IERC20(MOLLY_TOKEN).balanceOf(msg.sender) >= mollyHoldRequired,
+            "need 100k MOLLY"
+        );
 
+        Table storage table = tables[_tableId];
         require(_amount >= table.buyInAmount, "Not enough buyInAmount");
         require(table.players.length < table.maxPlayers, "Table full");
 
@@ -190,11 +257,29 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         emit NewBuyIn(_tableId, msg.sender, _amount);
     }
 
+    /// Standard withdraw — returns the table's token (the "claim" button)
     function withdrawChips(uint _amount, uint _tableId) external nonReentrant {
         require(chips[msg.sender][_tableId] >= _amount, "Not enough balance");
         chips[msg.sender][_tableId] -= _amount;
-        tables[_tableId].token.safeTransfer(msg.sender, _amount);
-        emit Withdrawn(_tableId, msg.sender, _amount);
+        address tok = address(tables[_tableId].token);
+        IERC20(tok).safeTransfer(msg.sender, _amount);
+        emit Withdrawn(_tableId, msg.sender, tok, _amount);
+    }
+
+    /// Auto-swap variant: withdraw chips as WMON. Pays own gas. Only for non-MOLLY tables.
+    function withdrawAsWMON(uint _amount, uint _tableId, uint _minWmonOut) external nonReentrant {
+        Table storage table = tables[_tableId];
+        address tok = address(table.token);
+        require(tok != MOLLY_TOKEN, "use withdrawChips for MOLLY");
+        require(chips[msg.sender][_tableId] >= _amount, "Not enough balance");
+        require(swapRouter != address(0), "no router");
+
+        chips[msg.sender][_tableId] -= _amount;
+
+        uint wmonOut = _swapToWMON(tok, _amount, _minWmonOut);
+        IERC20(WMON).safeTransfer(msg.sender, wmonOut);
+
+        emit WithdrawnAsWMON(_tableId, msg.sender, tok, _amount, wmonOut);
     }
 
     function playHand(uint _tableId, PlayerAction _action, uint _raiseAmount) external {
@@ -240,7 +325,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     }
 
     /* ============================================================
-       DEALER NODE (owner) — deals cards, runs showdown
+       DEALER NODE (owner)
        ============================================================ */
 
     function dealCards(PlayerCardHashes[] memory _playerCards, uint _tableId)
@@ -255,7 +340,6 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         table.state = TableState.Active;
         table.currentRound = 0;
 
-        // properly size the chips array (upstream bug fix)
         Round storage round = rounds[_tableId][0];
         round.state = true;
         round.players = table.players;
@@ -266,7 +350,6 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         }
         round.turn = 0;
 
-        // post blinds (heads-up: last player = SB, second-last = BB)
         for (uint i = 0; i < n; i++) {
             if (i == n - 1) {
                 uint sb = table.bigBlind / 2;
@@ -294,17 +377,16 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         emit CommunityCardsDealt(_tableId, _roundId, _cards);
     }
 
-    /// @notice Dealer reveals hole cards + declares the winner.
-    ///         Contract verifies the commit-reveal, checks the winner
-    ///         is actually in the showdown round, and distributes
-    ///         the pot 70/20/10. The cards are logged as an event so
-    ///         anyone can independently verify the winner using their
-    ///         own hand evaluator.
+    /// @notice Dealer reveals hole cards + declares winner. For non-MOLLY tables, the
+    ///         30% rake gets auto-swapped to WMON via the configured router. The dealer
+    ///         passes _swapMinOut as slippage protection (calculated off-chain).
+    /// @param _swapMinOut min WMON expected from the rake swap. Pass 0 for MOLLY tables.
     function showdown(
         uint _tableId,
         uint[] memory _keys,
         PlayerCards[] memory _cards,
-        address _winner
+        address _winner,
+        uint _swapMinOut
     ) external onlyOwner nonReentrant {
         Table storage table = tables[_tableId];
         require(table.state == TableState.Showdown, "not in showdown");
@@ -314,21 +396,17 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         require(_keys.length == n && _cards.length == n, "Incorrect arr length");
         require(_winner != address(0), "Winner is zero");
 
-        // 1. verify commit-reveal for every player
         _verifyCards(_tableId, table.totalHands, players, _keys, _cards);
 
-        // 2. sanity check: winner must be in the showdown round's player set
         bool winnerValid = false;
         for (uint i = 0; i < n; i++) {
             if (players[i] == _winner) { winnerValid = true; break; }
         }
         require(winnerValid, "Winner not in round");
 
-        // 3. emit the full reveal — the community's audit log
         emit CardsRevealed(_tableId, table.totalHands, players, _cards, communityCards[_tableId]);
 
-        // 4. distribute pot 70 / 20 / 10
-        _distributePot(table, _tableId, _winner);
+        _distributePot(table, _tableId, _winner, _swapMinOut);
     }
 
     function _verifyCards(
@@ -347,10 +425,15 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     }
 
     /* ============================================================
-       POT DISTRIBUTION — the Molly economic core
+       POT DISTRIBUTION
        ============================================================ */
 
-    function _distributePot(Table storage _table, uint _tableId, address _winner) internal {
+    function _distributePot(
+        Table storage _table,
+        uint _tableId,
+        address _winner,
+        uint _swapMinOut
+    ) internal {
         uint pot = _table.pot;
         uint handNum = _table.totalHands;
 
@@ -359,21 +442,79 @@ contract MollyPoker is Ownable, ReentrancyGuard {
             return;
         }
 
-        // 70 / 20 / 10 split
-        uint burnAmt = (pot * BURN_BPS) / BPS;
-        uint devAmt  = (pot * DEV_BPS)  / BPS;
-        uint winnerAmt = pot - burnAmt - devAmt; // remainder to winner (covers rounding)
+        address tableToken = address(_table.token);
 
-        // winner's portion stays as chips in the contract (no transfer — table continues)
-        chips[_winner][_tableId] += winnerAmt;
+        if (tableToken == MOLLY_TOKEN) {
+            // MOLLY table: 70% winner / 20% burn / 10% dev — all in MOLLY
+            uint burnAmt = (pot * BURN_BPS) / BPS;
+            uint devAmt  = (pot * DEV_BPS)  / BPS;
+            uint winnerAmt = pot - burnAmt - devAmt;
 
-        // burn + dev are real ERC20 transfers out of the contract
-        if (burnAmt > 0) _table.token.safeTransfer(BURN_ADDR, burnAmt);
-        if (devAmt  > 0) _table.token.safeTransfer(DEV_ADDR,  devAmt);
+            chips[_winner][_tableId] += winnerAmt;
+            if (burnAmt > 0) _table.token.safeTransfer(BURN_ADDR, burnAmt);
+            if (devAmt  > 0) _table.token.safeTransfer(DEV_ADDR,  devAmt);
 
-        emit PotDistributed(_tableId, handNum, _winner, winnerAmt, burnAmt, devAmt);
+            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, burnAmt, devAmt, 0);
+        } else {
+            // Non-MOLLY: 70% winner stays in table token / 30% auto-swapped to WMON for dev
+            uint rakeAmt = (pot * RAKE_BPS) / BPS;
+            uint winnerAmt = pot - rakeAmt;
+
+            chips[_winner][_tableId] += winnerAmt;
+
+            uint wmonOut = 0;
+            if (rakeAmt > 0) {
+                if (swapRouter != address(0)) {
+                    // try the swap; on failure, fall back to sending raw tokens
+                    try this._performSwap(tableToken, rakeAmt, _swapMinOut) returns (uint out) {
+                        wmonOut = out;
+                        IERC20(WMON).safeTransfer(DEV_ADDR, wmonOut);
+                    } catch Error(string memory reason) {
+                        emit RakeSwapFailed(_tableId, tableToken, rakeAmt, reason);
+                        _table.token.safeTransfer(DEV_ADDR, rakeAmt);
+                    } catch {
+                        emit RakeSwapFailed(_tableId, tableToken, rakeAmt, "unknown");
+                        _table.token.safeTransfer(DEV_ADDR, rakeAmt);
+                    }
+                } else {
+                    // no router configured — fall back to raw token
+                    _table.token.safeTransfer(DEV_ADDR, rakeAmt);
+                }
+            }
+
+            emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, 0, rakeAmt, wmonOut);
+        }
 
         _reInitiateTable(_table, _tableId);
+    }
+
+    /// External wrapper around _swapToWMON so we can try/catch the swap in _distributePot.
+    /// Only callable by the contract itself.
+    function _performSwap(address _token, uint _amountIn, uint _minOut) external returns (uint) {
+        require(msg.sender == address(this), "self only");
+        return _swapToWMON(_token, _amountIn, _minOut);
+    }
+
+    function _swapToWMON(address _token, uint _amountIn, uint _minOut) internal returns (uint amountOut) {
+        IERC20(_token).forceApprove(swapRouter, _amountIn);
+
+        uint24 fee = poolFee[_token];
+        if (fee == 0) fee = DEFAULT_POOL_FEE;
+
+        ISwapRouterV3.ExactInputSingleParams memory params = ISwapRouterV3.ExactInputSingleParams({
+            tokenIn:           _token,
+            tokenOut:          WMON,
+            fee:               fee,
+            recipient:         address(this),
+            deadline:          block.timestamp + SWAP_DEADLINE,
+            amountIn:          _amountIn,
+            amountOutMinimum:  _minOut,
+            sqrtPriceLimitX96: 0
+        });
+        amountOut = ISwapRouterV3(swapRouter).exactInputSingle(params);
+
+        // Reset approval to 0 for safety
+        IERC20(_token).forceApprove(swapRouter, 0);
     }
 
     /* ============================================================
@@ -386,17 +527,16 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
         if (n == 1) {
             // everyone else folded — last player wins by default
-            _distributePot(_table, _tableId, _round.players[0]);
+            // (no swap needed for fold wins on non-MOLLY since pot is small; pass 0)
+            _distributePot(_table, _tableId, _round.players[0], 0);
             return;
         }
 
         if (_allElementsEqual(_round.chips)) {
             if (_table.currentRound == 3) {
-                // post-river, all bets matched → showdown
                 _table.state = TableState.Showdown;
                 emit ShowdownStarted(_tableId, _table.totalHands);
             } else if (_round.turn == n - 1) {
-                // betting round closed → next street
                 emit RoundOver(_tableId, _table.currentRound);
                 _table.currentRound += 1;
 
@@ -412,7 +552,6 @@ contract MollyPoker is Ownable, ReentrancyGuard {
                 _round.turn = _updateTurn(_round.turn, n);
             }
         } else {
-            // someone raised — keep going around
             _round.turn = _updateTurn(_round.turn, n);
         }
     }
@@ -436,7 +575,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     }
 
     /* ============================================================
-       EMERGENCY — owner can refund chips if dealer crashes
+       EMERGENCY
        ============================================================ */
 
     function emergencyRefund(uint _tableId, address[] calldata _players)
@@ -458,7 +597,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     }
 
     /* ============================================================
-       UTILS
+       UTILS + VIEWS
        ============================================================ */
 
     function _allElementsEqual(uint[] memory arr) internal pure returns (bool) {
@@ -479,10 +618,6 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         arr[index] = arr[arr.length - 1];
         arr.pop();
     }
-
-    /* ============================================================
-       VIEWS
-       ============================================================ */
 
     function getTablePlayers(uint _tableId) external view returns (address[] memory) {
         return tables[_tableId].players;
@@ -505,5 +640,10 @@ contract MollyPoker is Ownable, ReentrancyGuard {
 
     function getCommunityCards(uint _tableId) external view returns (uint8[] memory) {
         return communityCards[_tableId];
+    }
+
+    /// Eligibility check for the frontend — "can this address sit at a table?"
+    function canPlay(address _user) external view returns (bool) {
+        return IERC20(MOLLY_TOKEN).balanceOf(_user) >= mollyHoldRequired;
     }
 }

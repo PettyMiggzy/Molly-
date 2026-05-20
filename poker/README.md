@@ -1,144 +1,101 @@
-# Molly Poker
+# Molly Poker (v2)
 
-Semi-decentralized Texas Hold'em on Monad. Forked from
-[`dxganta/poker-solidity`](https://github.com/dxganta/poker-solidity) (MIT) with
-**Molly economics** + a simplified architecture.
+Semi-decentralized Texas Hold'em on Monad. **MOLLY is the universal
+access pass to a multi-project poker network.**
 
-## Pot split (locked)
+## Economics
 
-| share | recipient   |
-| ---:  | :---        |
-| 70%   | winner      |
-| 20%   | burn (`0xdead`) |
-| 10%   | dev wallet  |
+| concept | rule |
+| :--- | :--- |
+| **Entry** | hold ≥ 100K MOLLY in your wallet to buy in at ANY table |
+| **Buy-in token** | each table runs in ONE token (set per-table) |
+| **Match creators** | whitelisted projects + admin can create tables |
 
-Hardcoded in `MollyPoker.sol` as `WINNER_BPS / BURN_BPS / DEV_BPS`. The 20%
-that hits `0xdead` is a real ERC20 `transfer`, so MOLLY is genuinely deflated
-every hand. The 10% goes to `0xa424...cb24` (same wallet as MollyStaking
-penalty rake).
+## Pot split
 
-## Architecture: trusted dealer, on-chain money
+The rake routing differs based on the table's token:
 
-The dealer node = a backend service we run (the deployer wallet for v1).
-Players never see other players' hole cards mid-hand. Flow:
+**MOLLY tables** (`table.token == MOLLY`):
+- 70% → winner (chips in MOLLY)
+- 20% → 0xdead (burn)
+- 10% → dev wallet (MOLLY)
 
-```
-                                        ┌─────────────────┐
-              (player)                   │  dealer node    │
-                  │                      │  (off-chain)    │
-                  │  buyIn(table, amt)   │                 │
-                  ├─────────────────────►│                 │
-                  │                      │                 │
-                  │   ◄── dealCards(hashes)                │
-                  │   (raw cards revealed via private chan)│
-                  │                      │                 │
-                  │  playHand(call|raise|check|fold)       │
-                  ├─────────────────────►│                 │
-                  │                      │                 │
-                  │   ◄── dealCommunityCards(flop/turn/river)
-                  │                      │                 │
-                  │   ◄── showdown(keys, cards, WINNER)    │
-                  │       (commit-reveal + 70/20/10 split) │
-                  │                      └─────────────────┘
-                  ▼
-              (winner)
-```
+**Non-MOLLY tables** (CHOG, RENE, PHUCK, etc):
+- 70% → winner (chips in the table's token — they can withdraw original OR auto-swap to WMON)
+- 30% → **auto-swapped to WMON via Crust V3 router → dev wallet**
 
-The contract enforces the money flow:
-- Who's at the table, what tokens they staked, what they bet
-- Commit-reveal verification of hole cards (the dealer commits hashes at
-  `dealCards`, reveals the keys at `showdown`)
-- The 70/20/10 pot split on every hand
+Admin burns the WMON rake manually later (so the burn ends up in the project's token).
 
-The dealer is trusted for:
-- Honest randomness (card dealing)
-- Honest reveal at showdown
-- Picking the correct winner from the revealed cards
+## Withdrawals (the "claim button")
 
-The first two were already trust requirements. We added the third — but the
-contract emits a **`CardsRevealed`** event with every player's hole cards +
-the community cards. Anyone can plug that into an open-source 7-card
-evaluator and verify the winner was chosen correctly. If the dealer cheats,
-it's visible in the next block.
+Winners pay their own gas to claim:
+- `withdrawChips(amount, tableId)` — returns the table's token
+- `withdrawAsWMON(amount, tableId, minWmonOut)` — swaps chips to WMON in the same tx (non-MOLLY tables only)
 
-## Why not on-chain evaluation?
+## Architecture
 
-The upstream fork shipped an on-chain 7-card evaluator via ~600KB of lookup
-tables (DpTables + 3 flush + 17 noflush contracts = 21 contracts total).
+Trusted-dealer model:
+- Dealer node (off-chain) generates random cards, commits hashes on-chain via `dealCards`
+- Players play via `playHand` (Call/Raise/Check/Fold) — they pay their own gas
+- Dealer reveals cards + declares winner via `showdown(tableId, keys, cards, winner, swapMinOut)`
+- Contract verifies commit-reveal, validates winner is in showdown round, emits `CardsRevealed` event (community audit log), distributes pot
 
-Two problems:
-1. 16 of the 22 lookup contracts exceed EIP-170's 24KB code-size cap. The
-   chain rejects the deploy.
-2. Even if you split each into 2-3 sub-contracts (~40 contracts total), every
-   showdown burns serious gas to run a deterministic computation that anyone
-   with a JS hand evaluator can verify off-chain in microseconds.
-
-So we dropped the on-chain evaluator. Same trust radius, ~95% less code.
-
-## Layout
-
-```
-contracts/
-└── MollyPoker.sol          single contract, 13KB runtime, 46% under cap
-                            (was 600KB across 21 contracts in the fork)
-test/
-└── MollyPoker.test.js      16 tests, all passing
-scripts/
-├── deploy.js               deploys MollyPoker(burn, dev)
-└── verify.js               verifies on monadscan via Etherscan V2
-```
+For non-MOLLY tables, the dealer passes `swapMinOut` (calculated off-chain from the Crust pool) for slippage protection. If the swap fails, the contract falls back to sending raw tokens to the dev wallet (with `RakeSwapFailed` event).
 
 ## Deploy
 
 ```bash
 cd poker
 npm install
-cp .env.example .env
-# fill in PRIVATE_KEY + ETHERSCAN_API_KEY
+cp .env.example .env  # PRIVATE_KEY + ETHERSCAN_API_KEY
 
-# testnet first
-npm run deploy:testnet
-npm run verify:testnet
+# 1. Deploy
+npm run deploy:testnet   # or deploy:mainnet
+npm run verify:testnet   # or verify:mainnet
 
-# once tested, mainnet
-npm run deploy:mainnet
-npm run verify:mainnet
+# 2. Post-deploy setup (via hardhat console or a script)
+#    - setSwapRouter(<Crust V3 SwapRouter address>)
+#    - setWhitelistedCreator(<each project wallet>, true)
+#    - setPoolFee(<each project token>, 10000)   # 1% V3 tier, default
 ```
 
-Deployer is the standard Molly deployer wallet (`0xB9d4B7...e467f`).
-Verification key is from `etherscan.io` (NOT bscscan or monadscan) — Monad
-uses Etherscan V2 unified API.
+Constructor args (already wired in `scripts/deploy.js`):
+- `burnAddr`: `0x000…dEaD`
+- `devAddr`: `0xa424…cb24` (same as MollyStaking penalty rake)
+- `mollyToken`: `0xB72e6262DAE53cAF167F0966421a0B9782977777`
+- `wmon`: `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A`
+- `swapRouter`: `address(0)` initially — set via `setSwapRouter()` once Crust V3 router address is known
 
-The script writes a deployment record to `deployments/<network>-latest.json`
-with the contract address. Read from it in the dealer node / frontend.
+## Admin functions
 
-## Key changes from upstream
+| function | purpose |
+| :--- | :--- |
+| `setWhitelistedCreator(addr, bool)` | approve/revoke a project's ability to create tables |
+| `setMollyHoldRequired(uint)` | tune the entry gate (default 100K) |
+| `setSwapRouter(addr)` | point at the Crust V3 router |
+| `setPoolFee(token, fee)` | per-token V3 pool fee tier (100/500/3000/10000 BPS) |
+| `emergencyRefund(tableId, [players])` | last-resort chip refund if dealer crashes |
 
-1. **70/20/10 pot split** in `_distributePot()` — `safeTransfer` for burn +
-   dev portions, credits the winner's chip balance for the remainder
-2. **Off-chain evaluator** — `showdown(_keys, _cards, winner)` accepts the
-   dealer's declared winner. Contract verifies the commit-reveal and that
-   the winner is in the showdown round
-3. **`CardsRevealed` event** — full audit log of every hole card + community
-   card for community verification
-4. **Fixed `dealCards` bug** — upstream version accessed `round.chips[i]`
-   without first sizing the array, which reverts every time. Now properly
-   pushes 0s before assigning blinds
-5. **SafeERC20** — handles tokens that don't return bool (USDT-style)
-6. **ReentrancyGuard** on all token-moving functions
-7. **`emergencyRefund`** — owner-only escape hatch if the dealer node
-   crashes mid-hand. Doesn't run if the table is in showdown
-8. **Solidity 0.8.24** (was 0.8.9) with all math checked
-9. **`ActionTaken` event** — every call/raise/check/fold emits an event
-   with the amount, so the frontend can render live action history
+## Trust model
 
-## v1 scope
+Same as v1: the dealer is trusted to deal cards fairly and reveal them honestly. The `CardsRevealed` event logs all hole + community cards so anyone can independently verify the declared winner with an off-chain hand evaluator.
 
-- Heads-up only (2 players). Contract supports up to 9.
-- Player chooses a table to join, plays a sequence of hands.
-- `withdrawChips` between hands.
-- No tournaments. No multi-table. No sit-and-go. No re-entry rules.
+The dealer is ALSO trusted to:
+- Pass a reasonable `swapMinOut` for the rake auto-swap (protects against sandwiches)
+- Not collude with one side
+
+If the dealer ever cheats, it's visible in the next block's event log.
+
+## Tests
+
+21 passing in 4s. Covers:
+- Constructor sanity, BPS math
+- Whitelist gate on createTable
+- 100K MOLLY hold check on buyIn
+- Withdrawals
+- Admin setters
+- emergencyRefund
 
 ## License
 
-MIT (same as upstream).
+MIT (forked from `dxganta/poker-solidity`).
