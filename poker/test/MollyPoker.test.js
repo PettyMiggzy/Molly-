@@ -79,6 +79,14 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       expect(await poker.swapRouter()).to.equal(molly.target);
     });
 
+    it("setSwapRouter rejects setting itself as router (P4 L1)", async () => {
+      // Self-loop would cause swap calls to recurse and ultimately fall through
+      // the try/catch fallback path, leaving a non-zero approval to ourselves.
+      // Guard prevents the misconfiguration up-front.
+      await expect(poker.setSwapRouter(poker.target))
+        .to.be.revertedWith("router=self");
+    });
+
     it("setPoolFee allows 0 to reset default + rejects garbage", async () => {
       await poker.setPoolFee(otherToken.target, 3000);
       await poker.setPoolFee(otherToken.target, 0);
@@ -761,6 +769,25 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       );
       const totalDelta = balsAfter.reduce((s, b, i) => s + (b - balsBefore[i]), 0n);
       expect(totalDelta).to.equal(BUY_IN * 3n);
+
+      // P4 L4 — per-player delta assertions so a swap-bug between players
+      // would fail this test. Math:
+      //   chips refunded (post-call/blinds):
+      //     alice (BTN, called BB):  BUY_IN - BB
+      //     bob   (BB seat):         BUY_IN - BB
+      //     carol (SB seat):         BUY_IN - BB/2
+      //   pot share: floor(2500 / 3) = 833 per player
+      //   dust: 2500 - (833 * 3) = 1 → goes to all[0] = alice
+      const POT     = BB + BB / 2n + BB;        // 2500
+      const PER     = POT / 3n;                  // 833
+      const DUST    = POT - (PER * 3n);          // 1 → alice
+      const aliceΔ  = (BUY_IN - BB)     + PER + DUST;
+      const bobΔ    = (BUY_IN - BB)     + PER;
+      const carolΔ  = (BUY_IN - BB/2n)  + PER;
+
+      expect(balsAfter[0] - balsBefore[0]).to.equal(aliceΔ);
+      expect(balsAfter[1] - balsBefore[1]).to.equal(bobΔ);
+      expect(balsAfter[2] - balsBefore[2]).to.equal(carolΔ);
 
       // Contract drained
       expect(await molly.balanceOf(poker.target)).to.equal(0);

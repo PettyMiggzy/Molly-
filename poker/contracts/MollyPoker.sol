@@ -201,7 +201,9 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     }
     function setSwapRouter(address _router) external onlyOwner {
         // M2 — non-zero router must be a contract
+        // P4 L1 — but it can't be THIS contract (would cause a self-loop swap)
         if (_router != address(0)) {
+            require(_router != address(this), "router=self");
             uint size;
             assembly { size := extcodesize(_router) }
             require(size > 0, "router not contract");
@@ -692,12 +694,19 @@ contract MollyPoker is Ownable, ReentrancyGuard {
                 emit EmergencyRefund(_tableId, DEV_ADDR, table.pot);
                 table.pot = 0;
             }
+            // P4 L2 — match the n>0 cleanup for symmetry (no-op when already empty)
             table.state = TableState.Inactive;
             table.currentRound = 0;
+            delete communityCards[_tableId];
+            for (uint i = 0; i <= LAST_ROUND; i++) {
+                delete rounds[_tableId][i];
+            }
             return;
         }
 
-        // Snapshot so we can use the array after we delete table.players
+        // P4 L5 — Snapshot to memory BEFORE we delete table.players below.
+        // The snapshot is used by the pot-split loop after the delete; do not
+        // collapse this into iterating table.players directly.
         address[] memory all = new address[](n);
         for (uint i = 0; i < n; i++) all[i] = table.players[i];
 
