@@ -32,6 +32,22 @@ const rpc = required('MONAD_RPC');
 const dealerKey = required('DEALER_PRIVATE_KEY');
 const contractAddress = required('MOLLY_POKER_ADDRESS');
 
+// Optional WebSocket RPC (e.g. QuickNode wss://). When present, chain.js uses
+// it for event subscriptions instead of HTTP polling — sub-second event delivery.
+// HTTP RPC is still used for read/write calls.
+const rpcWss = process.env.MONAD_RPC_WSS || null;
+if (rpcWss) {
+  try { new URL(rpcWss); }
+  catch {
+    console.error(`✗ MONAD_RPC_WSS is not a valid URL: '${rpcWss}'`);
+    process.exit(1);
+  }
+  if (!rpcWss.startsWith('ws://') && !rpcWss.startsWith('wss://')) {
+    console.error(`✗ MONAD_RPC_WSS must start with ws:// or wss://, got: '${rpcWss}'`);
+    process.exit(1);
+  }
+}
+
 // M7 — validate PORT is a real port number
 const portRaw = process.env.PORT || '4001';
 const port = parseInt(portRaw, 10);
@@ -57,6 +73,7 @@ try {
 
 export const config = {
   rpc,
+  rpcWss,
   // dealerKey intentionally NOT exposed here — access via getDealerKey() which
   // is consumed once by chain.js and not stashed in a shared object.
   contractAddress: contractAddressChecksum,

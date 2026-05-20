@@ -27,6 +27,7 @@ import {
   subscribeToTable,
 } from './chain.js';
 import { shuffleDeck, commitPlayerCards, cardToString, cardToPokersolver } from './deck.js';
+import { saveTable, loadTable, clearTable } from './persistence.js';
 
 // Local state machine
 const STATE = Object.freeze({
@@ -71,7 +72,33 @@ export class TableRunner {
                              this._onCommunityCardsDealt(Number(roundId), cards.map(c => Number(c))),
       onEmergencyRefund:   (player, amount) => this._onEmergencyRefund(player, amount.toString()),
     });
+    // Restore any persisted state from a previous run (async, fire-and-forget).
+    this._restore().catch(e => log.warn(`[t${this.tableId}] restore failed: ${e.message}`));
     log.info(`[t${this.tableId}] runner started`);
+  }
+
+  async _restore() {
+    const saved = await loadTable(this.tableId);
+    if (!saved) return;
+    this.localState = saved.localState || 'IDLE';
+    this.seatOrder = saved.seatOrder || [];
+    this.deck = saved.deck || null;
+    this.holeCards = new Map(Object.entries(saved.holeCards || {}));
+    this.keys = new Map(Object.entries(saved.keys || {}));
+    this.communityCards = saved.communityCards || [];
+    log.info(`[t${this.tableId}] restored: ${this.seatOrder.length} seats, state=${this.localState}, deck=${this.deck ? 'present' : 'none'}`);
+  }
+
+  async _persist() {
+    await saveTable({
+      tableId: this.tableId,
+      localState: this.localState,
+      seatOrder: this.seatOrder,
+      deck: this.deck,
+      keys: Object.fromEntries(this.keys),
+      holeCards: Object.fromEntries(this.holeCards),
+      communityCards: this.communityCards,
+    });
   }
 
   async stop() {
@@ -164,6 +191,7 @@ export class TableRunner {
       this._resetHand();
       return;
     }
+    await this._persist(); // C2 — save deck/keys/holeCards in case of restart
 
     // Privately notify each seated player of their own cards.
     // Note: only players currently connected via WS will see this. If a player
@@ -264,6 +292,7 @@ export class TableRunner {
       return;
     }
     this.localState = STATE.ACTIVE;
+    await this._persist(); // C2 — update on-disk community cards
   }
 
   _onCommunityCardsDealt(roundId, cards) {
@@ -358,5 +387,8 @@ export class TableRunner {
     this.communityCards = [];
     this.seatOrder = [];
     this.readyPlayers.clear();
+    // C2 — drop the persisted file so a restart doesn't try to resume a
+    // hand that's already complete
+    clearTable(this.tableId).catch(e => log.warn(`clearTable failed: ${e.message}`));
   }
 }

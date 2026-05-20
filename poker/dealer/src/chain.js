@@ -51,6 +51,20 @@ export const provider = new ethers.JsonRpcProvider(config.rpc);
 const wallet = new ethers.Wallet(getDealerKey(), provider);
 export const contract = new ethers.Contract(config.contractAddress, ABI, wallet);
 
+// Separate provider for event subscriptions. WSS gives sub-second event
+// delivery vs ~2-12s for HTTP polling. Falls back to the HTTP contract if
+// MONAD_RPC_WSS isn't set.
+let eventContract;
+let eventProvider;
+if (config.rpcWss) {
+  eventProvider = new ethers.WebSocketProvider(config.rpcWss);
+  eventContract = new ethers.Contract(config.contractAddress, ABI, eventProvider);
+  log.info(`event subscriptions via WSS: ${config.rpcWss.replace(/\/\/[^@]*@/, '//<key>@')}`);
+} else {
+  eventContract = contract;
+  log.info(`event subscriptions via HTTP polling (set MONAD_RPC_WSS for real-time)`);
+}
+
 // Exported deliberately as a getter so the address can be inspected/logged but
 // the wallet object itself isn't passed around.
 export function dealerAddress() { return wallet.address; }
@@ -142,14 +156,14 @@ export async function showdown(tableId, keys, cards, winner) {
 /* ---------- event listeners ---------- */
 
 export function onEvent(name, handler) {
-  contract.on(name, handler);
+  eventContract.on(name, handler);
   log.debug(`subscribed to event: ${name}`);
 }
 
 /**
- * Subscribe to all per-table events for a single table.
- * Handlers are object keyed by event name; each receives the indexed/named
- * args ethers v6 passes for that event, followed by the EventLog object.
+ * Subscribe to all per-table events for a single table. Uses the WSS-backed
+ * eventContract for sub-second delivery (falls back to HTTP polling if
+ * MONAD_RPC_WSS is unset). Returns an unsubscribe function.
  *
  *   subscribeToTable(7, {
  *     onBuyIn:           (player, amount, received, ev) => ...,
@@ -160,8 +174,6 @@ export function onEvent(name, handler) {
  *     onPotDistributed:  (handNum, winner, tableToken, winnerAmt, burnAmt, devAmt, ev) => ...,
  *     onCardsDealt:      (handNum, cardHashes, ev) => ...,
  *   })
- *
- * Returns an unsubscribe function that detaches all the listeners it added.
  */
 export function subscribeToTable(tableId, handlers) {
   const filters = [];
@@ -178,32 +190,31 @@ export function subscribeToTable(tableId, handlers) {
   ];
   for (const [name, h] of map) {
     if (!h) continue;
-    // tableId is the indexed first arg on all these events
-    const filter = contract.filters[name](tableId);
-    contract.on(filter, h);
+    const filter = eventContract.filters[name](tableId);
+    eventContract.on(filter, h);
     filters.push({ filter, h });
   }
   log.debug(`subscribed to ${filters.length} events for table ${tableId}`);
   return async function unsubscribe() {
     for (const { filter, h } of filters) {
-      await contract.off(filter, h);
+      await eventContract.off(filter, h);
     }
     log.debug(`unsubscribed ${filters.length} events for table ${tableId}`);
   };
 }
 
-/**
- * Global subscription to NewTableCreated — fires whenever any new table is
- * created on-chain. Returns an unsubscribe function.
- */
 export function onNewTableCreated(handler) {
-  const filter = contract.filters.NewTableCreated();
-  contract.on(filter, handler);
-  return async () => { await contract.off(filter, handler); };
+  const filter = eventContract.filters.NewTableCreated();
+  eventContract.on(filter, handler);
+  return async () => { await eventContract.off(filter, handler); };
 }
 
 export async function detachAll() {
-  await contract.removeAllListeners();
+  await eventContract.removeAllListeners();
+  if (eventProvider && typeof eventProvider.destroy === 'function') {
+    try { await eventProvider.destroy(); }
+    catch (e) { log.warn('WSS provider destroy failed:', e.message); }
+  }
 }
 
 /* ---------- boot info ---------- */

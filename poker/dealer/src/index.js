@@ -5,6 +5,8 @@ import { config, log } from './config.js';
 import { bootInfo, detachAll } from './chain.js';
 import { startServer, stopAllRunners } from './server.js';
 import { stopAuthCleanup } from './auth.js';
+import { listSavedTables } from './persistence.js';
+import { getRunner } from './tables.js';
 
 async function main() {
   log.info('starting MollyPoker dealer node...');
@@ -41,6 +43,17 @@ async function main() {
   }
 
   log.info('✓ dealer is owner, ready to deal');
+
+  // C2 — recreate runners for any tables that had persisted state from a
+  // previous run. The runners will _restore() on start.
+  const saved = listSavedTables();
+  if (saved.length > 0) {
+    log.info(`restoring ${saved.length} table(s) from disk: [${saved.join(', ')}]`);
+    for (const tid of saved) {
+      try { getRunner(tid); }
+      catch (e) { log.warn(`failed to restore runner for table ${tid}: ${e.message}`); }
+    }
+  }
 
   const wss = startServer();
 

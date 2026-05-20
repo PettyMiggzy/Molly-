@@ -1,0 +1,53 @@
+# nginx config snippet for the MollyPoker dealer node.
+#
+# Reverse-proxies wss://api.monpad.net/poker → ws://127.0.0.1:4001
+#
+# Drop into /etc/nginx/sites-available/monpad (or wherever your api.monpad.net
+# server block lives), add the upstream + location block, reload:
+#
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Requires Let's Encrypt cert for api.monpad.net (you already have this from
+# the existing monpad-server + molly-pfp setup).
+
+upstream molly_poker_dealer {
+    server 127.0.0.1:4001;
+    # Keepalive connections to the upstream
+    keepalive 64;
+}
+
+# Add inside the existing server { listen 443 ssl; server_name api.monpad.net; ... } block:
+
+    # ─── MollyPoker dealer WebSocket ────────────────────────────────────────
+    location /poker {
+        proxy_pass http://molly_poker_dealer;
+
+        # WebSocket upgrade
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Pass through real client IP — dealer sees this via x-forwarded-for
+        # when DEALER_TRUST_PROXY=1 is set in its .env
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Long-lived connections — poker games run hours
+        proxy_read_timeout 86400s;     # 24h, matches dealer's session TTL
+        proxy_send_timeout 86400s;
+        proxy_connect_timeout 60s;
+
+        # Disable buffering for real-time messages
+        proxy_buffering off;
+    }
+
+# After applying, set in dealer/.env:
+#   DEALER_TRUST_PROXY=1
+# So the dealer trusts x-forwarded-for and logs real client IPs.
+#
+# Smoke test the wss endpoint:
+#   wscat -c wss://api.monpad.net/poker
+#   > {"type":"list_tables"}
+#   < {"type":"tables","tables":[...]}
