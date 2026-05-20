@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#0a0508">
+<title>The Backroom · live tables</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Patrick+Hand&family=Caveat:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@1,400;1,700;0,700;0,900&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎀</text></svg>">
+
+<!-- ethers v6 UMD -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+
+<style>
+  :root {
+    --bg: #07030a;
+    --bg-mid: #14070f;
+    --table-felt: #4a1230;
+    --table-felt-dark: #2d0a1c;
+    --table-felt-light: #6a1c45;
+    --wood: #3a1f1a;
+    --wood-mid: #4a261d;
+    --wood-light: #6a3825;
+    --brass: #c9a96e;
+    --brass-bright: #e8c890;
+    --cream: #f5e8d0;
+    --pink: #e87fc4;
+    --pink-bright: #ff6db3;
+    --pink-deep: #c2509b;
+    --molly: #b07cff;
+    --gold: #ffd84d;
+    --burn: #ff5a2c;
+    --ash: #6b4f3f;
+    --ink: #0a0508;
+    --red-card: #c02835;
+
+    --display: 'Bagel Fat One', system-ui, sans-serif;
+    --serif: 'Playfair Display', Georgia, serif;
+    --hand: 'Patrick Hand', cursive;
+    --script: 'Caveat', cursive;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--hand);
+    font-size: 17px;
+    line-height: 1.5;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(176, 124, 255, 0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(232, 127, 196, 0.06), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* ===== TOPNAV ===== */
+  .topnav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(7, 3, 10, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(201, 169, 110, 0.2);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 19px;
+    color: var(--cream);
+  }
+  .brand-mark {
+    width: 32px; height: 32px;
+    background: radial-gradient(circle, var(--pink-bright), var(--pink-deep));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 18px rgba(232, 127, 196, 0.5);
+  }
+  .brand small {
+    color: var(--brass);
+    font-size: 10px;
+    letter-spacing: 2px;
+    font-weight: 700;
+    font-style: normal;
+    font-family: var(--mono);
+    margin-left: 4px;
+  }
+  .nav-links { display: flex; gap: 18px; align-items: center; }
+  .nav-cta {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--pink);
+    text-decoration: none;
+  }
+  .nav-cta:hover { color: var(--cream); }
+
+  /* ===== WALLET BAR ===== */
+  .wallet-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .wallet-info {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .wallet-addr {
+    color: var(--pink);
+    cursor: pointer;
+  }
+  .wallet-balance {
+    color: var(--molly);
+    font-weight: 700;
+  }
+  .btn {
+    background: var(--brass);
+    color: var(--ink);
+    border: none;
+    padding: 9px 18px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--brass-bright);
+    transform: translateY(-1px);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-primary { background: var(--pink); }
+  .btn-primary:hover:not(:disabled) { background: var(--pink-bright); }
+  .btn-danger { background: var(--burn); color: var(--cream); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--cream);
+    border: 1px solid rgba(201, 169, 110, 0.3);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--brass);
+    background: rgba(201, 169, 110, 0.05);
+  }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    padding: 6px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(201, 169, 110, 0.1);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--ash);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .status-bar .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    background: var(--ash);
+  }
+  .status-bar .dot.ok { background: #6dffae; box-shadow: 0 0 8px rgba(109,255,174,0.5); }
+  .status-bar .dot.bad { background: var(--burn); }
+  .status-bar .dot.warn { background: var(--gold); }
+
+  /* ===== MAIN ===== */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    text-align: center;
+    padding: 24px 0 32px;
+  }
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(28px, 5vw, 48px);
+    color: var(--cream);
+    letter-spacing: 1px;
+    text-shadow: 0 0 30px rgba(232, 127, 196, 0.3);
+  }
+  .hero .sub {
+    font-family: var(--script);
+    font-size: clamp(18px, 2.5vw, 22px);
+    color: var(--brass);
+    margin-top: 6px;
+  }
+
+  /* ===== TABLE LIST ===== */
+  .table-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+    margin-top: 16px;
+  }
+  .table-card {
+    background: linear-gradient(180deg, var(--wood-mid), var(--wood));
+    border: 2px solid var(--brass);
+    border-radius: 10px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .table-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--brass-bright);
+  }
+  .table-card .felt {
+    position: absolute;
+    inset: 6px;
+    background: var(--table-felt);
+    border-radius: 6px;
+    z-index: 0;
+    opacity: 0.4;
+  }
+  .table-card > * { position: relative; z-index: 1; }
+  .table-card .label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--ash);
+    text-transform: uppercase;
+  }
+  .table-card .title {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--cream);
+    margin: 4px 0 12px;
+  }
+  .table-card .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(201, 169, 110, 0.2);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .table-card .row:last-of-type { border-bottom: none; }
+  .table-card .row .v { color: var(--cream); font-weight: 700; }
+  .table-card .row .v.molly { color: var(--molly); }
+  .table-card .row .v.pink { color: var(--pink); }
+  .table-card .row .v.gold { color: var(--gold); }
+  .table-card .state-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.5);
+    color: var(--ash);
+  }
+  .table-card .state-badge.active { color: #6dffae; }
+  .table-card .state-badge.inactive { color: var(--brass); }
+  .table-card .state-badge.showdown { color: var(--gold); }
+  .table-card .cta {
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  /* ===== EMPTY / LOADING ===== */
+  .info-panel {
+    background: rgba(0,0,0,0.4);
+    border: 1px dashed rgba(201, 169, 110, 0.3);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    color: var(--ash);
+    font-family: var(--hand);
+    font-size: 18px;
+  }
+  .info-panel strong { color: var(--cream); }
+
+  /* ===== TABLE ROOM (in-game view) ===== */
+  .room {
+    display: none;
+  }
+  .room.active { display: block; }
+  .room-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .room-title {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--cream);
+  }
+  .room-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--brass);
+  }
+
+  .felt-table {
+    background:
+      radial-gradient(ellipse at center, var(--table-felt-light), var(--table-felt) 60%, var(--table-felt-dark) 100%);
+    border: 8px solid var(--wood);
+    border-radius: 100px / 60px;
+    padding: 40px 30px;
+    min-height: 360px;
+    position: relative;
+    box-shadow:
+      inset 0 0 40px rgba(0,0,0,0.6),
+      0 8px 30px rgba(0,0,0,0.8);
+    margin-bottom: 20px;
+  }
+
+  .pot-display {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .pot-display .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--brass);
+  }
+  .pot-display .amount {
+    font-family: var(--display);
+    font-size: 36px;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(255, 216, 77, 0.4);
+  }
+
+  .community-cards {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 30px;
+    min-height: 90px;
+    flex-wrap: wrap;
+  }
+  .seats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .seat {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(201, 169, 110, 0.3);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .seat.active-turn {
+    border-color: var(--gold);
+    box-shadow: 0 0 16px rgba(255, 216, 77, 0.4);
+    animation: pulse-glow 1.5s infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 16px rgba(255, 216, 77, 0.4); }
+    50% { box-shadow: 0 0 24px rgba(255, 216, 77, 0.7); }
+  }
+  .seat.folded { opacity: 0.4; }
+  .seat.you { border-color: var(--molly); }
+  .seat .name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--pink);
+    letter-spacing: 1px;
+  }
+  .seat .chips {
+    font-family: var(--display);
+    font-size: 18px;
+    color: var(--cream);
+    margin-top: 4px;
+  }
+  .seat .status {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--ash);
+    margin-top: 4px;
+    min-height: 12px;
+  }
+
+  /* ===== PLAYING CARDS ===== */
+  .card {
+    width: 64px; height: 90px;
+    background: var(--cream);
+    border-radius: 6px;
+    border: 1px solid var(--ash);
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px 8px;
+    font-family: var(--serif);
+    font-weight: 900;
+    color: var(--ink);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
+  }
+  .card.red { color: var(--red-card); }
+  .card .rank-top {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .card .suit-big {
+    font-size: 28px;
+    text-align: center;
+    line-height: 1;
+  }
+  .card .rank-bot {
+    font-size: 14px;
+    line-height: 1;
+    text-align: right;
+    transform: rotate(180deg);
+  }
+  .card.back {
+    background: repeating-linear-gradient(45deg, var(--pink-deep) 0 8px, var(--table-felt-dark) 8px 16px);
+    color: transparent;
+    border-color: var(--brass);
+  }
+
+  .my-cards {
+    margin-top: 16px;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(176, 124, 255, 0.08), transparent);
+    border: 1px solid rgba(176, 124, 255, 0.3);
+    border-radius: 8px;
+  }
+  .my-cards .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--molly);
+    margin-bottom: 8px;
+  }
+  .my-cards .cards-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  /* ===== ACTION BAR ===== */
+  .action-bar {
+    margin-top: 20px;
+    padding: 18px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(201, 169, 110, 0.4);
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .action-bar .btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 16px;
+  }
+  .action-bar .raise-input {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--brass);
+    color: var(--cream);
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    border-radius: 4px;
+    width: 140px;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: linear-gradient(180deg, var(--wood-light), var(--wood));
+    border: 2px solid var(--brass);
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+  }
+  .modal h2 {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--cream);
+    margin-bottom: 12px;
+  }
+  .modal .modal-text {
+    font-family: var(--hand);
+    color: var(--cream);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  .modal label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--brass);
+    display: block;
+    margin: 12px 0 6px;
+  }
+  .modal input {
+    width: 100%;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--brass);
+    color: var(--cream);
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    border-radius: 4px;
+  }
+  .modal .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .modal .modal-actions .btn { flex: 1; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    border: 1px solid var(--brass);
+    color: var(--cream);
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-family: var(--hand);
+    font-size: 15px;
+    z-index: 2000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    max-width: 90vw;
+    text-align: center;
+    transition: opacity 0.3s, transform 0.3s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .toast.error { border-color: var(--burn); color: var(--burn); }
+  .toast.success { border-color: #6dffae; color: #6dffae; }
+
+  /* ===== LOG ===== */
+  .game-log {
+    margin-top: 20px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(201, 169, 110, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .game-log .entry {
+    padding: 3px 0;
+    color: var(--ash);
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
+  }
+  .game-log .entry:last-child { border-bottom: none; }
+  .game-log .entry .ts { color: rgba(255,255,255,0.3); }
+  .game-log .entry.good { color: #6dffae; }
+  .game-log .entry.bad { color: var(--burn); }
+  .game-log .entry.event { color: var(--pink); }
+
+  @media (max-width: 600px) {
+    .felt-table { padding: 24px 16px; border-radius: 60px / 40px; }
+    .card { width: 48px; height: 68px; padding: 4px 6px; }
+    .card .rank-top { font-size: 14px; }
+    .card .suit-big { font-size: 22px; }
+    .card .rank-bot { font-size: 12px; }
+    .action-bar .btn { min-width: 70px; padding: 10px 12px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="/" style="text-decoration:none;">
+    <div class="brand">
+      <div class="brand-mark">🎀</div>
+      Molly's Backroom <small>· LIVE TABLES</small>
+    </div>
+  </a>
+  <div class="nav-links">
+    <a class="nav-cta" href="/poker.html">↩ FREE PLAY</a>
+    <a class="nav-cta" href="/swap.html">SWAP</a>
+    <a class="nav-cta" href="/stake.html">STAKE</a>
+  </div>
+  <div class="wallet-bar" id="walletBar">
+    <button class="btn btn-primary" id="connectBtn">CONNECT WALLET</button>
+  </div>
+</nav>
+
+<div class="status-bar" id="statusBar">
+  <span><span class="dot" id="dotChain"></span>chain: <span id="chainStatus">disconnected</span></span>
+  <span><span class="dot" id="dotDealer"></span>dealer: <span id="dealerStatus">offline</span></span>
+  <span><span class="dot" id="dotAuth"></span>auth: <span id="authStatus">unauthenticated</span></span>
+</div>
+
+<main>
+
+  <!-- LANDING: Table list -->
+  <section id="lobby">
+    <div class="hero">
+      <h1>The Backroom</h1>
+      <div class="sub">live tables · real money · no quarter</div>
+    </div>
+
+    <div id="lobbyBody">
+      <div class="info-panel" id="lobbyInfo">
+        Connect your wallet to see live tables.
+      </div>
+    </div>
+  </section>
+
+  <!-- IN-GAME: Single table view -->
+  <section id="room" class="room">
+    <div class="room-header">
+      <div>
+        <div class="room-title" id="roomTitle">Table #—</div>
+        <div class="room-meta" id="roomMeta">— · — · —</div>
+      </div>
+      <div>
+        <button class="btn btn-ghost" id="readyBtn">READY UP</button>
+        <button class="btn btn-ghost" id="leaveBtn">LEAVE TABLE</button>
+      </div>
+    </div>
+
+    <div class="felt-table">
+      <div class="pot-display">
+        <div class="label">POT</div>
+        <div class="amount" id="potAmount">0</div>
+      </div>
+
+      <div class="community-cards" id="communityCards"></div>
+
+      <div class="seats" id="seats"></div>
+    </div>
+
+    <div class="my-cards" id="myCards" style="display:none;">
+      <div class="label">YOUR HAND</div>
+      <div class="cards-row" id="myCardsRow"></div>
+    </div>
+
+    <div class="action-bar" id="actionBar" style="display:none;">
+      <button class="btn" data-action="3" id="actFold">FOLD</button>
+      <button class="btn" data-action="0" id="actCheck">CHECK</button>
+      <button class="btn" data-action="2" id="actCall">CALL</button>
+      <input class="raise-input" type="number" placeholder="raise amt" id="raiseInput" min="1">
+      <button class="btn btn-primary" data-action="1" id="actRaise">RAISE</button>
+    </div>
+
+    <div class="game-log" id="gameLog"></div>
+  </section>
+
+</main>
+
+<!-- ===== BUY-IN MODAL ===== -->
+<div class="modal-overlay" id="buyInModal">
+  <div class="modal">
+    <h2 id="buyInTitle">Sit down · Table #—</h2>
+    <div class="modal-text" id="buyInText">
+      Buying in deposits MOLLY into the table contract. Funds stay in your control —
+      withdraw remaining chips anytime via Leave Table.
+    </div>
+    <label>BUY-IN AMOUNT</label>
+    <input type="number" id="buyInAmount" placeholder="e.g. 100000">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="buyInCancel">CANCEL</button>
+      <button class="btn btn-primary" id="buyInConfirm">APPROVE & BUY-IN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   MollyPoker frontend — live tables
+   ============================================================ */
+
+const CONTRACT_ADDRESS = '0x61bE14a42E6a233120aaec95658b5187AE99b814';
+const MOLLY_ADDRESS    = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+const MONAD_CHAIN_ID   = 143;
+const DEALER_WS_URL    = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'ws://localhost:4001'
+  : 'wss://api.monpad.net/poker';
+
+const ACTIONS = { CHECK: 0, RAISE: 1, CALL: 2, FOLD: 3 };
+const ACTION_NAMES = ['Check', 'Raise', 'Call', 'Fold'];
+
+const MOLLY_POKER_ABI = [
+  'function totalTables() view returns (uint256)',
+  'function tables(uint256) view returns (uint8 state, uint8 currentRound, address token, address creator, uint256 totalHands, uint256 pot, uint256 buyInAmount, uint256 bigBlind, uint8 maxPlayers)',
+  'function getTablePlayers(uint256) view returns (address[])',
+  'function getCommunityCards(uint256) view returns (uint8[])',
+  'function getRound(uint256, uint256) view returns (tuple(address[] players, uint256[] chips, bool[] folded, uint256 lastActionTime))',
+  'function chips(address, uint256) view returns (uint256)',
+  'function buyIn(uint256 tableId, uint256 amount)',
+  'function playHand(uint256 tableId, uint8 action, uint256 raiseAmount)',
+  'function leaveTable(uint256 tableId)',
+];
+
+const ERC20_ABI = [
+  'function balanceOf(address) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+  'function symbol() view returns (string)',
+  'function allowance(address, address) view returns (uint256)',
+  'function approve(address, uint256) returns (bool)',
+];
+
+/* ===== STATE ===== */
+const State = {
+  provider: null,
+  signer: null,
+  address: null,
+  mollyBalance: 0n,
+  mollyDecimals: 18,
+  contract: null,
+  molly: null,
+  ws: null,
+  authed: false,
+  currentTableId: null,
+  tablesCache: [],
+  myCards: null,           // { card1, card2 }
+  currentRound: null,      // { players, chips, folded, lastActionTime }
+  community: [],
+  pendingBuyInTableId: null,
+};
+
+/* ===== UI HELPERS ===== */
+const $ = (id) => document.getElementById(id);
+
+function toast(msg, type = '') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `toast show ${type}`;
+  setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+
+function log(msg, kind = '') {
+  const logBox = $('gameLog');
+  const ts = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = `entry ${kind}`;
+  div.innerHTML = `<span class="ts">${ts}</span> ${msg}`;
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function shortAddr(a) {
+  if (!a) return '—';
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+function fmtMolly(amount) {
+  const v = ethers.formatUnits(amount, State.mollyDecimals);
+  const num = Number(v);
+  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+  return num.toFixed(2);
+}
+
+function setStatusDot(id, status) {
+  const dot = $(id);
+  dot.className = `dot ${status}`;
+}
+
+/* ===== CARDS ===== */
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const SUITS = ['♣','♦','♥','♠'];
+
+function cardEl(card, faceDown = false) {
+  const div = document.createElement('div');
+  div.className = 'card';
+  if (faceDown) {
+    div.classList.add('back');
+    return div;
+  }
+  const rank = Math.floor(card / 4);
+  const suit = card % 4;
+  const isRed = suit === 1 || suit === 2;
+  if (isRed) div.classList.add('red');
+  div.innerHTML = `
+    <span class="rank-top">${RANKS[rank]}${SUITS[suit]}</span>
+    <span class="suit-big">${SUITS[suit]}</span>
+    <span class="rank-bot">${RANKS[rank]}${SUITS[suit]}</span>
+  `;
+  return div;
+}
+
+/* ===== WALLET ===== */
+async function connectWallet() {
+  if (!window.ethereum) {
+    toast('No wallet found. Install MetaMask or Rabby.', 'error');
+    return;
+  }
+
+  try {
+    const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    State.provider = new ethers.BrowserProvider(window.ethereum);
+    State.signer = await State.provider.getSigner();
+    State.address = accs[0];
+
+    // Verify chain
+    const net = await State.provider.getNetwork();
+    if (Number(net.chainId) !== MONAD_CHAIN_ID) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + MONAD_CHAIN_ID.toString(16) }],
+        });
+      } catch (e) {
+        if (e.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x' + MONAD_CHAIN_ID.toString(16),
+              chainName: 'Monad',
+              nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
+              rpcUrls: ['https://rpc.monad.xyz'],
+              blockExplorerUrls: ['https://monadscan.com'],
+            }],
+          });
+        } else throw e;
+      }
+      // Refresh after switch
+      State.provider = new ethers.BrowserProvider(window.ethereum);
+      State.signer = await State.provider.getSigner();
+    }
+
+    State.contract = new ethers.Contract(CONTRACT_ADDRESS, MOLLY_POKER_ABI, State.signer);
+    State.molly = new ethers.Contract(MOLLY_ADDRESS, ERC20_ABI, State.signer);
+    State.mollyDecimals = Number(await State.molly.decimals());
+
+    $('chainStatus').textContent = 'monad mainnet';
+    setStatusDot('dotChain', 'ok');
+
+    await refreshWalletInfo();
+    renderWalletBar();
+    await openDealer();
+    await loadTables();
+
+    log('wallet connected: ' + shortAddr(State.address), 'good');
+    toast('Connected', 'success');
+
+    // React to account changes
+    window.ethereum.on('accountsChanged', () => location.reload());
+    window.ethereum.on('chainChanged', () => location.reload());
+  } catch (e) {
+    console.error(e);
+    toast('Connection failed: ' + (e.shortMessage || e.message), 'error');
+  }
+}
+
+async function refreshWalletInfo() {
+  State.mollyBalance = await State.molly.balanceOf(State.address);
+}
+
+function renderWalletBar() {
+  $('walletBar').innerHTML = `
+    <div class="wallet-info">
+      <span class="wallet-addr" onclick="navigator.clipboard.writeText('${State.address}').then(()=>toast('address copied','success'))">${shortAddr(State.address)}</span>
+      <span class="wallet-balance">${fmtMolly(State.mollyBalance)} MOLLY</span>
+    </div>
+  `;
+}
+
+/* ===== DEALER WEBSOCKET ===== */
+function openDealer() {
+  return new Promise((resolve) => {
+    if (State.ws && State.ws.readyState === WebSocket.OPEN) return resolve();
+    const ws = new WebSocket(DEALER_WS_URL);
+    State.ws = ws;
+
+    ws.onopen = () => {
+      $('dealerStatus').textContent = 'connected';
+      setStatusDot('dotDealer', 'ok');
+      log('dealer connected', 'good');
+      // Kick off auth immediately
+      authWithDealer().then(() => resolve()).catch(() => resolve());
+    };
+
+    ws.onclose = () => {
+      $('dealerStatus').textContent = 'offline';
+      setStatusDot('dotDealer', 'bad');
+      $('authStatus').textContent = 'unauthenticated';
+      setStatusDot('dotAuth', 'bad');
+      State.authed = false;
+      log('dealer disconnected', 'bad');
+      // Reconnect with backoff
+      setTimeout(() => { if (State.address) openDealer(); }, 3000);
+    };
+
+    ws.onerror = (e) => {
+      log('dealer error', 'bad');
+      console.error('ws error', e);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        handleDealerMessage(msg);
+      } catch (e) {
+        console.error('parse error', e);
+      }
+    };
+  });
+}
+
+let pendingAuth = null;
+
+async function authWithDealer() {
+  if (!State.ws || State.ws.readyState !== WebSocket.OPEN) return;
+  if (!State.signer) return;
+
+  return new Promise((resolve, reject) => {
+    pendingAuth = { resolve, reject };
+    State.ws.send(JSON.stringify({ type: 'auth_request' }));
+  });
+}
+
+async function handleDealerMessage(msg) {
+  switch (msg.type) {
+    case 'hello':
+      log('dealer hello: ' + (msg.contract || ''));
+      break;
+
+    case 'auth_challenge': {
+      try {
+        const sig = await State.signer.signMessage(msg.message);
+        State.ws.send(JSON.stringify({
+          type: 'auth_submit',
+          nonce: msg.nonce,
+          signature: sig,
+        }));
+      } catch (e) {
+        if (pendingAuth) pendingAuth.reject(e);
+        pendingAuth = null;
+      }
+      break;
+    }
+
+    case 'auth_ok':
+      State.authed = true;
+      $('authStatus').textContent = 'authenticated';
+      setStatusDot('dotAuth', 'ok');
+      log('auth ok: ' + shortAddr(msg.address), 'good');
+      if (pendingAuth) pendingAuth.resolve();
+      pendingAuth = null;
+      break;
+
+    case 'auth_fail':
+      State.authed = false;
+      $('authStatus').textContent = 'failed';
+      setStatusDot('dotAuth', 'bad');
+      log('auth failed: ' + msg.reason, 'bad');
+      toast('Auth failed: ' + msg.reason, 'error');
+      if (pendingAuth) pendingAuth.reject(new Error(msg.reason));
+      pendingAuth = null;
+      break;
+
+    case 'tables':
+      State.tablesCache = msg.tables;
+      renderTableList();
+      break;
+
+    case 'table_state':
+      State.community = msg.community || [];
+      State.currentRound = msg.round;
+      renderRoom(msg);
+      break;
+
+    case 'your_cards':
+      State.myCards = { card1: msg.card1, card2: msg.card2 };
+      renderMyCards();
+      log(`you got: ${msg.card1Str} ${msg.card2Str}`, 'event');
+      break;
+
+    case 'cards_dealt':
+      log(`hand #${msg.handNum} dealt`, 'event');
+      refreshTableState();
+      break;
+
+    case 'community_cards':
+      log(`community: ${msg.cardStrs.join(' ')}`, 'event');
+      refreshTableState();
+      break;
+
+    case 'action_taken':
+      log(`${shortAddr(msg.player)} ${msg.actionName} ${msg.amount !== '0' ? fmtMolly(msg.amount) : ''}`, 'event');
+      refreshTableState();
+      break;
+
+    case 'round_over':
+      log(`round ${msg.roundId} over`, 'event');
+      refreshTableState();
+      break;
+
+    case 'showdown_started':
+      log(`showdown!`, 'event');
+      break;
+
+    case 'hand_complete':
+      log(`hand #${msg.handNum} → winner: ${shortAddr(msg.winner)} won ${fmtMolly(msg.winnerAmount)} MOLLY`, 'good');
+      toast(`Winner: ${shortAddr(msg.winner)}`, 'success');
+      State.myCards = null;
+      renderMyCards();
+      refreshTableState();
+      break;
+
+    case 'emergency_refund':
+      log(`emergency refund: ${shortAddr(msg.player)} got ${fmtMolly(msg.amount)} back`, 'bad');
+      State.myCards = null;
+      renderMyCards();
+      refreshTableState();
+      break;
+
+    case 'buy_in':
+      log(`${shortAddr(msg.player)} bought in for ${fmtMolly(msg.amount)} MOLLY`, 'event');
+      refreshTableState();
+      break;
+
+    case 'left_table':
+      log(`${shortAddr(msg.player)} left the table`, 'event');
+      refreshTableState();
+      break;
+
+    case 'joined_table':
+      log(`joined table #${msg.tableId}`, 'good');
+      break;
+
+    case 'ready_update':
+      log(`ready: ${msg.readyCount} player(s) ready`, 'event');
+      break;
+
+    case 'ready_ack':
+      toast('Ready — waiting for others', 'success');
+      break;
+
+    case 'deal_failed':
+    case 'showdown_failed':
+      log(msg.type + ': ' + msg.reason, 'bad');
+      toast(msg.reason, 'error');
+      break;
+
+    case 'error':
+      log('error: ' + msg.message, 'bad');
+      toast(msg.message, 'error');
+      break;
+
+    default:
+      // Unknown message type — log for debug
+      console.debug('unhandled dealer msg', msg);
+  }
+}
+
+/* ===== TABLE LIST ===== */
+async function loadTables() {
+  if (!State.ws || State.ws.readyState !== WebSocket.OPEN) {
+    // Fall back to direct chain reads
+    return loadTablesFromChain();
+  }
+  State.ws.send(JSON.stringify({ type: 'list_tables' }));
+}
+
+async function loadTablesFromChain() {
+  if (!State.contract) return;
+  try {
+    const total = Number(await State.contract.totalTables());
+    const tables = [];
+    for (let i = 0; i < total; i++) {
+      const t = await State.contract.tables(i);
+      const players = await State.contract.getTablePlayers(i);
+      tables.push({
+        tableId: i,
+        state: ['Active','Inactive','Showdown'][Number(t.state)],
+        buyIn: t.buyInAmount.toString(),
+        bigBlind: t.bigBlind.toString(),
+        maxPlayers: Number(t.maxPlayers),
+        token: t.token,
+        totalHands: t.totalHands.toString(),
+        pot: t.pot.toString(),
+        seated: players.length,
+        players,
+      });
+    }
+    State.tablesCache = tables;
+    renderTableList();
+  } catch (e) {
+    log('failed to load tables: ' + e.message, 'bad');
+  }
+}
+
+function renderTableList() {
+  const body = $('lobbyBody');
+  if (State.tablesCache.length === 0) {
+    body.innerHTML = `<div class="info-panel">No tables exist yet. <strong>Be the first</strong> — table creation coming soon.</div>`;
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'table-list';
+  for (const t of State.tablesCache) {
+    const card = document.createElement('div');
+    card.className = 'table-card';
+    const stateClass = t.state.toLowerCase();
+    const isMolly = t.token.toLowerCase() === MOLLY_ADDRESS.toLowerCase();
+    card.innerHTML = `
+      <div class="felt"></div>
+      <div class="state-badge ${stateClass}">${t.state}</div>
+      <div class="label">TABLE</div>
+      <div class="title">#${t.tableId}</div>
+      <div class="row"><span>Buy-in</span><span class="v ${isMolly ? 'molly' : 'pink'}">${fmtMolly(t.buyIn)} ${isMolly ? 'MOLLY' : 'tkn'}</span></div>
+      <div class="row"><span>Big blind</span><span class="v">${fmtMolly(t.bigBlind)}</span></div>
+      <div class="row"><span>Seats</span><span class="v">${t.seated}/${t.maxPlayers}</span></div>
+      <div class="row"><span>Hands played</span><span class="v gold">${t.totalHands}</span></div>
+      <div class="row"><span>Pot</span><span class="v gold">${fmtMolly(t.pot)}</span></div>
+      <button class="btn btn-primary cta" onclick="sitDown(${t.tableId})">SIT DOWN</button>
+    `;
+    grid.appendChild(card);
+  }
+  body.innerHTML = '';
+  body.appendChild(grid);
+}
+
+/* ===== BUY-IN ===== */
+function sitDown(tableId) {
+  if (!State.address) { toast('Connect wallet first', 'error'); return; }
+  const t = State.tablesCache.find(x => x.tableId === tableId);
+  if (!t) return;
+  State.pendingBuyInTableId = tableId;
+  $('buyInTitle').textContent = `Sit down · Table #${tableId}`;
+  $('buyInAmount').value = ethers.formatUnits(t.buyIn, State.mollyDecimals);
+  $('buyInModal').classList.add('active');
+}
+
+async function confirmBuyIn() {
+  const tableId = State.pendingBuyInTableId;
+  if (tableId === null) return;
+  const amountStr = $('buyInAmount').value.trim();
+  if (!amountStr || isNaN(Number(amountStr))) {
+    toast('Invalid amount', 'error');
+    return;
+  }
+  const amount = ethers.parseUnits(amountStr, State.mollyDecimals);
+  if (amount > State.mollyBalance) {
+    toast('Insufficient MOLLY balance', 'error');
+    return;
+  }
+
+  const btn = $('buyInConfirm');
+  btn.disabled = true;
+  btn.textContent = 'CHECKING ALLOWANCE…';
+
+  try {
+    const allowance = await State.molly.allowance(State.address, CONTRACT_ADDRESS);
+    if (allowance < amount) {
+      btn.textContent = 'APPROVING…';
+      const tx = await State.molly.approve(CONTRACT_ADDRESS, amount);
+      log(`approve tx: ${tx.hash}`, 'event');
+      await tx.wait();
+      log('approve confirmed', 'good');
+    }
+    btn.textContent = 'BUYING IN…';
+    const tx2 = await State.contract.buyIn(tableId, amount);
+    log(`buyIn tx: ${tx2.hash}`, 'event');
+    await tx2.wait();
+    log('bought in!', 'good');
+    toast('Bought in', 'success');
+
+    $('buyInModal').classList.remove('active');
+    await refreshWalletInfo();
+    renderWalletBar();
+    await enterRoom(tableId);
+  } catch (e) {
+    console.error(e);
+    toast('Buy-in failed: ' + (e.shortMessage || e.message), 'error');
+    log('buy-in failed: ' + (e.shortMessage || e.message), 'bad');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'APPROVE & BUY-IN';
+  }
+}
+
+/* ===== ROOM ===== */
+async function enterRoom(tableId) {
+  State.currentTableId = tableId;
+  $('lobby').style.display = 'none';
+  $('room').classList.add('active');
+  if (State.ws && State.ws.readyState === WebSocket.OPEN && State.authed) {
+    State.ws.send(JSON.stringify({ type: 'join_table', tableId }));
+  }
+  await refreshTableState();
+}
+
+async function leaveRoom() {
+  if (State.currentTableId !== null && State.authed && State.ws && State.ws.readyState === WebSocket.OPEN) {
+    State.ws.send(JSON.stringify({ type: 'leave_table' }));
+  }
+  // Also call leaveTable on-chain to withdraw chips
+  if (State.currentTableId !== null && State.contract) {
+    try {
+      const tx = await State.contract.leaveTable(State.currentTableId);
+      log(`leaveTable tx: ${tx.hash}`, 'event');
+      await tx.wait();
+      log('left table on-chain', 'good');
+    } catch (e) {
+      log('leaveTable failed: ' + (e.shortMessage || e.message), 'bad');
+    }
+  }
+  State.currentTableId = null;
+  State.myCards = null;
+  $('lobby').style.display = 'block';
+  $('room').classList.remove('active');
+  await refreshWalletInfo();
+  renderWalletBar();
+  await loadTables();
+}
+
+async function refreshTableState() {
+  if (State.currentTableId === null) return;
+  if (State.ws && State.ws.readyState === WebSocket.OPEN) {
+    State.ws.send(JSON.stringify({ type: 'table_state', tableId: State.currentTableId }));
+  }
+}
+
+function renderRoom(state) {
+  $('roomTitle').textContent = `Table #${state.tableId}`;
+  $('roomMeta').textContent = `${state.state} · round ${state.currentRound} · ${fmtMolly(state.bigBlind)} BB`;
+  $('potAmount').textContent = fmtMolly(state.pot) + ' MOLLY';
+
+  // Community cards
+  const cc = $('communityCards');
+  cc.innerHTML = '';
+  (state.community || []).forEach(c => cc.appendChild(cardEl(Number(c))));
+
+  // Seats
+  const seatsEl = $('seats');
+  seatsEl.innerHTML = '';
+  const round = state.round;
+  for (let i = 0; i < state.players.length; i++) {
+    const addr = state.players[i];
+    const isYou = addr.toLowerCase() === State.address?.toLowerCase();
+    const seat = document.createElement('div');
+    seat.className = 'seat';
+    if (isYou) seat.classList.add('you');
+    if (round && round.folded && round.folded[i]) seat.classList.add('folded');
+    const chips = round && round.chips ? round.chips[i] : 0n;
+    seat.innerHTML = `
+      <div class="name">${isYou ? 'YOU' : shortAddr(addr)}</div>
+      <div class="chips">${fmtMolly(chips)}</div>
+      <div class="status">${round && round.folded && round.folded[i] ? 'folded' : ''}</div>
+    `;
+    seatsEl.appendChild(seat);
+  }
+
+  // Action bar — show only if it's our turn and the table is active
+  const canAct = state.state === 'Active' && State.myCards
+    && state.players.map(a => a.toLowerCase()).includes(State.address?.toLowerCase());
+  $('actionBar').style.display = canAct ? 'flex' : 'none';
+}
+
+function renderMyCards() {
+  const box = $('myCards');
+  if (!State.myCards) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  const row = $('myCardsRow');
+  row.innerHTML = '';
+  row.appendChild(cardEl(State.myCards.card1));
+  row.appendChild(cardEl(State.myCards.card2));
+}
+
+/* ===== ACTIONS ===== */
+async function doAction(action) {
+  if (State.currentTableId === null) return;
+  const raiseInput = $('raiseInput');
+  let amount = 0n;
+  if (action === ACTIONS.RAISE) {
+    const v = raiseInput.value.trim();
+    if (!v || isNaN(Number(v))) {
+      toast('Enter raise amount', 'error');
+      return;
+    }
+    amount = ethers.parseUnits(v, State.mollyDecimals);
+  }
+  // Notify dealer (informational — actual state change is the on-chain tx)
+  if (State.ws && State.ws.readyState === WebSocket.OPEN && State.authed) {
+    State.ws.send(JSON.stringify({ type: 'action' }));
+  }
+  try {
+    const tx = await State.contract.playHand(State.currentTableId, action, amount);
+    log(`${ACTION_NAMES[action]} tx: ${tx.hash}`, 'event');
+    toast(`${ACTION_NAMES[action]} submitted`, 'success');
+    await tx.wait();
+    log(`${ACTION_NAMES[action]} confirmed`, 'good');
+  } catch (e) {
+    log(`${ACTION_NAMES[action]} failed: ${e.shortMessage || e.message}`, 'bad');
+    toast((e.shortMessage || e.message), 'error');
+  }
+}
+
+/* ===== INIT ===== */
+document.addEventListener('DOMContentLoaded', () => {
+  $('connectBtn').addEventListener('click', connectWallet);
+  $('readyBtn').addEventListener('click', () => {
+    if (State.ws && State.ws.readyState === WebSocket.OPEN && State.authed) {
+      State.ws.send(JSON.stringify({ type: 'ready' }));
+    }
+  });
+  $('leaveBtn').addEventListener('click', leaveRoom);
+  $('buyInCancel').addEventListener('click', () => {
+    $('buyInModal').classList.remove('active');
+    State.pendingBuyInTableId = null;
+  });
+  $('buyInConfirm').addEventListener('click', confirmBuyIn);
+
+  $('actionBar').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = Number(btn.dataset.action);
+    doAction(action);
+  });
+
+  // Auto-connect if previously authed (lazy)
+  if (window.ethereum && localStorage.getItem('mollyConnected') === '1') {
+    connectWallet();
+  }
+});
+
+// Expose globally for inline onclicks
+window.sitDown = sitDown;
+window.toast = toast;
+</script>
+
+</body>
+</html>
