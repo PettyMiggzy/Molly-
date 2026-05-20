@@ -6,7 +6,8 @@
      - C2:    river checked through, every player gets to act
      - C3:    same address can't take two seats
      - C4:    cashOutBusted, dealCards refuses undercapitalized players
-     - H2:    showdown / withdrawAsWMON require minOut > 0
+     - H2:    withdrawAsWMON / claimDevAsWMON require minOut > 0
+              (showdown swap removed in P6 pull-rake refactor)
      - H3:    fee-on-transfer protection
      - H4:    withdrawals / leaveTable blocked while table is Active
      - H5:    playHand is nonReentrant (smoke)

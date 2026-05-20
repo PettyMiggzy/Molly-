@@ -245,7 +245,7 @@ contract MollyPoker is Ownable, ReentrancyGuard {
         uint _maxPlayers,
         uint _bigBlind,
         address _token
-    ) external onlyWhitelistedOrOwner {
+    ) external onlyWhitelistedOrOwner nonReentrant {
         require(_token != address(0), "token=0");
         require(_maxPlayers >= 2 && _maxPlayers <= 9, "bad maxPlayers");
         require(_bigBlind > 0, "bb=0");
@@ -654,11 +654,11 @@ contract MollyPoker is Ownable, ReentrancyGuard {
             uint devAmt  = (pot * DEV_BPS)  / BPS;
             uint winnerAmt = pot - burnAmt - devAmt;
 
+            // CEI: all state changes BEFORE the external burn transfer
             chips[_winner][_tableId] += winnerAmt;
+            if (devAmt > 0) devOwed[MOLLY_TOKEN] += devAmt;
             // Burn stays push-based — atomic real burn to dead address every hand
             if (burnAmt > 0) _table.token.safeTransfer(BURN_ADDR, burnAmt);
-            // Dev rake accumulates in devOwed for later claim
-            if (devAmt > 0) devOwed[MOLLY_TOKEN] += devAmt;
 
             emit PotDistributed(_tableId, handNum, _winner, tableToken, winnerAmt, burnAmt, devAmt);
         } else {
