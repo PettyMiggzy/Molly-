@@ -29,10 +29,8 @@ module.exports = {
   },
 
   etherscan: {
-    apiKey: {
-      monadTestnet: ETHERSCAN_V2_KEY,
-      monad:        ETHERSCAN_V2_KEY,
-    },
+    // Etherscan v2 unified API — single key across all v2 chains
+    apiKey: ETHERSCAN_V2_KEY,
     customChains: [
       {
         network: "monadTestnet",
