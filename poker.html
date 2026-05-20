@@ -209,6 +209,171 @@
   .hb-value.pink { color: var(--pink); }
   .hb-value.burn { color: var(--burn); }
 
+  /* ===== FREE PLAY BANNER (poker.html only) ===== */
+  .free-play-banner {
+    max-width: 1200px;
+    margin: 14px auto 0;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, rgba(176, 124, 255, 0.12), rgba(232, 127, 196, 0.08));
+    border: 1px solid rgba(176, 124, 255, 0.3);
+    border-radius: 14px;
+    text-align: center;
+  }
+  .fp-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: var(--molly, #b07cff);
+    margin-bottom: 4px;
+  }
+  .fp-text {
+    font-family: 'Patrick Hand', cursive;
+    font-size: 15px;
+    color: var(--cream, #f5e8d0);
+  }
+  .fp-text strong {
+    color: var(--pink, #e87fc4);
+  }
+  .fp-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    margin-top: 6px;
+    color: rgba(245, 232, 208, 0.55);
+  }
+  .fp-status.ok    { color: #6dffae; }
+  .fp-status.bad   { color: #ff5577; }
+  .fp-status.warn  { color: var(--gold, #ffd84d); }
+
+  /* ===== NAV PFP BUTTON (both pages) ===== */
+  .nav-pfp-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 2px solid rgba(176, 124, 255, 0.4);
+    background: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    overflow: hidden;
+    padding: 0;
+    transition: all 0.2s;
+  }
+  .nav-pfp-btn:hover {
+    border-color: var(--pink-bright, #ff6db3);
+    transform: scale(1.05);
+  }
+  .nav-pfp-btn img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  /* ===== PFP MODAL (both pages) ===== */
+  .pfp-modal {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 99998;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .pfp-modal.open { display: flex; }
+  .pfp-modal-content {
+    background: linear-gradient(160deg, #1a0a18, #0a0508);
+    border: 2px solid var(--molly, #b07cff);
+    border-radius: 18px;
+    padding: 26px 24px;
+    width: 100%; max-width: 360px;
+    text-align: center;
+  }
+  .pfp-modal-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--cream, #f5e8d0);
+    margin-bottom: 18px;
+  }
+  .pfp-preview-wrap {
+    margin: 0 auto 16px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--pink, #e87fc4);
+    box-shadow: 0 0 24px rgba(232, 127, 196, 0.4);
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px;
+  }
+  .pfp-preview-wrap img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .pfp-upload-btn {
+    display: inline-block;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, var(--pink, #e87fc4), var(--molly, #b07cff));
+    color: #0a0508;
+    font-family: 'Bagel Fat One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin-bottom: 14px;
+  }
+  .pfp-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(232, 127, 196, 0.4);
+  }
+  .pfp-modal-actions {
+    display: flex; gap: 10px; justify-content: center; margin-top: 8px;
+  }
+  .pfp-modal-actions button {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 232, 208, 0.25);
+    background: rgba(0,0,0,0.4);
+    color: var(--cream, #f5e8d0);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    transition: all 0.15s;
+  }
+  .pfp-modal-actions button:hover {
+    border-color: var(--pink, #e87fc4);
+  }
+  .pfp-modal-actions .pfp-btn-secondary {
+    color: #ff5577;
+  }
+  .pfp-modal-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(245, 232, 208, 0.4);
+    margin-top: 14px;
+  }
+
+  /* Apply PFP into the seat avatar */
+  .seat-avatar img.pfp {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
+  /* ===== TABLE WATERMARK (poker.html — Molly hero on the table) ===== */
+  .table-watermark {
+    position: absolute;
+    bottom: 12px; right: 12px;
+    width: 70px;
+    opacity: 0.32;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+  }
+
   /* MAIN LAYOUT */
   .play {
     max-width: 920px;
@@ -867,15 +1032,47 @@
 </div>
 
 
+<!-- ===== PFP MODAL ===== -->
+<div class="pfp-modal" id="pfpModal">
+  <div class="pfp-modal-content">
+    <div class="pfp-modal-title">PROFILE PICTURE</div>
+    <div class="pfp-preview-wrap" id="pfpPreviewWrap">
+      <span id="pfpPreviewFallback">👾</span>
+    </div>
+    <label class="pfp-upload-btn">
+      <input type="file" id="pfpFileInput" accept="image/*" style="display:none">
+      CHOOSE IMAGE
+    </label>
+    <div class="pfp-modal-actions">
+      <button id="pfpRemoveBtn" type="button" class="pfp-btn-secondary">Remove</button>
+      <button id="pfpCloseBtn" type="button">Done</button>
+    </div>
+    <div class="pfp-modal-hint">stored locally on this device</div>
+  </div>
+</div>
+
+
 <!-- TOP NAV -->
 <nav class="topnav">
   <div class="brand">
     <div class="brand-mark">🎀</div>
     <span>The Backroom</span>
-    <small>HEADS-UP · DEMO</small>
+    <small>FREE PLAY · vs MONGROD</small>
   </div>
-  <a class="nav-cta" href="/poker-mockup.html">← lobby</a>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <button id="pfpNavBtn" type="button" class="nav-pfp-btn" title="Profile picture">
+      <span id="pfpNavAvatar">👾</span>
+    </button>
+    <a class="nav-cta" href="/poker-mockup.html">← lobby</a>
+  </div>
 </nav>
+
+<!-- ===== FREE PLAY BANNER ===== -->
+<div class="free-play-banner">
+  <div class="fp-eyebrow">🎮 FREE PLAY MODE</div>
+  <div class="fp-text">Practice vs Mongrod AI · no real stakes · <strong>hold 100K MOLLY to play</strong></div>
+  <div class="fp-status" id="fpStatus">checking eligibility…</div>
+</div>
 
 
 <!-- HAND HEADER -->
@@ -921,7 +1118,8 @@
 
 
   <!-- THE FELT -->
-  <div class="felt">
+  <div class="felt" style="position:relative;">
+    <img src="./assets/molly-hero-small.png" alt="" class="table-watermark">
     <div class="center-block">
 
       <!-- Community cards -->
@@ -1878,6 +2076,149 @@ window.addEventListener('load', () => {
     });
 
     video.play().catch(() => {});
+  })();
+</script>
+
+<!-- ===== PFP + FREE-PLAY ELIGIBILITY ===== -->
+<script>
+  (function() {
+    const STORE_KEY     = 'molly_pfp_self';
+    const MOLLY_TOKEN   = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
+    const HOLD_REQUIRED = 100000n * 10n ** 18n; // 100K MOLLY
+
+    /* ---------- PFP store ---------- */
+    const loadPfp = () => localStorage.getItem(STORE_KEY);
+    const savePfp = (d) => { localStorage.setItem(STORE_KEY, d); applyPfp(); };
+    const clearPfp = () => { localStorage.removeItem(STORE_KEY); applyPfp(); };
+
+    function applyPfp() {
+      const pfp = loadPfp();
+      // The "YOU" seat avatar
+      const youAvatar = document.querySelector('#youSeat .seat-avatar');
+      const navAvatar = document.getElementById('pfpNavAvatar');
+      if (pfp) {
+        if (youAvatar) youAvatar.innerHTML = `<img class="pfp" src="${pfp}" alt="">`;
+        if (navAvatar) navAvatar.outerHTML = `<img id="pfpNavAvatar" src="${pfp}" alt="">`;
+      } else {
+        if (youAvatar) youAvatar.innerHTML = '👾';
+        if (navAvatar && navAvatar.tagName === 'IMG') navAvatar.outerHTML = '<span id="pfpNavAvatar">👾</span>';
+      }
+    }
+
+    function setPreview(dataUrl) {
+      const wrap = document.getElementById('pfpPreviewWrap');
+      if (!wrap) return;
+      wrap.innerHTML = dataUrl
+        ? `<img src="${dataUrl}" alt="">`
+        : `<span>👾</span>`;
+    }
+
+    /* ---------- Resize & save ---------- */
+    function resizeToDataUrl(file, maxDim = 256) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    /* ---------- Wire UI ---------- */
+    const modal     = document.getElementById('pfpModal');
+    const navBtn    = document.getElementById('pfpNavBtn');
+    const closeBtn  = document.getElementById('pfpCloseBtn');
+    const removeBtn = document.getElementById('pfpRemoveBtn');
+    const fileInput = document.getElementById('pfpFileInput');
+
+    navBtn?.addEventListener('click', () => {
+      modal.classList.add('open');
+      setPreview(loadPfp());
+    });
+    closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
+    modal?.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+
+    removeBtn?.addEventListener('click', () => {
+      clearPfp();
+      setPreview(null);
+    });
+
+    fileInput?.addEventListener('change', async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (f.size > 8 * 1024 * 1024) { alert('image too large (>8MB)'); return; }
+      try {
+        const dataUrl = await resizeToDataUrl(f, 256);
+        setPreview(dataUrl);
+        savePfp(dataUrl);
+      } catch (err) {
+        alert('could not load image');
+        console.error(err);
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    /* ---------- Apply on load ---------- */
+    if (document.readyState !== 'loading') {
+      applyPfp();
+    } else {
+      document.addEventListener('DOMContentLoaded', applyPfp);
+    }
+
+    /* ---------- FREE-PLAY eligibility check (100K MOLLY hold) ---------- */
+    async function checkMollyEligibility() {
+      const status = document.getElementById('fpStatus');
+      if (!status) return;
+      if (typeof window.ethereum === 'undefined') {
+        status.textContent = '🟠 connect wallet to verify · MetaMask required';
+        status.className = 'fp-status warn';
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (!accounts.length) {
+          status.textContent = '🟠 connect wallet to verify your 100K MOLLY hold';
+          status.className = 'fp-status warn';
+          return;
+        }
+        const me = accounts[0];
+        // balanceOf(address) = 0x70a08231 + padded address
+        const data = '0x70a08231' + me.slice(2).padStart(64, '0').toLowerCase();
+        const result = await window.ethereum.request({
+          method: 'eth_call',
+          params: [{ to: MOLLY_TOKEN, data }, 'latest'],
+        });
+        const balance = BigInt(result);
+        const formatted = (balance / 10n ** 18n).toLocaleString();
+        if (balance >= HOLD_REQUIRED) {
+          status.textContent = `✅ eligible · holding ${formatted} MOLLY`;
+          status.className = 'fp-status ok';
+        } else {
+          status.textContent = `🔒 need 100K MOLLY · you hold ${formatted}`;
+          status.className = 'fp-status bad';
+        }
+      } catch (err) {
+        console.error('[free-play] balance check failed:', err);
+        const status = document.getElementById('fpStatus');
+        status.textContent = '🟠 could not verify — try refreshing';
+        status.className = 'fp-status warn';
+      }
+    }
+    setTimeout(checkMollyEligibility, 800);
+    window.ethereum?.on?.('accountsChanged', () => setTimeout(checkMollyEligibility, 200));
   })();
 </script>
 

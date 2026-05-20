@@ -545,11 +545,123 @@
     gap: 12px;
   }
 
+  /* ===== NAV PFP BUTTON ===== */
+  .nav-pfp-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 2px solid rgba(176, 124, 255, 0.4);
+    background: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    overflow: hidden;
+    padding: 0;
+    transition: all 0.2s;
+  }
+  .nav-pfp-btn:hover {
+    border-color: var(--pink-bright);
+    transform: scale(1.05);
+  }
+  .nav-pfp-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ===== PFP MODAL ===== */
+  .pfp-modal {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 99998;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .pfp-modal.open { display: flex; }
+  .pfp-modal-content {
+    background: linear-gradient(160deg, #1a0a18, #0a0508);
+    border: 2px solid var(--molly);
+    border-radius: 18px;
+    padding: 26px 24px;
+    width: 100%; max-width: 360px;
+    text-align: center;
+  }
+  .pfp-modal-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--cream);
+    margin-bottom: 18px;
+  }
+  .pfp-preview-wrap {
+    margin: 0 auto 16px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--pink);
+    box-shadow: 0 0 24px rgba(232, 127, 196, 0.4);
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 60px;
+  }
+  .pfp-preview-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .pfp-upload-btn {
+    display: inline-block;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, var(--pink), var(--molly));
+    color: var(--ink);
+    font-family: 'Bagel Fat One', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 14px;
+  }
+  .pfp-upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(232, 127, 196, 0.4);
+  }
+  .pfp-modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 8px; }
+  .pfp-modal-actions button {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 232, 208, 0.25);
+    background: rgba(0,0,0,0.4);
+    color: var(--cream);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    transition: all 0.15s;
+  }
+  .pfp-modal-actions button:hover { border-color: var(--pink); }
+  .pfp-modal-actions .pfp-btn-secondary { color: #ff5577; }
+  .pfp-modal-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(245, 232, 208, 0.4);
+    margin-top: 14px;
+  }
+  .seat-avatar img.pfp {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
   .center-logo {
     width: 110px; height: 110px;
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 6px;
     position: relative;
+  }
+  .center-logo-img {
+    max-width: 100%;
+    max-height: 100%;
+    filter: drop-shadow(0 4px 18px rgba(176, 124, 255, 0.5))
+            drop-shadow(0 0 30px rgba(232, 127, 196, 0.3));
+    opacity: 0.95;
+    pointer-events: none;
+    user-select: none;
   }
   .center-logo-placeholder {
     width: 100%; height: 100%;
@@ -1009,6 +1121,26 @@
 </head>
 <body>
 
+<!-- ===== PFP MODAL ===== -->
+<div class="pfp-modal" id="pfpModal">
+  <div class="pfp-modal-content">
+    <div class="pfp-modal-title">PROFILE PICTURE</div>
+    <div class="pfp-preview-wrap" id="pfpPreviewWrap">
+      <span>🎀</span>
+    </div>
+    <label class="pfp-upload-btn">
+      <input type="file" id="pfpFileInput" accept="image/*" style="display:none">
+      CHOOSE IMAGE
+    </label>
+    <div class="pfp-modal-actions">
+      <button id="pfpRemoveBtn" type="button" class="pfp-btn-secondary">Remove</button>
+      <button id="pfpCloseBtn" type="button">Done</button>
+    </div>
+    <div class="pfp-modal-hint">stored locally on this device</div>
+  </div>
+</div>
+
+
 <!-- ===== BACKROOM INTRO SPLASH ===== -->
 <div class="br-splash" id="brSplash">
   <video class="br-splash-video" id="brSplashVideo"
@@ -1034,7 +1166,12 @@
     <button class="tab active" data-view="lobby">LOBBY</button>
     <button class="tab" data-view="table">TABLE</button>
   </div>
-  <a class="nav-cta" href="/">back to molly</a>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <button id="pfpNavBtn" type="button" class="nav-pfp-btn" title="Profile picture">
+      <span id="pfpNavAvatar">🎀</span>
+    </button>
+    <a class="nav-cta" href="/">back to molly</a>
+  </div>
 </nav>
 
 
@@ -1336,7 +1473,7 @@
           <!-- Inner content -->
           <div class="table-inner">
             <div class="center-logo">
-              <div class="center-logo-placeholder">MOLLY<br><span style="font-size:8px">logo here</span></div>
+              <img src="./assets/molly-hero-small.png" alt="Molly" class="center-logo-img">
             </div>
 
             <!-- Community cards -->
@@ -1614,6 +1751,89 @@
     video.play().catch(() => {
       // Couldn't autoplay — show splash as a still frame, user can click to dismiss
     });
+  })();
+</script>
+
+<!-- ===== PFP UPLOAD LOGIC ===== -->
+<script>
+  (function() {
+    const STORE_KEY = 'molly_pfp_self';
+    const loadPfp  = () => localStorage.getItem(STORE_KEY);
+    const savePfp  = (d) => { localStorage.setItem(STORE_KEY, d); applyPfp(); };
+    const clearPfp = () => { localStorage.removeItem(STORE_KEY); applyPfp(); };
+
+    function applyPfp() {
+      const pfp = loadPfp();
+      const navAvatar = document.getElementById('pfpNavAvatar');
+      if (pfp) {
+        if (navAvatar) navAvatar.outerHTML = `<img id="pfpNavAvatar" src="${pfp}" alt="">`;
+      } else {
+        if (navAvatar && navAvatar.tagName === 'IMG') {
+          navAvatar.outerHTML = '<span id="pfpNavAvatar">🎀</span>';
+        }
+      }
+    }
+
+    function setPreview(dataUrl) {
+      const wrap = document.getElementById('pfpPreviewWrap');
+      if (!wrap) return;
+      wrap.innerHTML = dataUrl
+        ? `<img src="${dataUrl}" alt="">`
+        : `<span>🎀</span>`;
+    }
+
+    function resizeToDataUrl(file, maxDim = 256) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = e => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    const modal     = document.getElementById('pfpModal');
+    const navBtn    = document.getElementById('pfpNavBtn');
+    const closeBtn  = document.getElementById('pfpCloseBtn');
+    const removeBtn = document.getElementById('pfpRemoveBtn');
+    const fileInput = document.getElementById('pfpFileInput');
+
+    navBtn?.addEventListener('click', () => {
+      modal.classList.add('open');
+      setPreview(loadPfp());
+    });
+    closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
+    modal?.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+    removeBtn?.addEventListener('click', () => { clearPfp(); setPreview(null); });
+    fileInput?.addEventListener('change', async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (f.size > 8 * 1024 * 1024) { alert('image too large (>8MB)'); return; }
+      try {
+        const dataUrl = await resizeToDataUrl(f, 256);
+        setPreview(dataUrl);
+        savePfp(dataUrl);
+      } catch (err) {
+        alert('could not load image'); console.error(err);
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    if (document.readyState !== 'loading') applyPfp();
+    else document.addEventListener('DOMContentLoaded', applyPfp);
   })();
 </script>
 
