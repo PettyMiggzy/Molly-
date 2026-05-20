@@ -496,7 +496,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       await molly.connect(bob).approve(poker.target, BUY_IN);
       await poker.connect(bob).buyIn(0, BUY_IN);
 
-      await poker.emergencyRefund(0, [alice.address, bob.address]);
+      await poker.emergencyRefund(0);
 
       expect(await poker.seated(0, alice.address)).to.equal(false);
       expect(await poker.seated(0, bob.address)).to.equal(false);
@@ -508,7 +508,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
     });
 
     it("non-owner blocked", async () => {
-      await expect(poker.connect(alice).emergencyRefund(0, [alice.address]))
+      await expect(poker.connect(alice).emergencyRefund(0))
         .to.be.revertedWithCustomError(poker, "OwnableUnauthorizedAccount");
     });
   });
@@ -639,7 +639,7 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       const balsBefore = await Promise.all([alice, bob, carol].map(u => molly.balanceOf(u.address)));
 
       // Emergency refund all 3
-      await poker.emergencyRefund(0, [alice.address, bob.address, carol.address]);
+      await poker.emergencyRefund(0);
 
       // ASSERTION: contract balance should be 0 (every token accounted for)
       const ctrAfter = await molly.balanceOf(poker.target);
@@ -720,6 +720,190 @@ describe("MollyPoker v2 (audit-fixed)", function () {
       await fot.connect(alice).approve(poker.target, BUY_IN);
       await poker.connect(alice).buyIn(0, BUY_IN);
       expect(await poker.chips(alice.address, 0)).to.equal(BUY_IN);
+    });
+  });
+
+  /* ====================================================================
+     PASS-3 AUDIT M1 — emergencyRefund is atomic, no partial-refund possible
+     ==================================================================== */
+  describe("PASS-3 M1 — emergencyRefund refunds ALL seated players atomically", () => {
+    it("3-handed mid-hand: every seated player + pot share, contract drained", async () => {
+      // The exact scenario the auditor traced: pre-fix, owner could call
+      // emergencyRefund(0, [alice]) and alice would walk with the entire
+      // table.pot — including chips bob and carol contributed via blinds.
+      // Post-fix the signature doesn't take a subset; the function iterates
+      // table.players itself.
+      await poker.createTable(BUY_IN, 3, BB, molly.target);
+      for (const u of [alice, bob, carol]) {
+        await molly.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 1111n;
+      const cards = [
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
+      ];
+      await poker.dealCards(cards, 0);
+
+      // alice (BTN) calls BB → pot = BB + BB/2 + BB = 2500
+      await poker.connect(alice).playHand(0, 0, 0);
+      expect((await poker.tables(0)).pot).to.equal(BB + BB / 2n + BB);
+
+      const balsBefore = await Promise.all(
+        [alice, bob, carol].map(u => molly.balanceOf(u.address))
+      );
+      await poker.emergencyRefund(0);
+
+      // Conservation: total tokens returned == 3 * BUY_IN
+      const balsAfter = await Promise.all(
+        [alice, bob, carol].map(u => molly.balanceOf(u.address))
+      );
+      const totalDelta = balsAfter.reduce((s, b, i) => s + (b - balsBefore[i]), 0n);
+      expect(totalDelta).to.equal(BUY_IN * 3n);
+
+      // Contract drained
+      expect(await molly.balanceOf(poker.target)).to.equal(0);
+
+      // Every player de-seated
+      for (const u of [alice, bob, carol]) {
+        expect(await poker.seated(0, u.address)).to.equal(false);
+      }
+      // Table reset to clean state
+      const t = await poker.tables(0);
+      expect(t.state).to.equal(1n);
+      expect(t.pot).to.equal(0);
+      expect(t.currentRound).to.equal(0n);
+      expect(await poker.getTablePlayers(0)).to.deep.equal([]);
+    });
+
+    it("empty table is a no-op + sweeps any stale pot to dev", async () => {
+      // Defensive path: owner creates a table, no one buys in, calls refund.
+      // Should not revert and should leave the table in Inactive state.
+      await poker.createTable(BUY_IN, 2, BB, molly.target);
+      await poker.emergencyRefund(0);
+      const t = await poker.tables(0);
+      expect(t.state).to.equal(1n);
+    });
+  });
+
+  /* ====================================================================
+     PASS-3 — folded[] carries forward into the next round
+     ==================================================================== */
+  describe("PASS-3 — folded[] carry-forward through round transitions", () => {
+    it("a player who folds in round 0 stays folded in rounds 1-3 and isn't asked to act", async () => {
+      await poker.createTable(BUY_IN, 3, BB, molly.target);
+      for (const u of [alice, bob, carol]) {
+        await molly.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 2222n;
+      const cards = [
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
+      ];
+      await poker.dealCards(cards, 0);
+
+      // Pre-flop: alice calls, bob checks, carol folds. Move to flop.
+      await poker.connect(alice).playHand(0, 0, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      await poker.connect(carol).playHand(0, 3, 0);
+
+      const r0 = await poker.getRound(0, 0);
+      expect(r0.folded[2]).to.equal(true); // carol folded in round 0
+
+      // Currently in round 1 (flop)
+      let t = await poker.tables(0);
+      expect(t.currentRound).to.equal(1n);
+
+      const r1 = await poker.getRound(0, 1);
+      expect(r1.folded[2]).to.equal(true);  // carry-forward ✓
+      expect(r1.folded[0]).to.equal(false);
+      expect(r1.folded[1]).to.equal(false);
+      // chips reset to 0 for the new round
+      expect(r1.roundChips[0]).to.equal(0n);
+      expect(r1.roundChips[1]).to.equal(0n);
+      expect(r1.roundChips[2]).to.equal(0n);
+      expect(r1.highestChip).to.equal(0n);
+      // turn skips folded → starts at alice (0)
+      expect(r1.turn).to.equal(0n);
+      expect(r1.actsSinceReset).to.equal(0n);
+
+      // Carol cannot play even if she tries — she's folded
+      await expect(poker.connect(carol).playHand(0, 2, 0))
+        .to.be.revertedWith("Not your turn");
+
+      // Drive through flop + turn + river — only alice and bob act,
+      // each just checks
+      await poker.dealCommunityCards(0, 1, [10, 11, 12]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      t = await poker.tables(0);
+      expect(t.currentRound).to.equal(2n);
+
+      await poker.dealCommunityCards(0, 2, [13]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      t = await poker.tables(0);
+      expect(t.currentRound).to.equal(3n);
+
+      // Carol's fold still carries on the river
+      const r3 = await poker.getRound(0, 3);
+      expect(r3.folded[2]).to.equal(true);
+
+      await poker.dealCommunityCards(0, 3, [14]);
+      await poker.connect(alice).playHand(0, 2, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      t = await poker.tables(0);
+      expect(t.state).to.equal(2n); // Showdown
+
+      // Showdown — alice wins, carol's hash check is skipped (she's folded)
+      await poker.showdown(
+        0,
+        [k, k, k],
+        [{ card1: 1, card2: 2 }, { card1: 3, card2: 4 }, { card1: 99, card2: 99 }], // carol's cards can be garbage
+        alice.address,
+        0,
+      );
+      t = await poker.tables(0);
+      expect(t.state).to.equal(1n); // Inactive after hand
+      expect(t.totalHands).to.equal(1n);
+    });
+
+    it("showdown rejects a folded player as winner", async () => {
+      // Drive a hand to showdown with carol folded, try to declare carol the winner
+      await poker.createTable(BUY_IN, 3, BB, molly.target);
+      for (const u of [alice, bob, carol]) {
+        await molly.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 3333n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+        { card1Hash: commitCard(k, 5), card2Hash: commitCard(k, 6) },
+      ], 0);
+
+      // carol folds pre-flop, others go to showdown
+      await poker.connect(alice).playHand(0, 0, 0);
+      await poker.connect(bob).playHand(0, 2, 0);
+      await poker.connect(carol).playHand(0, 3, 0);
+
+      for (let round = 1; round <= 3; round++) {
+        await poker.dealCommunityCards(0, round, round === 1 ? [10, 11, 12] : [13]);
+        await poker.connect(alice).playHand(0, 2, 0);
+        await poker.connect(bob).playHand(0, 2, 0);
+      }
+
+      // Try to declare carol (folded) the winner
+      await expect(poker.showdown(
+        0,
+        [k, k, k],
+        [{ card1: 1, card2: 2 }, { card1: 3, card2: 4 }, { card1: 5, card2: 6 }],
+        carol.address,
+        0,
+      )).to.be.revertedWith("Winner not in round");
     });
   });
 });

@@ -674,72 +674,72 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     /* ============================================================
        EMERGENCY
        ============================================================ */
-    function emergencyRefund(uint _tableId, address[] calldata _players)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    /// Audit P3 M1: emergencyRefund takes ONLY the tableId now. The old
+    /// (tableId, address[]) signature let a refunded subset walk away with the
+    /// full table.pot — including chips that non-refunded seated players had
+    /// contributed via blinds/calls. This atomic version iterates table.players
+    /// itself so partial refunds are impossible by construction.
+    function emergencyRefund(uint _tableId) external onlyOwner nonReentrant {
         Table storage table = tables[_tableId];
         require(table.state != TableState.Showdown, "in showdown");
 
-        // Audit M2 (pass 2): refund pot-contributions too so emergencyRefund
-        // can't leak table.pot tokens into the contract permanently.
-        // Track which players were actually touched so we know who shares the residual.
-        address[] memory eligible = new address[](_players.length);
-        uint eligibleCount = 0;
+        uint n = table.players.length;
 
-        for (uint i = 0; i < _players.length; i++) {
-            address p = _players[i];
-            bool touched = false;
+        // Edge case: no seated players. Sweep any stale pot to dev and reset.
+        if (n == 0) {
+            if (table.pot > 0) {
+                table.token.safeTransfer(DEV_ADDR, table.pot);
+                emit EmergencyRefund(_tableId, DEV_ADDR, table.pot);
+                table.pot = 0;
+            }
+            table.state = TableState.Inactive;
+            table.currentRound = 0;
+            return;
+        }
 
+        // Snapshot so we can use the array after we delete table.players
+        address[] memory all = new address[](n);
+        for (uint i = 0; i < n; i++) all[i] = table.players[i];
+
+        // Refund each player's chip balance + clear seated flag
+        for (uint i = 0; i < n; i++) {
+            address p = all[i];
             uint amt = chips[p][_tableId];
             if (amt > 0) {
                 chips[p][_tableId] = 0;
                 table.token.safeTransfer(p, amt);
                 emit EmergencyRefund(_tableId, p, amt);
-                touched = true;
             }
-            if (seated[_tableId][p]) {
-                seated[_tableId][p] = false;
-                _removeFromPlayers(table.players, p);
-                touched = true;
-            }
-            if (touched) {
-                eligible[eligibleCount] = p;
-                eligibleCount++;
-            }
+            seated[_tableId][p] = false;
         }
 
-        // Audit M2 — split the in-flight pot equally among the touched players
-        // (imperfect: doesn't account for individual contributions, but no funds
-        //  are stranded and the alternative requires per-round bookkeeping).
-        if (table.pot > 0 && eligibleCount > 0) {
-            uint per = table.pot / eligibleCount;
-            uint distributed = 0;
+        // Wipe player roster
+        delete table.players;
+
+        // Audit P2 M2: split residual table.pot equally so no tokens are leaked.
+        // Now safe to do because we know every contributor is in `all`.
+        if (table.pot > 0) {
+            uint per = table.pot / n;
             if (per > 0) {
-                for (uint i = 0; i < eligibleCount; i++) {
-                    table.token.safeTransfer(eligible[i], per);
-                    emit EmergencyRefund(_tableId, eligible[i], per);
-                    distributed += per;
+                for (uint i = 0; i < n; i++) {
+                    table.token.safeTransfer(all[i], per);
+                    emit EmergencyRefund(_tableId, all[i], per);
                 }
             }
-            uint dust = table.pot - distributed;
+            uint dust = table.pot - (per * n);
             if (dust > 0) {
-                table.token.safeTransfer(eligible[0], dust);
-                emit EmergencyRefund(_tableId, eligible[0], dust);
+                table.token.safeTransfer(all[0], dust);
+                emit EmergencyRefund(_tableId, all[0], dust);
             }
             table.pot = 0;
         }
 
-        // If table is now empty, reset state
-        if (table.players.length == 0) {
-            table.state = TableState.Inactive;
-            table.pot = 0;
-            table.currentRound = 0;
-            delete communityCards[_tableId];
-            for (uint i = 0; i <= LAST_ROUND; i++) {
-                delete rounds[_tableId][i];
-            }
+        // Reset table to a clean slate so the dealer can recreate / players can re-buyIn
+        table.state = TableState.Inactive;
+        table.currentRound = 0;
+        delete communityCards[_tableId];
+        for (uint i = 0; i <= LAST_ROUND; i++) {
+            delete rounds[_tableId][i];
         }
     }
 
