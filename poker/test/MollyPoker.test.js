@@ -98,16 +98,20 @@ describe("MollyPoker v2 (audit-fixed)", function () {
   });
 
   /* ====================================================================
-     WHITELIST + createTable
+     P9 — createTable is permissionless (whitelist storage still exists but
+     no longer gates createTable, kept for back-compat)
      ==================================================================== */
-  describe("createTable whitelist", () => {
-    it("owner + whitelisted creators can call; others can't", async () => {
-      await poker.createTable(BUY_IN, 2, BB, molly.target); // owner
-      await expect(poker.connect(alice).createTable(BUY_IN, 2, BB, molly.target))
-        .to.be.revertedWith("not authorized");
+  describe("P9 — createTable is permissionless", () => {
+    it("anyone can create a table — owner, whitelisted, AND random addresses", async () => {
+      // Owner can create
+      await poker.createTable(BUY_IN, 2, BB, molly.target);
+      // Random alice (NOT owner, NOT whitelisted) can ALSO create — this used
+      // to revert with "not authorized" pre-P9. We test the inverse now.
+      await poker.connect(alice).createTable(BUY_IN, 2, BB, molly.target);
+      // Whitelisted addresses still work (back-compat)
       await poker.setWhitelistedCreator(project.address, true);
       await poker.connect(project).createTable(BUY_IN, 2, BB, otherToken.target);
-      expect(await poker.totalTables()).to.equal(2);
+      expect(await poker.totalTables()).to.equal(3);
     });
   });
 

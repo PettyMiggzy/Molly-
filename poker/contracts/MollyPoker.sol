@@ -240,12 +240,20 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     /* ============================================================
        PLAYER ACTIONS
        ============================================================ */
+    /// P9 — createTable is permissionless. Anyone can create a table for any
+    /// token (subject to the graduation check for non-MOLLY tokens). The old
+    /// whitelist gated this to curated project teams; the friction wasn't
+    /// worth it. The graduation check + 100k MOLLY buyIn requirement provide
+    /// sufficient sybil resistance: junk tokens can't even open a table
+    /// (no V3 pool means no rake path), and any player needs real MOLLY
+    /// holdings to actually sit down. The whitelist storage + admin function
+    /// are kept for back-compat but no longer gate anything.
     function createTable(
         uint _buyInAmount,
         uint _maxPlayers,
         uint _bigBlind,
         address _token
-    ) external onlyWhitelistedOrOwner nonReentrant {
+    ) external nonReentrant {
         require(_token != address(0), "token=0");
         require(_maxPlayers >= 2 && _maxPlayers <= 9, "bad maxPlayers");
         require(_bigBlind > 0, "bb=0");

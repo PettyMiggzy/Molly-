@@ -974,7 +974,7 @@ async function connectWallet() {
 
     await refreshWalletInfo();
     renderWalletBar();
-    await refreshCreateAuthState();
+    $('createTableBtn').disabled = false;
     await openDealer();
     await loadTables();
 
@@ -1424,30 +1424,6 @@ async function getTokenInfo(addr) {
 }
 
 /* ===== CREATE TABLE ===== */
-async function refreshCreateAuthState() {
-  const btn = $('createTableBtn');
-  if (!State.contract || !State.address) {
-    btn.disabled = true;
-    btn.title = 'connect wallet first';
-    return;
-  }
-  try {
-    const [owner, whitelisted] = await Promise.all([
-      State.contract.owner(),
-      State.contract.whitelistedCreator(State.address),
-    ]);
-    const isOwner = owner.toLowerCase() === State.address.toLowerCase();
-    const canCreate = isOwner || whitelisted;
-    btn.disabled = !canCreate;
-    btn.title = canCreate
-      ? (isOwner ? 'you are owner — create freely' : 'whitelisted creator')
-      : 'not whitelisted — ask King to add your address via setWhitelistedCreator';
-  } catch (e) {
-    btn.disabled = true;
-    btn.title = 'could not check whitelist: ' + (e.shortMessage || e.message);
-  }
-}
-
 function openCreateTableModal() {
   if (!State.contract) { toast('connect wallet first', 'bad'); return; }
   $('ctToken').value = MOLLY_ADDRESS;
