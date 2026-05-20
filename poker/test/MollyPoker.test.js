@@ -909,6 +909,67 @@ describe("MollyPoker v2 (audit-fixed)", function () {
   });
 
   /* ====================================================================
+     PASS-8 — emergencyRefund callable from Showdown state (tie path)
+     ==================================================================== */
+  describe("PASS-8 — emergencyRefund from Showdown unsticks tied hands", () => {
+    it("dealer can refund a table that has reached Showdown without prior 'in showdown' revert", async () => {
+      // Setup: 2 players, get to Showdown (all 4 betting rounds complete).
+      await poker.createTable(BUY_IN, 2, BB, molly.target);
+      for (const u of [alice, bob]) {
+        await molly.connect(u).approve(poker.target, BUY_IN);
+        await poker.connect(u).buyIn(0, BUY_IN);
+      }
+      const k = 9999n;
+      await poker.dealCards([
+        { card1Hash: commitCard(k, 1), card2Hash: commitCard(k, 2) },
+        { card1Hash: commitCard(k, 3), card2Hash: commitCard(k, 4) },
+      ], 0);
+
+      // Preflop: alice (BTN/SB) calls, bob checks → round over
+      await poker.connect(alice).playHand(0, 2, 0);  // 2=CALL
+      await poker.connect(bob).playHand(0, 0, 0);    // 0=CHECK
+      await poker.dealCommunityCards(0, 1, [10, 11, 12]);
+      // Flop: alice acts first, both check
+      await poker.connect(alice).playHand(0, 0, 0);
+      await poker.connect(bob).playHand(0, 0, 0);
+      await poker.dealCommunityCards(0, 2, [13]);
+      // Turn
+      await poker.connect(alice).playHand(0, 0, 0);
+      await poker.connect(bob).playHand(0, 0, 0);
+      await poker.dealCommunityCards(0, 3, [14]);
+      // River — final round; second-to-act closes → ShowdownStarted emitted
+      await poker.connect(alice).playHand(0, 0, 0);
+      await poker.connect(bob).playHand(0, 0, 0);
+
+      // Now in Showdown state
+      const tBefore = await poker.tables(0);
+      expect(tBefore.state).to.equal(2n); // Showdown
+
+      // PRE-PATCH: this would have reverted with "in showdown".
+      // POST-PATCH (P8): atomic refund regardless of state.
+      const balsBefore = await Promise.all([alice, bob].map(u => molly.balanceOf(u.address)));
+      await poker.emergencyRefund(0);
+      const balsAfter = await Promise.all([alice, bob].map(u => molly.balanceOf(u.address)));
+
+      // Conservation: every wei accounted for
+      const totalDelta = (balsAfter[0] - balsBefore[0]) + (balsAfter[1] - balsBefore[1]);
+      expect(totalDelta).to.equal(BUY_IN * 2n);
+
+      // Table fully reset
+      const t = await poker.tables(0);
+      expect(t.state).to.equal(1n);  // Inactive
+      expect(t.pot).to.equal(0);
+      expect(t.currentRound).to.equal(0n);
+      expect(await poker.getTablePlayers(0)).to.deep.equal([]);
+      for (const u of [alice, bob]) {
+        expect(await poker.seated(0, u.address)).to.equal(false);
+      }
+      // Contract drained
+      expect(await molly.balanceOf(poker.target)).to.equal(0);
+    });
+  });
+
+  /* ====================================================================
      PASS-3 — folded[] carries forward into the next round
      ==================================================================== */
   describe("PASS-3 — folded[] carry-forward through round transitions", () => {

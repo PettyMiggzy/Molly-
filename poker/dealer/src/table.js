@@ -106,15 +106,30 @@ export class TableRunner {
       try {
         const t = await getTable(this.tableId);
         const chainCommunity = await getCommunityCards(this.tableId);
-        // If chain has more community cards than we recorded as committed,
-        // the dealCommunity tx mined — keep deck/keys, advance local state.
+
+        // Case A: chain has more community cards than we recorded as committed
+        // → the dealCommunity tx mined. Keep deck/keys, accept the chain state.
         if (chainCommunity.length > (saved.communityCards || []).length) {
           this.communityCards = chainCommunity.map(c => Number(c));
           log.info(`[t${this.tableId}] reconcile: chain has ${chainCommunity.length} community cards, accepted`);
         }
-        // If chain is at hand N+1 from what we expected, the showdown completed
-        // before we recorded it — drop the in-memory hand entirely.
-        if (Number(t.state) !== 0 && this.localState !== 'IDLE') {
+
+        // Case B (CC re-audit): dealCards mined during the restart window.
+        // We persisted with localState=DEALING (pre-tx); chain is now Active
+        // but community is empty. Without this fix, _onRoundOver later sees
+        // localState=DEALING and refuses to advance → hand stalls forever.
+        if (saved._pendingTx.kind === 'dealCards'
+            && Number(t.state) === 0          // chain Active
+            && chainCommunity.length === 0    // pre-flop
+            && this.localState === STATE.DEALING) {
+          log.info(`[t${this.tableId}] reconcile: dealCards mined during restart — synthesizing CardsDealt → ACTIVE`);
+          this.localState = STATE.ACTIVE;
+          this._startTurnTimer();
+        }
+
+        // Case C: chain not Active and we had an in-progress hand → showdown
+        // completed or emergency-refunded. Drop the in-memory hand.
+        if (Number(t.state) !== 0 && this.localState !== STATE.IDLE) {
           log.warn(`[t${this.tableId}] reconcile: chain not Active, resetting hand`);
           await this._resetHand();
           return;
@@ -429,6 +444,10 @@ export class TableRunner {
       log.error(`[t${this.tableId}] dealCommunityCards(round=${nextRound}) failed:`, e.shortMessage || e.message);
       this.broadcast('deal_failed', { tableId: this.tableId, reason: `dealCommunityCards round ${nextRound} reverted` });
       this._pendingTx = null;
+      // C3 case E (CC re-audit) — re-persist so a crash after this point
+      // doesn't see a stale _pendingTx pointing to an aborted tx
+      try { await this._persist(); }
+      catch (perr) { log.warn(`[t${this.tableId}] post-revert persist failed: ${perr.message}`); }
       return;
     }
     this._pendingTx = null;
@@ -461,8 +480,11 @@ export class TableRunner {
     this.broadcast('showdown_started', { tableId: this.tableId, handNum });
 
     // H5 — Read currentRound from the chain rather than hardcoding round 3.
-    // A pre-river fold-win still emits ShowdownStarted; reading round 3 in
-    // that case gives stale/empty folded[] data.
+    // In practice the contract only transitions to Showdown from
+    // currentRound==LAST_ROUND (=3), so this is equivalent to hardcoding 3.
+    // Pre-river fold-wins do NOT emit ShowdownStarted (the contract calls
+    // _distributePot directly and emits PotDistributed only). Keeping this
+    // dynamic anyway as defense-in-depth against future contract changes.
     let lastRound;
     try {
       const t = await getTable(this.tableId);

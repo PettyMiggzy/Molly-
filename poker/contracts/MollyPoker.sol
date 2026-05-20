@@ -711,9 +711,14 @@ contract MollyPoker is Ownable, ReentrancyGuard {
     /// full table.pot — including chips that non-refunded seated players had
     /// contributed via blinds/calls. This atomic version iterates table.players
     /// itself so partial refunds are impossible by construction.
+    ///
+    /// P8 — Showdown guard removed. Dealer needs this path to recover tied
+    /// hands (Hand.winners().length > 1) since the contract's showdown()
+    /// accepts only a single winner. The function performs a full atomic
+    /// reset (clears players, pot, state, currentRound, community, rounds)
+    /// so it's safe from any state.
     function emergencyRefund(uint _tableId) external onlyOwner nonReentrant {
         Table storage table = tables[_tableId];
-        require(table.state != TableState.Showdown, "in showdown");
 
         uint n = table.players.length;
 

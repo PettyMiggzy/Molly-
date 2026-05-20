@@ -862,11 +862,11 @@ function cardEl(card, faceDown = false) {
   const suit = card % 4;
   const isRed = suit === 1 || suit === 2;
   if (isRed) div.classList.add('red');
-  div.innerHTML = `
-    <span class="rank-top">${RANKS[rank]}${SUITS[suit]}</span>
-    <span class="suit-big">${SUITS[suit]}</span>
-    <span class="rank-bot">${RANKS[rank]}${SUITS[suit]}</span>
-  `;
+  const rankSuit = RANKS[rank] + SUITS[suit];
+  const top = document.createElement('span'); top.className = 'rank-top'; top.textContent = rankSuit;
+  const big = document.createElement('span'); big.className = 'suit-big'; big.textContent = SUITS[suit];
+  const bot = document.createElement('span'); bot.className = 'rank-bot'; bot.textContent = rankSuit;
+  div.append(top, big, bot);
   return div;
 }
 
@@ -1396,14 +1396,23 @@ function renderRoom(state) {
     const seat = document.createElement('div');
     seat.className = 'seat';
     if (isYou) seat.classList.add('you');
-    if (round && round.folded && round.folded[i]) seat.classList.add('folded');
-    // Server normalizes BigInts → strings; field name is roundChips (matches contract)
+    const isFolded = round && round.folded && round.folded[i];
+    if (isFolded) seat.classList.add('folded');
     const chipsRaw = round && round.roundChips ? round.roundChips[i] : '0';
-    seat.innerHTML = `
-      <div class="name">${isYou ? 'YOU' : shortAddr(addr)}</div>
-      <div class="chips">${fmtMolly(chipsRaw)}</div>
-      <div class="status">${round && round.folded && round.folded[i] ? 'folded' : ''}</div>
-    `;
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'name';
+    nameEl.textContent = isYou ? 'YOU' : shortAddr(addr);
+
+    const chipsEl = document.createElement('div');
+    chipsEl.className = 'chips';
+    chipsEl.textContent = fmtMolly(chipsRaw);
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'status';
+    statusEl.textContent = isFolded ? 'folded' : '';
+
+    seat.append(nameEl, chipsEl, statusEl);
     seatsEl.appendChild(seat);
   }
 
