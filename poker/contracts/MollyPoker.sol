@@ -51,12 +51,14 @@ import {Ownable}          from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard}  from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface ISwapRouterV3 {
+    // Matches Uniswap V3 SwapRouter02 on Monad (0xfe31f71c1b106eac32f1a19239c9a9a72ddfb900).
+    // SwapRouter02 dropped the `deadline` field from ExactInputSingleParams that
+    // existed in the original v3-periphery ISwapRouter — selector changed accordingly.
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;
         uint24  fee;
         address recipient;
-        uint256 deadline;
         uint256 amountIn;
         uint256 amountOutMinimum;
         uint160 sqrtPriceLimitX96;
@@ -652,7 +654,6 @@ contract MollyPoker is Ownable, ReentrancyGuard {
             tokenOut:          WMON,
             fee:               fee,
             recipient:         address(this),
-            deadline:          block.timestamp, // M5
             amountIn:          _amountIn,
             amountOutMinimum:  _minOut,
             sqrtPriceLimitX96: 0
