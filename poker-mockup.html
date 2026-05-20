@@ -1136,7 +1136,7 @@
       <button id="pfpRemoveBtn" type="button" class="pfp-btn-secondary">Remove</button>
       <button id="pfpCloseBtn" type="button">Done</button>
     </div>
-    <div class="pfp-modal-hint">stored locally on this device</div>
+    <div class="pfp-modal-hint">signed upload · stored on Molly server · requires 100K MOLLY</div>
   </div>
 </div>
 
@@ -1754,32 +1754,46 @@
   })();
 </script>
 
-<!-- ===== PFP UPLOAD LOGIC ===== -->
+<!-- ===== PFP UPLOAD (server-backed) ===== -->
 <script>
   (function() {
-    const STORE_KEY = 'molly_pfp_self';
-    const loadPfp  = () => localStorage.getItem(STORE_KEY);
-    const savePfp  = (d) => { localStorage.setItem(STORE_KEY, d); applyPfp(); };
-    const clearPfp = () => { localStorage.removeItem(STORE_KEY); applyPfp(); };
+    const PFP_API = (window.MOLLY_PFP_API || 'https://api.monpad.net/molly').replace(/\/$/, '');
+    const STORE_KEY = 'molly_pfp_self_cache';
+    const CONNECTED_KEY = 'molly_connected_addr';
 
-    function applyPfp() {
-      const pfp = loadPfp();
-      const navAvatar = document.getElementById('pfpNavAvatar');
-      if (pfp) {
-        if (navAvatar) navAvatar.outerHTML = `<img id="pfpNavAvatar" src="${pfp}" alt="">`;
+    const pfpUrl = (addr) => `${PFP_API}/pfp/${addr.toLowerCase()}?v=${Date.now()}`;
+
+    function setNavAvatar(src) {
+      const slot = document.getElementById('pfpNavAvatar');
+      if (!slot) return;
+      if (src) {
+        if (slot.tagName === 'IMG') slot.src = src;
+        else slot.outerHTML = `<img id="pfpNavAvatar" src="${src}" alt="" onerror="this.outerHTML='<span id=&quot;pfpNavAvatar&quot;>🎀</span>'">`;
       } else {
-        if (navAvatar && navAvatar.tagName === 'IMG') {
-          navAvatar.outerHTML = '<span id="pfpNavAvatar">🎀</span>';
-        }
+        if (slot.tagName === 'IMG') slot.outerHTML = '<span id="pfpNavAvatar">🎀</span>';
       }
     }
-
-    function setPreview(dataUrl) {
+    function setPreview(src) {
       const wrap = document.getElementById('pfpPreviewWrap');
       if (!wrap) return;
-      wrap.innerHTML = dataUrl
-        ? `<img src="${dataUrl}" alt="">`
-        : `<span>🎀</span>`;
+      wrap.innerHTML = src
+        ? `<img src="${src}" alt="" onerror="this.parentElement.innerHTML='<span>🎀</span>'">`
+        : '<span>🎀</span>';
+    }
+
+    const loadCachedAddr = () => localStorage.getItem(CONNECTED_KEY);
+    const saveCachedAddr = (a) => { if (a) localStorage.setItem(CONNECTED_KEY, a.toLowerCase()); else localStorage.removeItem(CONNECTED_KEY); };
+
+    function applyPfpFor(addr) {
+      if (!addr) {
+        const cached = localStorage.getItem(STORE_KEY);
+        setNavAvatar(cached || null);
+        return;
+      }
+      const url = pfpUrl(addr);
+      fetch(url, { method: 'HEAD' })
+        .then(r => setNavAvatar(r.ok ? url : (localStorage.getItem(STORE_KEY) || null)))
+        .catch(() => setNavAvatar(localStorage.getItem(STORE_KEY) || null));
     }
 
     function resizeToDataUrl(file, maxDim = 256) {
@@ -1804,6 +1818,44 @@
       });
     }
 
+    async function uploadToServer(dataUrl) {
+      if (typeof window.ethereum === 'undefined') throw new Error('wallet required');
+      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts.length) accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const address = accounts[0];
+      const message = `Molly PFP update for ${address} timestamp:${Date.now()}`;
+      const signature = await window.ethereum.request({
+        method: 'personal_sign', params: [message, address],
+      });
+      const res = await fetch(`${PFP_API}/pfp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature, imageDataUrl: dataUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      saveCachedAddr(address);
+      localStorage.setItem(STORE_KEY, dataUrl);
+      return address;
+    }
+
+    async function removeFromServer() {
+      if (typeof window.ethereum === 'undefined') { localStorage.removeItem(STORE_KEY); return; }
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts.length) { localStorage.removeItem(STORE_KEY); return; }
+      const address = accounts[0];
+      const message = `Molly PFP update for ${address} timestamp:${Date.now()}`;
+      const signature = await window.ethereum.request({
+        method: 'personal_sign', params: [message, address],
+      });
+      await fetch(`${PFP_API}/pfp`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      localStorage.removeItem(STORE_KEY);
+    }
+
     const modal     = document.getElementById('pfpModal');
     const navBtn    = document.getElementById('pfpNavBtn');
     const closeBtn  = document.getElementById('pfpCloseBtn');
@@ -1812,11 +1864,22 @@
 
     navBtn?.addEventListener('click', () => {
       modal.classList.add('open');
-      setPreview(loadPfp());
+      const addr = loadCachedAddr();
+      if (addr) {
+        const url = pfpUrl(addr);
+        fetch(url, { method: 'HEAD' })
+          .then(r => setPreview(r.ok ? url : localStorage.getItem(STORE_KEY)))
+          .catch(() => setPreview(localStorage.getItem(STORE_KEY)));
+      } else {
+        setPreview(localStorage.getItem(STORE_KEY));
+      }
     });
     closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
     modal?.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
-    removeBtn?.addEventListener('click', () => { clearPfp(); setPreview(null); });
+    removeBtn?.addEventListener('click', async () => {
+      try { await removeFromServer(); setPreview(null); setNavAvatar(null); }
+      catch (e) { alert(`Remove failed: ${e.message}`); }
+    });
     fileInput?.addEventListener('change', async (e) => {
       const f = e.target.files?.[0];
       if (!f) return;
@@ -1824,16 +1887,35 @@
       try {
         const dataUrl = await resizeToDataUrl(f, 256);
         setPreview(dataUrl);
-        savePfp(dataUrl);
+        const address = await uploadToServer(dataUrl);
+        setNavAvatar(pfpUrl(address));
       } catch (err) {
-        alert('could not load image'); console.error(err);
+        console.error(err);
+        alert(`Upload failed: ${err.message || 'unknown'}`);
       } finally {
         fileInput.value = '';
       }
     });
 
-    if (document.readyState !== 'loading') applyPfp();
-    else document.addEventListener('DOMContentLoaded', applyPfp);
+    async function initPfp() {
+      let addr = null;
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length) addr = accounts[0];
+        } catch {}
+      }
+      if (!addr) addr = loadCachedAddr();
+      applyPfpFor(addr);
+    }
+    if (document.readyState !== 'loading') initPfp();
+    else document.addEventListener('DOMContentLoaded', initPfp);
+
+    window.ethereum?.on?.('accountsChanged', (accounts) => {
+      const a = accounts[0] || null;
+      saveCachedAddr(a);
+      applyPfpFor(a);
+    });
   })();
 </script>
 

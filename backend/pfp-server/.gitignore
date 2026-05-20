@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+!.env.example
+pfps/
+*.log
+.DS_Store

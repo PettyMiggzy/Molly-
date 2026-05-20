@@ -1047,7 +1047,7 @@
       <button id="pfpRemoveBtn" type="button" class="pfp-btn-secondary">Remove</button>
       <button id="pfpCloseBtn" type="button">Done</button>
     </div>
-    <div class="pfp-modal-hint">stored locally on this device</div>
+    <div class="pfp-modal-hint">signed upload · stored on Molly server · requires 100K MOLLY</div>
   </div>
 </div>
 
@@ -2079,41 +2079,81 @@ window.addEventListener('load', () => {
   })();
 </script>
 
-<!-- ===== PFP + FREE-PLAY ELIGIBILITY ===== -->
+<!-- ===== PFP + FREE-PLAY ELIGIBILITY (server-backed) ===== -->
 <script>
   (function() {
-    const STORE_KEY     = 'molly_pfp_self';
-    const MOLLY_TOKEN   = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
-    const HOLD_REQUIRED = 100000n * 10n ** 18n; // 100K MOLLY
+    // Set this to your deployed PFP server. For local testing: 'http://localhost:3002'
+    const PFP_API = (window.MOLLY_PFP_API || 'https://api.monpad.net/molly').replace(/\/$/, '');
+    const STORE_KEY = 'molly_pfp_self_cache'; // local cache only
+    const CONNECTED_KEY = 'molly_connected_addr';
 
-    /* ---------- PFP store ---------- */
-    const loadPfp = () => localStorage.getItem(STORE_KEY);
-    const savePfp = (d) => { localStorage.setItem(STORE_KEY, d); applyPfp(); };
-    const clearPfp = () => { localStorage.removeItem(STORE_KEY); applyPfp(); };
+    /* ---------- helpers ---------- */
+    const pfpUrl = (addr) => `${PFP_API}/pfp/${addr.toLowerCase()}?v=${Date.now()}`;
 
-    function applyPfp() {
-      const pfp = loadPfp();
-      // The "YOU" seat avatar
-      const youAvatar = document.querySelector('#youSeat .seat-avatar');
-      const navAvatar = document.getElementById('pfpNavAvatar');
-      if (pfp) {
-        if (youAvatar) youAvatar.innerHTML = `<img class="pfp" src="${pfp}" alt="">`;
-        if (navAvatar) navAvatar.outerHTML = `<img id="pfpNavAvatar" src="${pfp}" alt="">`;
+    function setNavAvatar(src) {
+      const slot = document.getElementById('pfpNavAvatar');
+      if (!slot) return;
+      if (src) {
+        if (slot.tagName === 'IMG') { slot.src = src; }
+        else { slot.outerHTML = `<img id="pfpNavAvatar" src="${src}" alt="" onerror="this.outerHTML='<span id=&quot;pfpNavAvatar&quot;>👾</span>'">`; }
       } else {
-        if (youAvatar) youAvatar.innerHTML = '👾';
-        if (navAvatar && navAvatar.tagName === 'IMG') navAvatar.outerHTML = '<span id="pfpNavAvatar">👾</span>';
+        if (slot.tagName === 'IMG') { slot.outerHTML = '<span id="pfpNavAvatar">👾</span>'; }
       }
     }
-
-    function setPreview(dataUrl) {
+    function setYouSeatAvatar(src) {
+      const el = document.querySelector('#youSeat .seat-avatar');
+      if (!el) return;
+      if (src) el.innerHTML = `<img class="pfp" src="${src}" alt="" onerror="this.parentElement.innerHTML='👾'">`;
+      else     el.innerHTML = '👾';
+    }
+    function setPreview(src) {
       const wrap = document.getElementById('pfpPreviewWrap');
       if (!wrap) return;
-      wrap.innerHTML = dataUrl
-        ? `<img src="${dataUrl}" alt="">`
-        : `<span>👾</span>`;
+      wrap.innerHTML = src
+        ? `<img src="${src}" alt="" onerror="this.parentElement.innerHTML='<span>👾</span>'">`
+        : '<span>👾</span>';
     }
 
-    /* ---------- Resize & save ---------- */
+    function loadCachedAddr() {
+      return localStorage.getItem(CONNECTED_KEY);
+    }
+    function saveCachedAddr(a) {
+      if (a) localStorage.setItem(CONNECTED_KEY, a.toLowerCase());
+      else   localStorage.removeItem(CONNECTED_KEY);
+    }
+
+    /* ---------- show current user's PFP ---------- */
+    function applyPfpFor(addr) {
+      if (!addr) {
+        // fallback to cached if previously connected
+        const cached = localStorage.getItem(STORE_KEY);
+        setNavAvatar(cached || null);
+        setYouSeatAvatar(cached || null);
+        return;
+      }
+      const url = pfpUrl(addr);
+      // Probe whether the image exists (HEAD)
+      fetch(url, { method: 'HEAD' })
+        .then(r => {
+          if (r.ok) {
+            setNavAvatar(url);
+            setYouSeatAvatar(url);
+          } else {
+            // No server PFP — try local cache, else default
+            const cached = localStorage.getItem(STORE_KEY);
+            setNavAvatar(cached || null);
+            setYouSeatAvatar(cached || null);
+          }
+        })
+        .catch(() => {
+          // Server unreachable — use cache
+          const cached = localStorage.getItem(STORE_KEY);
+          setNavAvatar(cached || null);
+          setYouSeatAvatar(cached || null);
+        });
+    }
+
+    /* ---------- resize image client-side ---------- */
     function resizeToDataUrl(file, maxDim = 256) {
       return new Promise((resolve, reject) => {
         const fr = new FileReader();
@@ -2136,7 +2176,60 @@ window.addEventListener('load', () => {
       });
     }
 
-    /* ---------- Wire UI ---------- */
+    /* ---------- upload via server (sign + POST) ---------- */
+    async function uploadToServer(dataUrl) {
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('wallet required — install MetaMask');
+      }
+      // Make sure a wallet is connected
+      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts || !accounts.length) {
+        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      }
+      const address = accounts[0];
+      const message = `Molly PFP update for ${address} timestamp:${Date.now()}`;
+      const signature = await window.ethereum.request({
+        method: 'personal_sign',
+        params: [message, address],
+      });
+      const res = await fetch(`${PFP_API}/pfp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature, imageDataUrl: dataUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      saveCachedAddr(address);
+      // Cache locally too so the avatar shows up even if server is briefly down
+      localStorage.setItem(STORE_KEY, dataUrl);
+      return address;
+    }
+
+    async function removeFromServer() {
+      if (typeof window.ethereum === 'undefined') {
+        localStorage.removeItem(STORE_KEY);
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts.length) {
+        localStorage.removeItem(STORE_KEY);
+        return;
+      }
+      const address = accounts[0];
+      const message = `Molly PFP update for ${address} timestamp:${Date.now()}`;
+      const signature = await window.ethereum.request({
+        method: 'personal_sign',
+        params: [message, address],
+      });
+      await fetch(`${PFP_API}/pfp`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      localStorage.removeItem(STORE_KEY);
+    }
+
+    /* ---------- wire modal UI ---------- */
     const modal     = document.getElementById('pfpModal');
     const navBtn    = document.getElementById('pfpNavBtn');
     const closeBtn  = document.getElementById('pfpCloseBtn');
@@ -2145,14 +2238,29 @@ window.addEventListener('load', () => {
 
     navBtn?.addEventListener('click', () => {
       modal.classList.add('open');
-      setPreview(loadPfp());
+      const addr = loadCachedAddr();
+      if (addr) {
+        // Show server version first, fall back to local cache
+        const url = pfpUrl(addr);
+        fetch(url, { method: 'HEAD' })
+          .then(r => setPreview(r.ok ? url : localStorage.getItem(STORE_KEY)))
+          .catch(() => setPreview(localStorage.getItem(STORE_KEY)));
+      } else {
+        setPreview(localStorage.getItem(STORE_KEY));
+      }
     });
     closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
     modal?.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
 
-    removeBtn?.addEventListener('click', () => {
-      clearPfp();
-      setPreview(null);
+    removeBtn?.addEventListener('click', async () => {
+      try {
+        await removeFromServer();
+        setPreview(null);
+        setNavAvatar(null);
+        setYouSeatAvatar(null);
+      } catch (e) {
+        alert(`Remove failed: ${e.message}`);
+      }
     });
 
     fileInput?.addEventListener('change', async (e) => {
@@ -2161,64 +2269,79 @@ window.addEventListener('load', () => {
       if (f.size > 8 * 1024 * 1024) { alert('image too large (>8MB)'); return; }
       try {
         const dataUrl = await resizeToDataUrl(f, 256);
-        setPreview(dataUrl);
-        savePfp(dataUrl);
+        setPreview(dataUrl); // show preview immediately
+        const address = await uploadToServer(dataUrl);
+        // Refresh on-screen avatar with the new server URL
+        const url = pfpUrl(address);
+        setNavAvatar(url);
+        setYouSeatAvatar(url);
       } catch (err) {
-        alert('could not load image');
         console.error(err);
+        alert(`Upload failed: ${err.message || 'unknown'}`);
       } finally {
         fileInput.value = '';
       }
     });
 
-    /* ---------- Apply on load ---------- */
-    if (document.readyState !== 'loading') {
-      applyPfp();
-    } else {
-      document.addEventListener('DOMContentLoaded', applyPfp);
+    /* ---------- on load: silently check connected wallet ---------- */
+    async function initPfp() {
+      let addr = null;
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length) addr = accounts[0];
+        } catch {}
+      }
+      if (!addr) addr = loadCachedAddr();
+      applyPfpFor(addr);
     }
 
-    /* ---------- FREE-PLAY eligibility check (100K MOLLY hold) ---------- */
-    async function checkMollyEligibility() {
+    if (document.readyState !== 'loading') initPfp();
+    else document.addEventListener('DOMContentLoaded', initPfp);
+
+    window.ethereum?.on?.('accountsChanged', (accounts) => {
+      const a = accounts[0] || null;
+      saveCachedAddr(a);
+      applyPfpFor(a);
+      checkEligibility();
+    });
+
+    /* ---------- FREE-PLAY eligibility (server endpoint backed by QuickNode) ---------- */
+    async function checkEligibility() {
       const status = document.getElementById('fpStatus');
       if (!status) return;
-      if (typeof window.ethereum === 'undefined') {
-        status.textContent = '🟠 connect wallet to verify · MetaMask required';
+
+      let addr = null;
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length) addr = accounts[0];
+        } catch {}
+      }
+      if (!addr) {
+        status.textContent = '🟠 connect wallet to verify your 100K MOLLY hold';
         status.className = 'fp-status warn';
         return;
       }
       try {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (!accounts.length) {
-          status.textContent = '🟠 connect wallet to verify your 100K MOLLY hold';
-          status.className = 'fp-status warn';
-          return;
-        }
-        const me = accounts[0];
-        // balanceOf(address) = 0x70a08231 + padded address
-        const data = '0x70a08231' + me.slice(2).padStart(64, '0').toLowerCase();
-        const result = await window.ethereum.request({
-          method: 'eth_call',
-          params: [{ to: MOLLY_TOKEN, data }, 'latest'],
-        });
-        const balance = BigInt(result);
-        const formatted = (balance / 10n ** 18n).toLocaleString();
-        if (balance >= HOLD_REQUIRED) {
-          status.textContent = `✅ eligible · holding ${formatted} MOLLY`;
+        const res = await fetch(`${PFP_API}/eligibility/${addr}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const bal = Number(data.balanceMolly || 0).toLocaleString();
+        if (data.eligible) {
+          status.textContent = `✅ eligible · holding ${bal} MOLLY`;
           status.className = 'fp-status ok';
         } else {
-          status.textContent = `🔒 need 100K MOLLY · you hold ${formatted}`;
+          status.textContent = `🔒 need 100K MOLLY · you hold ${bal}`;
           status.className = 'fp-status bad';
         }
-      } catch (err) {
-        console.error('[free-play] balance check failed:', err);
-        const status = document.getElementById('fpStatus');
+      } catch (e) {
+        console.error('[eligibility]', e.message);
         status.textContent = '🟠 could not verify — try refreshing';
         status.className = 'fp-status warn';
       }
     }
-    setTimeout(checkMollyEligibility, 800);
-    window.ethereum?.on?.('accountsChanged', () => setTimeout(checkMollyEligibility, 200));
+    setTimeout(checkEligibility, 600);
   })();
 </script>
 

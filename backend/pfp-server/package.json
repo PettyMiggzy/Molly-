@@ -1,0 +1,17 @@
+{
+  "name": "molly-pfp-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stores Molly profile pictures keyed by wallet address. Signed uploads, on-chain MOLLY balance gate, QuickNode RPC.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.0",
+    "express": "^4.19.2"
+  }
+}
