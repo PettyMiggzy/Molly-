@@ -675,6 +675,9 @@
     <div class="hero">
       <h1>The Backroom</h1>
       <div class="sub">live tables · real money · no quarter</div>
+      <div style="margin-top:18px;">
+        <button class="btn btn-primary" id="createTableBtn" disabled style="font-size:13px; padding:11px 22px;">+ CREATE TABLE</button>
+      </div>
     </div>
 
     <div id="lobbyBody">
@@ -745,6 +748,28 @@
   </div>
 </div>
 
+<!-- ===== CREATE TABLE MODAL ===== -->
+<div class="modal-overlay" id="createTableModal">
+  <div class="modal">
+    <h2>Create a Table</h2>
+    <div class="modal-text">
+      Anyone can create a table for their token. Standard buy-in is 100,000 tokens, big blind is 1% of buy-in, but you can override below. Non-MOLLY tokens must have a Uniswap V3 pool against WMON.
+    </div>
+    <label>TOKEN ADDRESS</label>
+    <input type="text" id="ctToken" placeholder="0x... (defaults to MOLLY)" style="font-family:var(--mono); font-size:11px;">
+    <label style="margin-top:14px;">BUY-IN (tokens)</label>
+    <input type="number" id="ctBuyIn" value="100000">
+    <label style="margin-top:14px;">BIG BLIND (tokens)</label>
+    <input type="number" id="ctBigBlind" value="1000">
+    <label style="margin-top:14px;">MAX PLAYERS</label>
+    <input type="number" id="ctMaxPlayers" value="6" min="2" max="9">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="ctCancel">CANCEL</button>
+      <button class="btn btn-primary" id="ctConfirm">CREATE TABLE</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== TOAST ===== -->
 <div class="toast" id="toast"></div>
 
@@ -770,6 +795,7 @@ const MOLLY_POKER_ABI = [
   'function getCommunityCards(uint256) view returns (uint8[])',
   'function getRound(uint256, uint256) view returns (bool state, uint256 turn, address[] players, uint256 highestChip, uint256[] roundChips, bool[] folded, uint256 actsSinceReset)',
   'function chips(address, uint256) view returns (uint256)',
+  'function createTable(uint256 _buyInAmount, uint256 _maxPlayers, uint256 _bigBlind, address _token)',
   'function buyIn(uint256 tableId, uint256 amount)',
   'function playHand(uint256 tableId, uint8 action, uint256 raiseAmount)',
   'function leaveTable(uint256 tableId)',
@@ -800,6 +826,7 @@ const State = {
   currentRound: null,      // { players, chips, folded, lastActionTime }
   community: [],
   pendingBuyInTableId: null,
+  tokenSymbols: new Map(), // lowercased addr → { symbol, decimals }
 };
 
 /* ===== UI HELPERS ===== */
@@ -945,6 +972,7 @@ async function connectWallet() {
 
     await refreshWalletInfo();
     renderWalletBar();
+    $('createTableBtn').disabled = false;
     await openDealer();
     await loadTables();
 
@@ -1245,16 +1273,21 @@ async function loadTablesFromChain() {
   }
 }
 
-function renderTableList() {
+async function renderTableList() {
   const body = $('lobbyBody');
   body.innerHTML = '';
   if (State.tablesCache.length === 0) {
     const panel = document.createElement('div');
     panel.className = 'info-panel';
-    panel.textContent = 'No tables exist yet. Be the first — table creation coming soon.';
+    panel.textContent = 'No tables exist yet. Click + CREATE TABLE to start one.';
     body.appendChild(panel);
     return;
   }
+
+  // Pre-resolve all token symbols so the lobby renders synchronously
+  const uniqueTokens = [...new Set(State.tablesCache.map(t => t.token.toLowerCase()))];
+  await Promise.all(uniqueTokens.map(t => getTokenInfo(t)));
+
   const grid = document.createElement('div');
   grid.className = 'table-list';
   for (const t of State.tablesCache) {
@@ -1262,6 +1295,7 @@ function renderTableList() {
     card.className = 'table-card';
     const stateClass = String(t.state).toLowerCase();
     const isMolly = t.token.toLowerCase() === MOLLY_ADDRESS.toLowerCase();
+    const info = State.tokenSymbols.get(t.token.toLowerCase()) || { symbol: 'TKN', decimals: 18 };
 
     // M2 — every interpolated value is server/contract-derived but we still
     // build via createElement + textContent to keep the pattern safe.
@@ -1273,7 +1307,7 @@ function renderTableList() {
     card.appendChild(badge);
 
     const label = document.createElement('div');
-    label.className = 'label'; label.textContent = 'TABLE'; card.appendChild(label);
+    label.className = 'label'; label.textContent = info.symbol + ' TABLE'; card.appendChild(label);
 
     const title = document.createElement('div');
     title.className = 'title'; title.textContent = '#' + t.tableId; card.appendChild(title);
@@ -1284,11 +1318,12 @@ function renderTableList() {
       const right = document.createElement('span'); right.className = 'v ' + cls; right.textContent = v;
       row.append(left, right); return row;
     };
-    card.appendChild(mkRow('Buy-in', fmtMolly(t.buyIn) + (isMolly ? ' MOLLY' : ' tkn'), isMolly ? 'molly' : 'pink'));
-    card.appendChild(mkRow('Big blind', fmtMolly(t.bigBlind)));
-    card.appendChild(mkRow('Seats', t.seated + '/' + t.maxPlayers));
+    const fmtAmt = (raw) => ethers.formatUnits(raw, info.decimals);
+    card.appendChild(mkRow('Buy-in',     fmtAmt(t.buyIn)   + ' ' + info.symbol, isMolly ? 'molly' : 'pink'));
+    card.appendChild(mkRow('Big blind',  fmtAmt(t.bigBlind) + ' ' + info.symbol));
+    card.appendChild(mkRow('Seats',      t.seated + '/' + t.maxPlayers));
     card.appendChild(mkRow('Hands played', String(t.totalHands), 'gold'));
-    card.appendChild(mkRow('Pot', fmtMolly(t.pot), 'gold'));
+    card.appendChild(mkRow('Pot',        fmtAmt(t.pot) + ' ' + info.symbol, 'gold'));
 
     const cta = document.createElement('button');
     cta.className = 'btn btn-primary cta';
@@ -1357,6 +1392,94 @@ async function confirmBuyIn() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'APPROVE & BUY-IN';
+  }
+}
+
+/* ===== TOKEN INFO CACHE ===== */
+async function getTokenInfo(addr) {
+  const key = addr.toLowerCase();
+  if (State.tokenSymbols.has(key)) return State.tokenSymbols.get(key);
+  // MOLLY is always known
+  if (key === MOLLY_ADDRESS.toLowerCase()) {
+    const info = { symbol: 'MOLLY', decimals: 18 };
+    State.tokenSymbols.set(key, info);
+    return info;
+  }
+  try {
+    const erc20 = new ethers.Contract(addr, ERC20_ABI, State.provider);
+    const [symbol, decimals] = await Promise.all([
+      erc20.symbol().catch(() => 'TKN'),
+      erc20.decimals().catch(() => 18),
+    ]);
+    const info = { symbol, decimals: Number(decimals) };
+    State.tokenSymbols.set(key, info);
+    return info;
+  } catch (e) {
+    const info = { symbol: 'TKN', decimals: 18 };
+    State.tokenSymbols.set(key, info);
+    return info;
+  }
+}
+
+/* ===== CREATE TABLE ===== */
+function openCreateTableModal() {
+  if (!State.contract) { toast('connect wallet first', 'bad'); return; }
+  $('ctToken').value = MOLLY_ADDRESS;
+  $('ctBuyIn').value = '100000';
+  $('ctBigBlind').value = '1000';
+  $('ctMaxPlayers').value = '6';
+  $('createTableModal').classList.add('active');
+}
+
+async function confirmCreateTable() {
+  const tokenInput = $('ctToken').value.trim() || MOLLY_ADDRESS;
+  const buyInStr   = $('ctBuyIn').value.trim();
+  const bbStr      = $('ctBigBlind').value.trim();
+  const maxPlayers = Number($('ctMaxPlayers').value);
+
+  // Pre-flight validation
+  let tokenAddr;
+  try { tokenAddr = ethers.getAddress(tokenInput); }
+  catch (e) { toast('invalid token address', 'bad'); return; }
+
+  if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 9) {
+    toast('max players must be 2-9', 'bad'); return;
+  }
+
+  let info;
+  try { info = await getTokenInfo(tokenAddr); }
+  catch (e) { toast('could not read token decimals', 'bad'); return; }
+
+  let buyIn, bigBlind;
+  try {
+    buyIn    = ethers.parseUnits(buyInStr, info.decimals);
+    bigBlind = ethers.parseUnits(bbStr,    info.decimals);
+  } catch (e) { toast('invalid amounts', 'bad'); return; }
+
+  if (buyIn <= 0n)      { toast('buy-in must be > 0', 'bad'); return; }
+  if (bigBlind <= 0n)   { toast('big blind must be > 0', 'bad'); return; }
+  if (bigBlind > buyIn) { toast('big blind cannot exceed buy-in', 'bad'); return; }
+
+  const btn = $('ctConfirm');
+  btn.disabled = true;
+  btn.textContent = 'CREATING...';
+
+  try {
+    log(`creating table: ${buyInStr} ${info.symbol} buy-in, ${bbStr} BB, max ${maxPlayers}`, 'event');
+    const tx = await State.contract.createTable(buyIn, maxPlayers, bigBlind, tokenAddr);
+    log(`createTable tx: ${tx.hash}`, 'event');
+    await waitForReceipt(tx.hash);
+    log(`✓ table created`, 'good');
+    toast(`new ${info.symbol} table is live`, 'good');
+    $('createTableModal').classList.remove('active');
+    await loadTables();
+  } catch (e) {
+    const msg = e.shortMessage || e.message || 'createTable failed';
+    log('createTable failed: ' + msg, 'bad');
+    toast(msg, 'bad');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'CREATE TABLE';
   }
 }
 
@@ -1537,6 +1660,11 @@ document.addEventListener('DOMContentLoaded', () => {
     State.pendingBuyInTableId = null;
   });
   $('buyInConfirm').addEventListener('click', confirmBuyIn);
+
+  // Create Table modal
+  $('createTableBtn').addEventListener('click', openCreateTableModal);
+  $('ctCancel').addEventListener('click', () => $('createTableModal').classList.remove('active'));
+  $('ctConfirm').addEventListener('click', confirmCreateTable);
 
   $('actionBar').addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');
