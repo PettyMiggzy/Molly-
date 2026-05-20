@@ -870,6 +870,32 @@ function cardEl(card, faceDown = false) {
   return div;
 }
 
+/* ===== TX RECEIPT POLL =====
+   Monad's public RPC sometimes returns transaction objects with nonce
+   as the literal string "undefined", which crashes ethers v6's
+   formatTransactionResponse. tx.wait() calls getTransaction internally
+   and hits this bug. Workaround: poll getTransactionReceipt directly —
+   receipts don't include the buggy nonce field. */
+async function waitForReceipt(hash, timeoutMs = 90_000) {
+  const start = Date.now();
+  let delay = 1500;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const rcpt = await State.provider.getTransactionReceipt(hash);
+      if (rcpt) {
+        if (rcpt.status === 0) throw new Error(`tx reverted: ${hash}`);
+        return rcpt;
+      }
+    } catch (e) {
+      // Some RPC errors are transient; keep polling unless it was a hard revert
+      if (e.message && e.message.startsWith('tx reverted')) throw e;
+    }
+    await new Promise(r => setTimeout(r, delay));
+    delay = Math.min(delay + 500, 3000);
+  }
+  throw new Error(`tx not confirmed after ${timeoutMs / 1000}s: ${hash}`);
+}
+
 /* ===== WALLET ===== */
 async function connectWallet() {
   if (!window.ethereum) {
@@ -1310,13 +1336,13 @@ async function confirmBuyIn() {
       btn.textContent = 'APPROVING…';
       const tx = await State.molly.approve(CONTRACT_ADDRESS, amount);
       log(`approve tx: ${tx.hash}`, 'event');
-      await tx.wait();
+      await waitForReceipt(tx.hash);
       log('approve confirmed', 'good');
     }
     btn.textContent = 'BUYING IN…';
     const tx2 = await State.contract.buyIn(tableId, amount);
     log(`buyIn tx: ${tx2.hash}`, 'event');
-    await tx2.wait();
+    await waitForReceipt(tx2.hash);
     log('bought in!', 'good');
     toast('Bought in', 'success');
 
@@ -1354,7 +1380,7 @@ async function leaveRoom() {
     try {
       const tx = await State.contract.leaveTable(State.currentTableId);
       log(`leaveTable tx: ${tx.hash}`, 'event');
-      await tx.wait();
+      await waitForReceipt(tx.hash);
       log('left table on-chain', 'good');
     } catch (e) {
       log('leaveTable failed: ' + (e.shortMessage || e.message), 'bad');
@@ -1489,7 +1515,7 @@ async function doAction(action) {
     const tx = await State.contract.playHand(State.currentTableId, action, amount);
     log(`${ACTION_NAMES[action]} tx: ${tx.hash}`, 'event');
     toast(`${ACTION_NAMES[action]} submitted`, 'success');
-    await tx.wait();
+    await waitForReceipt(tx.hash);
     log(`${ACTION_NAMES[action]} confirmed`, 'good');
   } catch (e) {
     log(`${ACTION_NAMES[action]} failed: ${e.shortMessage || e.message}`, 'bad');
