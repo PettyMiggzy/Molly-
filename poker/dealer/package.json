@@ -1,0 +1,21 @@
+{
+  "name": "molly-poker-dealer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Off-chain dealer for MollyPoker \u2014 WebSocket server that runs hands and submits showdown txs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "ws": "^8.18.0",
+    "pokersolver": "^2.1.4",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module"
+}
