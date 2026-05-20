@@ -26,7 +26,7 @@
  */
 const hre = require("hardhat");
 
-const MOLLY_POKER = "0x61bE14a42E6a233120aaec95658b5187AE99b814";
+const MOLLY_POKER = "0x3af41a15b41c998C0937310cF1bc45113e5f23fd";
 const MOLLY_TOKEN = "0xB72e6262DAE53cAF167F0966421a0B9782977777";
 
 async function main() {
