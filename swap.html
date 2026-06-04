@@ -626,9 +626,7 @@
     });
     $('connectPill').addEventListener('click', tryConnect);
     $('actionBtn').addEventListener('click', doSwap);
-    if (window.ethereum && window.ethereum.selectedAddress){
-      tryConnect();
-    }
+    // auto-connect removed — wallet only on explicit tap (avoids MetaMask flagging)
   }
   if (document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);

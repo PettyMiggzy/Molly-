@@ -1746,6 +1746,7 @@
 
   // ===== AUTOCONNECT IF PREVIOUSLY CONNECTED =====
   async function tryAutoConnect() {
+    return; // auto-connect disabled
     if (!window.ethereum) return;
     try {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
