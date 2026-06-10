@@ -1015,6 +1015,7 @@
   const STAKING_ADDR = '0xFa45c43d74382D99649ecE4CFD2823148A17C912';
   const MOLLY_ADDR   = '0xB72e6262DAE53cAF167F0966421a0B9782977777';
   const RPC_URL      = 'https://rpc.monad.xyz';
+  const READ_RPC     = (typeof location !== 'undefined' && location.origin ? location.origin : '') + '/api/rpc';
   const CHAIN_ID     = 143;
   const CHAIN_HEX    = '0x8f';
 
@@ -1062,7 +1063,7 @@
   };
 
   // Read-only provider for instant pool stats before wallet connect
-  state.provider = new JsonRpcProvider(RPC_URL, CHAIN_ID);
+  state.provider = new JsonRpcProvider(READ_RPC, CHAIN_ID);
   state.staking = new Contract(STAKING_ADDR, STAKING_ABI, state.provider);
   state.molly = new Contract(MOLLY_ADDR, ERC20_ABI, state.provider);
 
