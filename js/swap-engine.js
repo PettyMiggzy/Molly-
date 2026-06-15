@@ -262,7 +262,8 @@ async function executeSwap({from, to, amountHuman, slippageBps, account, onAppro
     const current = await tokenAllowance(fromAddr, account, spender);
     if (current < amountInWei){
       if (onApproveStarted) onApproveStarted();
-      const approveData = tokenIface.encodeFunctionData('approve', [spender, (2n**256n - 1n)]);
+      // Exact-amount approval (not MaxUint256) — unlimited approvals trigger MetaMask/Blockaid spending-cap warnings.
+      const approveData = tokenIface.encodeFunctionData('approve', [spender, amountInWei]);
       const simA = await simulateCall(fromAddr, approveData, account, null);
       if (!simA.ok) throw new Error('Approve will fail: ' + explainRevert(simA.error));
       const approveTx = await sendTx({ from: account, to: fromAddr, data: approveData });
