@@ -1587,6 +1587,11 @@
     };
     if (value && value > 0n) txParams.value = '0x' + value.toString(16);
 
+    // Pre-simulate so a would-revert tx never reaches the wallet (avoids the
+    // MetaMask/Phantom 'can't verify' warning; a reverting tx is the #1 cause).
+    try { await window.ethereum.request({ method: 'eth_call', params: [txParams, 'latest'] }); }
+    catch (_e) { throw new Error('Transaction would fail — check balances/allowance and try again.'); }
+
     const hash = await window.ethereum.request({
       method: 'eth_sendTransaction',
       params: [txParams],
