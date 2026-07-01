@@ -1606,8 +1606,8 @@
     try { amtWei = parseEther(amtStr); } catch { toast('Invalid amount', 'err'); return; }
     try {
       toast('Approving MOLLY…');
-      const MAX = (1n << 256n) - 1n;
-      const hash = await sendContractTx(state.mollyW, 'approve', [STAKING_ADDR, MAX]);
+      // Exact-amount approve (not infinite) — clears MetaMask/Blockaid spending-cap warning.
+      const hash = await sendContractTx(state.mollyW, 'approve', [STAKING_ADDR, amtWei]);
       toast('Approval sent · waiting…', '', hash);
       await waitForTx(hash);
       toast('Approved ✓', 'ok');
